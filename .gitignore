@@ -1,0 +1,6 @@
+.DS_Store
+.build/
+Packages/
+institute.xcworkspace/xcshareddata/swiftpm/Package.resolved
+xcuserdata/
+*.xcuserstate

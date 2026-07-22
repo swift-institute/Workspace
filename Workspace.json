@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "scope": "proof",
+  "swift": "6.3.3",
+  "xcode": "26.6",
+  "repositories": [
+    {
+      "name": "swift-dimension-primitives",
+      "url": "https://github.com/swift-primitives/swift-dimension-primitives.git",
+      "layer": "primitives"
+    },
+    {
+      "name": "swift-color-standard",
+      "url": "https://github.com/swift-standards/swift-color-standard.git",
+      "layer": "standards"
+    },
+    {
+      "name": "swift-color",
+      "url": "https://github.com/swift-foundations/swift-color.git",
+      "layer": "foundations"
+    }
+  ]
+}
