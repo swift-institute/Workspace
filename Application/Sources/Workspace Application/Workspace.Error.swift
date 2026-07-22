@@ -1,14 +1,12 @@
 extension Workspace {
     public enum Error: Swift.Error, CustomStringConvertible {
-        case arguments(String)
-        case configuration(String)
-        case filesystem(String)
-        case process(String)
-        case repository(String)
+        case configuration(Swift.String)
+        case filesystem(Swift.String)
+        case process(Swift.String)
+        case repository(Swift.String)
 
-        public var description: String {
+        public var description: Swift.String {
             switch self {
-            case .arguments(let message): message
             case .configuration(let message): message
             case .filesystem(let message): message
             case .process(let message): message

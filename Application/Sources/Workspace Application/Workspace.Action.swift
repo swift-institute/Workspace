@@ -1,12 +1,14 @@
+public import Git_Foundation
+
 extension Workspace {
     public enum Action: Equatable, Sendable {
         case clone
         case current
-        case update
-        case skip(String)
-        case fail(String)
+        case update(Git.Object.ID)
+        case skip(Swift.String)
+        case fail(Swift.String)
 
-        public var text: String {
+        public var text: Swift.String {
             switch self {
             case .clone: "clone"
             case .current: "current"

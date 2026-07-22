@@ -20,7 +20,7 @@ swift-dimension-primitives → swift-color-standard → swift-color
 ```sh
 git clone https://github.com/swift-institute/Workspace.git
 cd Workspace
-swift run workspace sync
+swift run --package-path Application workspace sync
 open institute.xcworkspace
 ```
 
@@ -29,13 +29,13 @@ open institute.xcworkspace
 Preview the plan without changing files or Git metadata:
 
 ```sh
-swift run workspace sync --dry-run
+swift run --package-path Application workspace sync --dry-run
 ```
 
 Check the checkout, canonical remotes, branches, upstreams, package identities, toolchain, and relative workspace references:
 
 ```sh
-swift run workspace doctor
+swift run --package-path Application workspace doctor
 ```
 
 Dirty worktrees and feature branches are reported as warnings and remain untouched. Identity, remote, upstream, divergence, toolchain, missing-package, and workspace-reference problems are errors.
@@ -44,6 +44,7 @@ Dirty worktrees and feature branches are reported as warnings and remain untouch
 
 `Workspace.json` is the public source of truth. Its schema is intended to grow to every public,
 non-archived Swift Institute package. The initial roster contains the three-repository proof
-chain plus `swift-url-routing`, which is included as the first active migration workspace.
+chain plus `swift-url-routing` and `swift-http-body`, which are included for the active
+URL-routing and HTTP-body migration workspace.
 
 The Xcode workspace uses only relative `Packages/<repository>` references. Non-selected transitive dependencies still resolve from their canonical remote URLs during this bounded proof.

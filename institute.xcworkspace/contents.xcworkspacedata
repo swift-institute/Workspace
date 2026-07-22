@@ -2,6 +2,9 @@
 <Workspace
    version = "1.0">
    <FileRef
+      location = "group:Application">
+   </FileRef>
+   <FileRef
       location = "group:Packages/swift-dimension-primitives">
    </FileRef>
    <FileRef
@@ -12,5 +15,8 @@
    </FileRef>
    <FileRef
       location = "group:Packages/swift-url-routing">
+   </FileRef>
+   <FileRef
+      location = "group:Packages/swift-http-body">
    </FileRef>
 </Workspace>

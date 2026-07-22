@@ -1,5 +1,6 @@
 .DS_Store
 .build/
+.swiftpm/
 Packages/
 institute.xcworkspace/xcshareddata/swiftpm/Package.resolved
 xcuserdata/

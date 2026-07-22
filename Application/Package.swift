@@ -1,0 +1,69 @@
+// swift-tools-version: 6.3.3
+
+import PackageDescription
+
+let package = Package(
+    name: "workspace",
+    platforms: [
+        .macOS(.v26)
+    ],
+    products: [
+        .library(
+            name: "Workspace Application",
+            targets: ["Workspace Application"]
+        ),
+        .executable(
+            name: "workspace",
+            targets: ["Workspace CLI"]
+        )
+    ],
+    dependencies: [
+        .package(url: "https://github.com/swift-foundations/swift-arguments.git", branch: "main"),
+        .package(url: "https://github.com/swift-foundations/swift-environment.git", branch: "main"),
+        .package(url: "https://github.com/swift-foundations/swift-file-system.git", branch: "main"),
+        .package(url: "https://github.com/swift-foundations/swift-git.git", branch: "main"),
+        .package(url: "https://github.com/swift-foundations/swift-json.git", branch: "main"),
+        .package(url: "https://github.com/swift-foundations/swift-package-manager.git", branch: "main"),
+        .package(url: "https://github.com/swift-foundations/swift-process.git", branch: "main"),
+        .package(url: "https://github.com/swift-foundations/swift-xcode.git", branch: "main")
+    ],
+    targets: [
+        .target(
+            name: "Workspace Application",
+            dependencies: [
+                .product(name: "Command", package: "swift-arguments"),
+                .product(name: "Environment", package: "swift-environment"),
+                .product(name: "File System", package: "swift-file-system"),
+                .product(name: "Git", package: "swift-git"),
+                .product(name: "JSON", package: "swift-json"),
+                .product(name: "Package Manager", package: "swift-package-manager"),
+                .product(name: "Process", package: "swift-process"),
+                .product(name: "Xcode Workspace", package: "swift-xcode")
+            ]
+        ),
+        .executableTarget(
+            name: "Workspace CLI",
+            dependencies: [
+                "Workspace Application",
+                .product(name: "Command", package: "swift-arguments")
+            ]
+        ),
+        .testTarget(
+            name: "Workspace Application Tests",
+            dependencies: ["Workspace Application"],
+            path: "Tests/Workspace Application Tests"
+        ),
+    ],
+    swiftLanguageModes: [.v6]
+)
+
+for target in package.targets where ![.system, .binary, .plugin, .macro].contains(target.type) {
+    target.swiftSettings =
+        (target.swiftSettings ?? []) + [
+            .strictMemorySafety(),
+            .enableUpcomingFeature("ExistentialAny"),
+            .enableUpcomingFeature("InternalImportsByDefault"),
+            .enableUpcomingFeature("MemberImportVisibility"),
+            .enableUpcomingFeature("NonisolatedNonsendingByDefault"),
+        ]
+}

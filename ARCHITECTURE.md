@@ -1,0 +1,180 @@
+# Workspace Architecture
+
+## Mission
+
+Workspace is a thin Layer-5 application that discovers eligible public Swift Institute
+repositories, plans safe synchronization, reports policy violations, and composes the Institute
+packages that own Git, SwiftPM, Xcode, JSON, XML, filesystem, process, and GitHub behavior.
+
+Workspace owns application policy only:
+
+- public and non-archived repository eligibility;
+- synchronization safety and dry-run guarantees;
+- doctor severity policy;
+- deterministic inventory and workspace orchestration;
+- command-line composition.
+
+It does not own representations or operational clients for external systems.
+
+## Application layout
+
+`Application/` is the Swift package for the command-line product. The repository root contains
+the shared inventory and generated workspace so future end-user applications can be added as
+sibling directories without turning the command-line package into the repository root.
+
+```text
+Workspace/
+├── Application/                 Layer-5 Swift package
+│   ├── Sources/
+│   │   ├── Workspace Application/
+│   │   └── Workspace CLI/
+│   └── Tests/
+├── Workspace.json              application-owned inventory policy
+├── Packages/                   ignored synchronized repositories
+└── institute.xcworkspace/      deterministic generated workspace
+```
+
+Names such as `macOS Application/` and `iOS Application/` are reserved for concrete future
+products. A generic `Application/` container is not introduced until more than one graphical
+application establishes a coherent shared hierarchy.
+
+## Package missions and layers
+
+| Package | Layer | Mission |
+| --- | ---: | --- |
+| `swift-package-primitives` | 1 | Provide atomic package, product, and target identity types. |
+| `swift-spm-standard` | 2 | Model externally defined SwiftPM manifest and dependency representations. |
+| `swift-git-standard` | 2 | Model specified Git object IDs, refs, advertisements, status records, and implemented repository formats. |
+| `swift-xcode-standard` | 2 provisional | Model researched Xcode workspace and scheme serialization terms without claiming an Apple-published complete specification. |
+| `swift-github-standard` | 2 planned | Model GitHub wire representations after deliberate migration from `swift-github-types`. |
+| `swift-file-system` | 3 | Own typed filesystem inspection, atomic writes, moves, deletion, and temporary-path operations. |
+| `swift-arguments` | 3 | Own schema-driven command parsing, help, diagnostics, and process-runner composition. |
+| `swift-environment` | 3 | Own Foundation-free access to the invoking process environment. |
+| `swift-process` | 3 | Own Foundation-free process spawning, capture, termination, and current-process exit. |
+| `swift-json` | 3 | Own JSON parsing, serialization, and format-specific value conversion. |
+| `swift-xml` | 3 | Own XML document composition and serialization used by Xcode operations. |
+| `swift-git` | 3 | Execute Git operations and translate command output into `swift-git-standard` representations. |
+| `swift-xcode` | 3 | Generate and atomically write Xcode workspace and scheme artifacts using `swift-xml`. |
+| `swift-package-manager` | 3 | Execute installed SwiftPM operations and return `swift-spm-standard` values. |
+| `swift-package-graph` | 3 | Compose manifest values into package dependency graphs. |
+| `swift-github` | 3 planned | Own authenticated GitHub operations and pagination over `swift-github-standard` values. |
+| `Workspace/Application` | 5 | Apply Institute eligibility, sync-safety, diagnostic, and inventory policy through the lower-layer packages. |
+
+## Products and targets
+
+| Package | Product | Target | Public surface |
+| --- | --- | --- | --- |
+| `swift-git-standard` | `Git Standard` | `Git Standard` | `Git.Object`, `Git.Ref`, `Git.Status` |
+| `swift-git` | `Git` | `Git Foundation` | `Git.Client` |
+| `swift-xcode-standard` | `Xcode Workspace Standard` | same | `Xcode.Workspace` representations |
+| `swift-xcode-standard` | `Xcode Scheme Standard` | same | `Xcode.Scheme` representations |
+| `swift-xcode` | `Xcode Workspace` | same | workspace XML and atomic write operations |
+| `swift-xcode` | `Xcode Scheme` | same | scheme XML and atomic write operations |
+| `swift-package-manager` | `Package Manager` | same | `Package.Manager` installed-toolchain operations |
+| `Workspace/Application` | `Workspace Application` | same | application policy and orchestration |
+| `Workspace/Application` | `workspace` | `Workspace CLI` | command-line composition only |
+
+`Xcode.Project` and `Xcode.Workspace` remain separate SwiftPM modules and products. Project-file
+support is research-gated and will not be published as a placeholder.
+
+## Dependency legality
+
+Dependencies flow downward by layer. Acyclic same-layer composition is permitted when the edge
+expresses semantic composition and does not manufacture a helper package:
+
+```text
+Workspace/Application (L5)
+├── swift-arguments (L3)
+├── swift-environment (L3)
+├── swift-git (L3) ──────────────── swift-git-standard (L2)
+│   └── swift-process (L3)
+├── swift-xcode (L3) ────────────── swift-xcode-standard (L2 provisional)
+│   ├── swift-xml (L3)
+│   └── swift-file-system (L3)
+├── swift-package-manager (L3) ──── swift-spm-standard (L2)
+│   ├── swift-json (L3)
+│   └── swift-process (L3)
+├── swift-file-system (L3)
+├── swift-json (L3)
+├── swift-process (L3)
+└── future swift-github (L3) ────── future swift-github-standard (L2)
+```
+
+The repaired SwiftPM cascade is
+`swift-package-primitives (L1) → swift-spm-standard (L2) → swift-package-manager / swift-manifests / swift-package-graph (L3)`.
+`swift-spm-standard` must not regain its former upward dependency on `swift-paths`.
+
+## Heritage and decomposition decisions
+
+- `swift-github-types` is not accepted as a Layer-2 foundation because it mixes wire values,
+  client/router behavior, Layer-3 dependencies, and Foundation. Its representations will migrate
+  deliberately into `swift-github-standard`; operational behavior will migrate into
+  `swift-github`. No overlapping third GitHub family is introduced.
+- `swift-plist` currently mixes externally defined property-list formats and Layer-3 composition.
+  A future `swift-plist-standard` plus `swift-plist` split is warranted before OpenStep project
+  serialization, but no package is created until Xcode.Project research fixes the semantic scope.
+- `swift-git-process` is rejected. Process execution is an implementation mechanism of the single
+  `swift-git` operational client, not an integration domain with multiple backends.
+- `swift-workspace-standard` is rejected. `Workspace.json`, sync rules, and doctor severity are
+  Institute application policy, not external standards.
+- W3C XML modules are not used directly for Xcode serialization. `swift-xcode` composes the
+  Layer-3 `swift-xml` foundation.
+
+## Semantic-type follow-up
+
+The first operational slice intentionally establishes ownership before completing type refinement.
+The following raw values require owner-level adjudication:
+
+| Current value | Required direction | Owner |
+| --- | --- | --- |
+| Git working directory `String` | `File.Path` or `File.Directory` | `swift-git` |
+| Git remote `String` | Git remote-location type supporting URI, path, and scp-like syntax | `swift-git-standard` |
+| Git revision-range `String` | typed revision/range expression | `swift-git-standard` |
+| Git status `[UInt8]` paths | `[Byte]` or a typed Git path representation | `swift-git-standard` |
+| SwiftPM operation directory `String` | `File.Directory` | `swift-package-manager` |
+| Workspace repository name `String` | validated `Workspace.Repository.Name` or reused coherent identity | Workspace policy |
+| Workspace repository URL `String` | Git remote-location type | `swift-git-standard` |
+| configured Swift/Xcode version `String` | existing version type where semantics match; otherwise a scoped type | owning standard/application |
+
+Diagnostic prose remains `String`; replacing it would add no semantic information.
+
+## Acceptance gates
+
+### Git vertical slice
+
+- parse official ref advertisements and porcelain status fixtures;
+- prove dirty, feature-branch, wrong-remote, wrong-upstream, and ahead repositories are not
+  rewritten;
+- prove dry-run changes neither files nor Git metadata;
+- clone into a collision-resistant same-filesystem sibling and install by atomic move;
+- fast-forward only an eligible clean `main` checkout.
+
+### Xcode.Workspace vertical slice
+
+- construct a semantic `Xcode.Workspace` value;
+- serialize through `swift-xml` with deterministic relative references;
+- atomically write `contents.xcworkspacedata` through `swift-file-system`;
+- emit no absolute local paths.
+
+### SwiftPM vertical slice
+
+- keep the Layer-1 → Layer-2 → Layer-3 cascade legal;
+- evaluate `swift package dump-package` through `swift-package-manager`;
+- use typed manifest identities in doctor and package-graph operations.
+
+### GitHub inventory slice
+
+- discover every public, non-archived package repository with pagination;
+- exclude private, archived, non-package, and policy-ineligible repositories;
+- produce a stable sort and byte-for-byte deterministic `Workspace.json`;
+- preserve application-owned annotations without duplicating GitHub client behavior.
+
+### Application and release gate
+
+- no Apple Foundation import in any main target;
+- no local Shell, Git client, Xcode serializer, JSON decoder, manifest parser, or filesystem boundary;
+- focused tests for policy plus owner-package tests for every added capability;
+- clean-room resolution after newly created repositories are explicitly made public;
+- `workspace sync --dry-run`, `workspace sync`, and `workspace doctor` pass from a clean clone;
+- CI, README, architecture documentation, and deterministic generated workspace agree;
+- no tag or release until every preceding gate is green.
