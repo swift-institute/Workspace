@@ -18,29 +18,7 @@ extension Workspace {
         }
 
         public static func load(at root: File.Directory) throws(Workspace.Error) -> Self {
-            let file = root[file: "Workspace.json"]
-            let contents: Swift.String
-            do throws(File.System.Read.Full.Error) {
-                contents = try file.read.full { bytes in
-                    var storage = [Byte]()
-                    storage.reserveCapacity(bytes.count)
-                    for index in 0..<bytes.count {
-                        storage.append(bytes[index])
-                    }
-                    return Swift.String(decoding: storage, as: Swift.UTF8.self)
-                }
-            } catch {
-                throw .configuration("cannot read \(file): \(error)")
-            }
-
-            let configuration: Self
-            do throws(JSON.Error) {
-                configuration = try Self(jsonString: contents)
-            } catch {
-                throw .configuration("cannot decode \(file): \(error)")
-            }
-
-            return try configuration.validated()
+            try Document.load(at: root).configuration
         }
 
         public static func serialize(_ value: Self) -> JSON {

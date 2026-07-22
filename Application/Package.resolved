@@ -1,5 +1,5 @@
 {
-  "originHash" : "410912d4c2cadd1d9e8ce740145ec67f65772eee9d8ec8143efd822a6f62186b",
+  "originHash" : "c3bbfe3da68a8226fa451068159a6efb8f3895679938584bc35a8fc24e6b8d29",
   "pins" : [
     {
       "identity" : "swift-affine-primitives",
@@ -578,6 +578,33 @@
       }
     },
     {
+      "identity" : "swift-github",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swift-foundations/swift-github.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "a248823bf423c61fc8d48fee201fd012d7203fe6"
+      }
+    },
+    {
+      "identity" : "swift-github-http",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swift-foundations/swift-github-http.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "48083dc5a29619f017c187ee88463e3ccb4d373f"
+      }
+    },
+    {
+      "identity" : "swift-github-standard",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swift-standards/swift-github-standard.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "368f548deac189ce37510ceea40daf417e4a1dbe"
+      }
+    },
+    {
       "identity" : "swift-glob-primitives",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swift-primitives/swift-glob-primitives.git",
@@ -620,6 +647,15 @@
       "state" : {
         "branch" : "main",
         "revision" : "98cc85bbcffa95a6de751d7fc90428d3df06c201"
+      }
+    },
+    {
+      "identity" : "swift-http-standard",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swift-standards/swift-http-standard.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "d5f39821ca057bd52d5b17ee07fb9271bb7be70f"
       }
     },
     {
@@ -1037,6 +1073,24 @@
       }
     },
     {
+      "identity" : "swift-radix-formatter-primitives",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swift-primitives/swift-radix-formatter-primitives.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "8b663c640f9615d07cb6a84b6ceba35f2d20c826"
+      }
+    },
+    {
+      "identity" : "swift-radix-primitives",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swift-primitives/swift-radix-primitives.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "a4228c3261a26399e7dc07a694efe9dbc3d6bf66"
+      }
+    },
+    {
       "identity" : "swift-random-primitives",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swift-primitives/swift-random-primitives.git",
@@ -1052,6 +1106,24 @@
       "state" : {
         "branch" : "main",
         "revision" : "e6b75fe7c0eaba2c2f7d81aea3fea54a307e6ed5"
+      }
+    },
+    {
+      "identity" : "swift-rfc-1035",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swift-ietf/swift-rfc-1035.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "5835e11166c8643e6b9bb0cbe4a33817e6b14ceb"
+      }
+    },
+    {
+      "identity" : "swift-rfc-1123",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swift-ietf/swift-rfc-1123.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "795c46200c9caa10bfc78f4f87d459a42ccff650"
       }
     },
     {
@@ -1100,6 +1172,15 @@
       }
     },
     {
+      "identity" : "swift-rfc-5322",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swift-ietf/swift-rfc-5322.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "fc50e037ea20ba2072913ee72c636f98d6b23482"
+      }
+    },
+    {
       "identity" : "swift-rfc-5952",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swift-ietf/swift-rfc-5952.git",
@@ -1124,6 +1205,42 @@
       "state" : {
         "branch" : "main",
         "revision" : "2ef21ed5602a4e1a3763afaf6d9c4d106fcaf0a3"
+      }
+    },
+    {
+      "identity" : "swift-rfc-8288",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swift-ietf/swift-rfc-8288.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "a57596f70961a0603b68931c18ce7afcd5420c2d"
+      }
+    },
+    {
+      "identity" : "swift-rfc-9110",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swift-ietf/swift-rfc-9110.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "7f7907752612cead782560b7fdcca92677618fcb"
+      }
+    },
+    {
+      "identity" : "swift-rfc-9111",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swift-ietf/swift-rfc-9111.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "284392d91ddc35b3d4e8c5cf52afd38964dd727a"
+      }
+    },
+    {
+      "identity" : "swift-rfc-9112",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swift-ietf/swift-rfc-9112.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "3fb45a017da3ff4fc85e19eec83fb5e3ff118aad"
       }
     },
     {

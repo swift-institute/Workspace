@@ -1,6 +1,5 @@
 import GitHub
 import GitHub_HTTP
-import RFC_9110
 import Testing
 
 @testable import Workspace_Application
@@ -16,7 +15,7 @@ extension Workspace.Inventory.Test.Unit {
                     request.target.rawValue
                         == "https://api.github.com/repos/swift-foundations/swift-github/contents/Package.swift"
                 )
-                return .init(status: .notFound)
+                return .init(status: .init(404))
             },
             pagination: .none
         )

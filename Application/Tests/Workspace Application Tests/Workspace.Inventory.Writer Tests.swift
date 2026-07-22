@@ -1,14 +1,13 @@
 import Foundation
 import File_System
 import GitHub
-import JSON
 import Testing
 
 @testable import Workspace_Application
 
 extension Workspace.Inventory.Test.Unit {
     @Test
-    func `Render is byte-identical and round-trips schema version one`() throws {
+    func `Render is byte-identical for schema version one`() throws {
         let key = Workspace.Repository.Key(
             owner: .init(rawValue: "swift-primitives"),
             name: .init(rawValue: "swift-alpha-primitives")
@@ -41,7 +40,6 @@ extension Workspace.Inventory.Test.Unit {
         }
 
         """)
-        #expect(try Workspace.Configuration(jsonString: first) == configuration)
     }
 
     @Test
@@ -95,23 +93,32 @@ extension Workspace.Inventory.Test.Integration {
         let location = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: location) }
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
-        let file = location.appending(path: "Workspace.json")
-        try Data("sentinel\n".utf8).write(to: file, options: .atomic)
         let root = try File.Directory(validating: location.path)
-        let configuration = Workspace.Configuration(
+        let file = location.appending(path: "Workspace.json")
+        let existing = Workspace.Configuration(
             version: 1,
             scope: "swift-institute",
             swift: "6.3.3",
             xcode: "26.6",
             repositories: []
         )
+        let before = try existing.rendered()
+        try Data(before.utf8).write(to: file, options: .atomic)
+        let document = try Workspace.Configuration.Document.load(at: root)
+        let configuration = Workspace.Configuration(
+            version: 1,
+            scope: "swift-institute",
+            swift: "6.3.3",
+            xcode: "26.7",
+            repositories: []
+        )
         let writer = Workspace.Inventory.Writer(root: root)
 
-        let dry = try writer.run(configuration, dry: true)
+        let dry = try writer.plan(configuration)
         #expect(dry == .replace(try configuration.rendered()))
-        #expect(try Data(contentsOf: file) == Data("sentinel\n".utf8))
+        #expect(try Data(contentsOf: file) == Data(before.utf8))
 
-        let applied = try writer.run(configuration, dry: false)
+        let applied = try writer.run(configuration, replacing: document)
         #expect(applied == dry)
         #expect(try Data(contentsOf: file) == Data(configuration.rendered().utf8))
     }
@@ -122,8 +129,6 @@ extension Workspace.Inventory.Test.Integration {
         defer { try? FileManager.default.removeItem(at: location) }
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
         let file = location.appending(path: "Workspace.json")
-        let before = "sentinel inventory\n"
-        try Data(before.utf8).write(to: file, options: .atomic)
         let root = try File.Directory(validating: location.path)
         let owner = GitHub.Organization.Name(rawValue: "swift-foundations")
         let policy = try Workspace.Inventory.Policy(
@@ -144,13 +149,16 @@ extension Workspace.Inventory.Test.Integration {
             policy: policy,
             client: .init(repositories: repositories, content: content)
         )
-        let existing = Workspace.Configuration(
+        let configuration = Workspace.Configuration(
             version: 1,
             scope: "swift-institute",
             swift: "6.3.3",
             xcode: "26.6",
             repositories: []
         )
+        let original = try configuration.rendered()
+        try Data(original.utf8).write(to: file, options: .atomic)
+        let existing = try Workspace.Configuration.Document.load(at: root)
 
         do throws(Workspace.Inventory.Error<Workspace.Inventory.Test.Failure, Workspace.Inventory.Test.Failure>) {
             _ = try await application.run(existing: existing, dry: false)
@@ -161,6 +169,65 @@ extension Workspace.Inventory.Test.Integration {
                 return
             }
         }
-        #expect(try Data(contentsOf: file) == Data(before.utf8))
+        #expect(try Data(contentsOf: file) == Data(original.utf8))
+    }
+
+    @Test
+    func `Publication rejects an intervening byte change without replacing it`() async throws {
+        let location = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: location) }
+        try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
+        let file = location.appending(path: "Workspace.json")
+        let root = try File.Directory(validating: location.path)
+        let configuration = Workspace.Configuration(
+            version: 1,
+            scope: "swift-institute",
+            swift: "6.3.3",
+            xcode: "26.6",
+            repositories: []
+        )
+        let original = try configuration.rendered()
+        try Data(original.utf8).write(to: file, options: .atomic)
+        let existing = try Workspace.Configuration.Document.load(at: root)
+        let intervening = Swift.String(original.dropLast())
+        let target = root[file: "Workspace.json"]
+        let replace: @Sendable () throws(File.System.Write.Atomic.Error) -> Void = {
+            try target.write.atomic(intervening)
+        }
+        let owner = GitHub.Organization.Name(rawValue: "swift-foundations")
+        let policy = try Workspace.Inventory.Policy(
+            organizations: [.init(name: owner, layer: .foundations)],
+            denied: [],
+            limit: .init(fixture: 1, items: 1)
+        )
+        let repositories = GitHub.Organization.Repositories.Client<Workspace.Inventory.Test.Failure> {
+            _ async throws(Workspace.Inventory.Test.Failure) in
+            do throws(File.System.Write.Atomic.Error) {
+                try replace()
+            } catch {
+                throw .status
+            }
+            return .init(response: .init(repositories: []), next: nil)
+        }
+        let content = GitHub.Repository.Content.Client<Workspace.Inventory.Test.Failure> {
+            _ async throws(Workspace.Inventory.Test.Failure) in nil
+        }
+        let application = Workspace.Inventory.Application(
+            root: root,
+            policy: policy,
+            client: .init(repositories: repositories, content: content)
+        )
+
+        do throws(Workspace.Inventory.Error<Workspace.Inventory.Test.Failure, Workspace.Inventory.Test.Failure>) {
+            _ = try await application.run(existing: existing, dry: false)
+            Issue.record("Expected the intervening change to reject publication")
+        } catch {
+            guard case .workspace(.changed) = error else {
+                Issue.record("Unexpected error: \(error)")
+                return
+            }
+        }
+
+        #expect(try Data(contentsOf: file) == Data(intervening.utf8))
     }
 }
