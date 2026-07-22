@@ -5,6 +5,18 @@ extension Workspace {
         case primitives
         case standards
         case foundations
+        case components
+        case applications
+
+        package var order: Int {
+            switch self {
+            case .primitives: 1
+            case .standards: 2
+            case .foundations: 3
+            case .components: 4
+            case .applications: 5
+            }
+        }
 
         public static func serialize(_ value: Self) -> JSON {
             value.rawValue.json

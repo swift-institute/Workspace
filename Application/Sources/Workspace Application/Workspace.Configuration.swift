@@ -40,16 +40,7 @@ extension Workspace {
                 throw .configuration("cannot decode \(file): \(error)")
             }
 
-            guard configuration.version == 1 else {
-                throw .configuration("unsupported Workspace.json version \(configuration.version)")
-            }
-
-            let names = configuration.repositories.map(\.name)
-            guard Set(names).count == names.count else {
-                throw .configuration("Workspace.json contains duplicate repository names")
-            }
-
-            return configuration
+            return try configuration.validated()
         }
 
         public static func serialize(_ value: Self) -> JSON {
@@ -65,6 +56,14 @@ extension Workspace {
         public static func deserialize(_ json: JSON) throws(JSON.Error) -> Self {
             guard let object = json.dictionary else {
                 throw .typeMismatch(expected: "object", got: "non-object")
+            }
+            let expected: Set<Swift.String> = ["version", "scope", "swift", "xcode", "repositories"]
+            let actual = Set(object.keys)
+            guard actual == expected else {
+                throw .typeMismatch(
+                    expected: "Workspace keys version, scope, swift, xcode, and repositories",
+                    got: actual.sorted().joined(separator: ", ")
+                )
             }
             guard let version = object["version"] else { throw .missingKey("version") }
             guard let scope = object["scope"] else { throw .missingKey("scope") }

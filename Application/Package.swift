@@ -21,6 +21,8 @@ let package = Package(
         .package(url: "https://github.com/swift-foundations/swift-arguments.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-environment.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-file-system.git", branch: "main"),
+        .package(url: "https://github.com/swift-foundations/swift-github.git", branch: "main"),
+        .package(url: "https://github.com/swift-foundations/swift-github-http.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-git.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-json.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-package-manager.git", branch: "main"),
@@ -34,6 +36,8 @@ let package = Package(
                 .product(name: "Command", package: "swift-arguments"),
                 .product(name: "Environment", package: "swift-environment"),
                 .product(name: "File System", package: "swift-file-system"),
+                .product(name: "GitHub", package: "swift-github"),
+                .product(name: "GitHub HTTP", package: "swift-github-http"),
                 .product(name: "Git", package: "swift-git"),
                 .product(name: "JSON", package: "swift-json"),
                 .product(name: "Package Manager", package: "swift-package-manager"),
@@ -50,7 +54,13 @@ let package = Package(
         ),
         .testTarget(
             name: "Workspace Application Tests",
-            dependencies: ["Workspace Application"],
+            dependencies: [
+                "Workspace Application",
+                .product(name: "File System", package: "swift-file-system"),
+                .product(name: "GitHub", package: "swift-github"),
+                .product(name: "GitHub HTTP", package: "swift-github-http"),
+                .product(name: "JSON", package: "swift-json"),
+            ],
             path: "Tests/Workspace Application Tests"
         ),
     ],
