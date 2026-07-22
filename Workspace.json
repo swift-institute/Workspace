@@ -23,6 +23,11 @@
       "name": "swift-url-routing",
       "url": "https://github.com/swift-foundations/swift-url-routing.git",
       "layer": "foundations"
+    },
+    {
+      "name": "swift-http-body",
+      "url": "https://github.com/swift-foundations/swift-http-body.git",
+      "layer": "foundations"
     }
   ]
 }
