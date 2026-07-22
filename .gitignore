@@ -2,6 +2,7 @@
 .build/
 .swiftpm/
 Packages/
-institute.xcworkspace/xcshareddata/swiftpm/Package.resolved
+Package.resolved
+**/Package.resolved
 xcuserdata/
 *.xcuserstate
