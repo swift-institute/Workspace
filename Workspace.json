@@ -18,6 +18,11 @@
       "name": "swift-color",
       "url": "https://github.com/swift-foundations/swift-color.git",
       "layer": "foundations"
+    },
+    {
+      "name": "swift-url-routing",
+      "url": "https://github.com/swift-foundations/swift-url-routing.git",
+      "layer": "foundations"
     }
   ]
 }

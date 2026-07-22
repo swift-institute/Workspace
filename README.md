@@ -42,6 +42,8 @@ Dirty worktrees and feature branches are reported as warnings and remain untouch
 
 ## Scope
 
-`Workspace.json` is the public source of truth. Its schema is intended to grow to every public, non-archived Swift Institute package. The initial roster is deliberately limited to three repositories so the synchronization and live local-resolution behavior can be proven before ecosystem-wide expansion.
+`Workspace.json` is the public source of truth. Its schema is intended to grow to every public,
+non-archived Swift Institute package. The initial roster contains the three-repository proof
+chain plus `swift-url-routing`, which is included as the first active migration workspace.
 
 The Xcode workspace uses only relative `Packages/<repository>` references. Non-selected transitive dependencies still resolve from their canonical remote URLs during this bounded proof.
