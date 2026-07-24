@@ -1,4 +1,5 @@
 public import GitHub
+public import Tagged_Primitives
 
 extension Workspace.Repository {
     public struct Key: Equatable, Hashable, Sendable {
@@ -11,7 +12,7 @@ extension Workspace.Repository {
         }
 
         public var url: Swift.String {
-            "https://github.com/\(owner.rawValue)/\(name.rawValue).git"
+            "https://github.com/\(owner.underlying)/\(name.underlying).git"
         }
 
         public init?(repository: Workspace.Repository) {
@@ -32,16 +33,16 @@ extension Workspace.Repository {
             else { return nil }
 
             self.init(
-                owner: .init(rawValue: Swift.String(components[0])),
-                name: .init(rawValue: Swift.String(components[1]))
+                owner: .init(Swift.String(components[0])),
+                name: .init(Swift.String(components[1]))
             )
         }
 
         package static func precedes(_ lhs: Self, _ rhs: Self) -> Bool {
             if lhs.owner != rhs.owner {
-                return lhs.owner.rawValue.utf8.lexicographicallyPrecedes(rhs.owner.rawValue.utf8)
+                return lhs.owner.underlying.utf8.lexicographicallyPrecedes(rhs.owner.underlying.utf8)
             }
-            return lhs.name.rawValue.utf8.lexicographicallyPrecedes(rhs.name.rawValue.utf8)
+            return lhs.name.underlying.utf8.lexicographicallyPrecedes(rhs.name.underlying.utf8)
         }
     }
 }

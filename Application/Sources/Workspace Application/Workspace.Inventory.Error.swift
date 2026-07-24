@@ -1,4 +1,5 @@
 public import GitHub
+public import Tagged_Primitives
 
 extension Workspace.Inventory {
     public enum Error<Listing, Content>: Swift.Error, Sendable

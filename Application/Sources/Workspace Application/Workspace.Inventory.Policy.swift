@@ -1,4 +1,5 @@
 public import GitHub
+import Tagged_Primitives
 
 extension Workspace.Inventory {
     public struct Policy: Equatable, Sendable {
@@ -35,25 +36,25 @@ extension Workspace.Inventory {
             do throws(Error) {
                 return try Self(
                     organizations: [
-                        .init(name: .init(rawValue: "swift-primitives"), layer: .primitives),
-                        .init(name: .init(rawValue: "swift-standards"), layer: .standards),
-                        .init(name: .init(rawValue: "swift-ietf"), layer: .standards),
-                        .init(name: .init(rawValue: "swift-iso"), layer: .standards),
-                        .init(name: .init(rawValue: "swift-w3c"), layer: .standards),
-                        .init(name: .init(rawValue: "swift-whatwg"), layer: .standards),
-                        .init(name: .init(rawValue: "swift-ieee"), layer: .standards),
-                        .init(name: .init(rawValue: "swift-iec"), layer: .standards),
-                        .init(name: .init(rawValue: "swift-ecma"), layer: .standards),
-                        .init(name: .init(rawValue: "swift-incits"), layer: .standards),
-                        .init(name: .init(rawValue: "swift-nist"), layer: .standards),
-                        .init(name: .init(rawValue: "swift-linux-foundation"), layer: .standards),
-                        .init(name: .init(rawValue: "swift-microsoft"), layer: .standards),
-                        .init(name: .init(rawValue: "swift-arm-ltd"), layer: .standards),
-                        .init(name: .init(rawValue: "swift-intel"), layer: .standards),
-                        .init(name: .init(rawValue: "swift-riscv"), layer: .standards),
-                        .init(name: .init(rawValue: "swift-foundations"), layer: .foundations),
-                        .init(name: .init(rawValue: "swift-components"), layer: .components),
-                        .init(name: .init(rawValue: "swift-applications"), layer: .applications),
+                        .init(name: .init("swift-primitives"), layer: .primitives),
+                        .init(name: .init("swift-standards"), layer: .standards),
+                        .init(name: .init("swift-ietf"), layer: .standards),
+                        .init(name: .init("swift-iso"), layer: .standards),
+                        .init(name: .init("swift-w3c"), layer: .standards),
+                        .init(name: .init("swift-whatwg"), layer: .standards),
+                        .init(name: .init("swift-ieee"), layer: .standards),
+                        .init(name: .init("swift-iec"), layer: .standards),
+                        .init(name: .init("swift-ecma"), layer: .standards),
+                        .init(name: .init("swift-incits"), layer: .standards),
+                        .init(name: .init("swift-nist"), layer: .standards),
+                        .init(name: .init("swift-linux-foundation"), layer: .standards),
+                        .init(name: .init("swift-microsoft"), layer: .standards),
+                        .init(name: .init("swift-arm-ltd"), layer: .standards),
+                        .init(name: .init("swift-intel"), layer: .standards),
+                        .init(name: .init("swift-riscv"), layer: .standards),
+                        .init(name: .init("swift-foundations"), layer: .foundations),
+                        .init(name: .init("swift-components"), layer: .components),
+                        .init(name: .init("swift-applications"), layer: .applications),
                     ],
                     denied: [],
                     limit: .init(pages: pages, items: items)

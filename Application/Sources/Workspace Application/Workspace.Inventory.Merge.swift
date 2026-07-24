@@ -1,4 +1,5 @@
 import GitHub
+import Tagged_Primitives
 
 extension Workspace.Inventory {
     public struct Merge: Sendable {
@@ -52,7 +53,7 @@ extension Workspace.Inventory {
                     (
                         candidate.key,
                         .init(
-                            name: candidate.key.name.rawValue,
+                            name: candidate.key.name.underlying,
                             url: candidate.key.url,
                             layer: layer
                         )

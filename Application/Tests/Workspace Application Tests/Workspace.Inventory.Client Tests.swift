@@ -1,5 +1,6 @@
 import GitHub
 import GitHub_HTTP
+import Tagged_Primitives_Standard_Library_Integration
 import Testing
 
 @testable import Workspace_Application
@@ -27,8 +28,8 @@ extension Workspace.Inventory.Test.Unit {
 
         let response = try await client.content.get(
             .init(
-                organization: .init(rawValue: "swift-foundations"),
-                repository: .init(rawValue: "swift-github"),
+                organization: .init("swift-foundations"),
+                repository: .init("swift-github"),
                 path: path
             )
         )
@@ -40,7 +41,7 @@ extension Workspace.Inventory.Test.Unit {
     func `Institute policy has the exact public organization roster and excludes meta`() {
         let policy = Workspace.Inventory.Policy.institute()
 
-        #expect(policy.organizations.map(\.name.rawValue) == [
+        #expect(policy.organizations.map(\.name.underlying) == [
             "swift-primitives",
             "swift-standards",
             "swift-ietf",
@@ -70,15 +71,15 @@ extension Workspace.Inventory.Test.Unit {
             .components,
             .applications,
         ])
-        #expect(!policy.organizations.map(\.name.rawValue).contains("swift-institute"))
+        #expect(!policy.organizations.map(\.name.underlying).contains("swift-institute"))
     }
 
     @Test
     func `Discovery traverses pages and records every eligibility reason`() async throws {
-        let owner = GitHub.Organization.Name(rawValue: "swift-foundations")
+        let owner = GitHub.Organization.Name("swift-foundations")
         let denied = Workspace.Repository.Key(
             owner: owner,
-            name: .init(rawValue: "swift-denied")
+            name: .init("swift-denied")
         )
         let policy = try Workspace.Inventory.Policy(
             organizations: [.init(name: owner, layer: .foundations)],
@@ -114,7 +115,7 @@ extension Workspace.Inventory.Test.Unit {
             )
         }
         let content = GitHub.Repository.Content.Client<Never> { request async throws(Never) in
-            switch request.repository.rawValue {
+            switch request.repository.underlying {
             case "swift-file": .init(kind: .file)
             case "swift-directory": .init(kind: .directory)
             default: nil
@@ -126,7 +127,7 @@ extension Workspace.Inventory.Test.Unit {
             content: content
         ).discover(policy)
 
-        #expect(discovery.repositories.map(\.key.name.rawValue) == ["swift-file"])
+        #expect(discovery.repositories.map(\.key.name.underlying) == ["swift-file"])
         #expect(discovery.exclusions.map(\.reason) == [
             .archived,
             .disabled,
@@ -142,7 +143,7 @@ extension Workspace.Inventory.Test.Unit {
 extension Workspace.Inventory.Test.`Edge Case` {
     @Test
     func `Item bound is a typed repository traversal failure`() async throws {
-        let owner = GitHub.Organization.Name(rawValue: "swift-foundations")
+        let owner = GitHub.Organization.Name("swift-foundations")
         let policy = try Workspace.Inventory.Policy(
             organizations: [.init(name: owner, layer: .foundations)],
             denied: [],
@@ -175,7 +176,7 @@ extension Workspace.Inventory.Test.`Edge Case` {
 
     @Test
     func `Page bound is a typed repository traversal failure`() async throws {
-        let owner = GitHub.Organization.Name(rawValue: "swift-foundations")
+        let owner = GitHub.Organization.Name("swift-foundations")
         let policy = try Workspace.Inventory.Policy(
             organizations: [.init(name: owner, layer: .foundations)],
             denied: [],
@@ -236,7 +237,7 @@ extension Workspace.Inventory.Test.`Edge Case` {
 
     @Test
     func `Malformed content failure stays typed and names its repository`() async throws {
-        let owner = GitHub.Organization.Name(rawValue: "swift-foundations")
+        let owner = GitHub.Organization.Name("swift-foundations")
         let policy = try Workspace.Inventory.Policy(
             organizations: [.init(name: owner, layer: .foundations)],
             denied: [],
@@ -263,14 +264,14 @@ extension Workspace.Inventory.Test.`Edge Case` {
                 return
             }
             #expect(key.owner == owner)
-            #expect(key.name.rawValue == "swift-broken")
+            #expect(key.name.underlying == "swift-broken")
         }
     }
 
     @Test
     func `Eligible name collision across owners is rejected`() async throws {
-        let first = GitHub.Organization.Name(rawValue: "swift-standards")
-        let second = GitHub.Organization.Name(rawValue: "swift-foundations")
+        let first = GitHub.Organization.Name("swift-standards")
+        let second = GitHub.Organization.Name("swift-foundations")
         let policy = try Workspace.Inventory.Policy(
             organizations: [
                 .init(name: first, layer: .standards),
@@ -305,7 +306,7 @@ extension Workspace.Inventory.Test.`Edge Case` {
                 Issue.record("Unexpected error: \(error)")
                 return
             }
-            #expect(name.rawValue == "swift-collision")
+            #expect(name.underlying == "swift-collision")
             #expect(old.owner == first)
             #expect(new.owner == second)
         }
@@ -336,7 +337,7 @@ extension Workspace.Inventory.Test.Integration {
     private static func discovery(
         _ pages: [[GitHub.Repository.Summary]]
     ) async throws(Workspace.Inventory.Error<Never, Never>) -> Workspace.Inventory.Discovery {
-        let owner = GitHub.Organization.Name(rawValue: "swift-foundations")
+        let owner = GitHub.Organization.Name("swift-foundations")
         let policy: Workspace.Inventory.Policy
         do throws(Workspace.Inventory.Policy.Error) {
             policy = try .init(

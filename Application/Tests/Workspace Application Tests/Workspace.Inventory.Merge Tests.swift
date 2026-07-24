@@ -1,5 +1,6 @@
 import GitHub
 import JSON
+import Tagged_Primitives_Standard_Library_Integration
 import Testing
 
 @testable import Workspace_Application
@@ -7,11 +8,11 @@ import Testing
 extension Workspace.Inventory.Test.Unit {
     @Test
     func `Merge preserves exact-key annotations and sorts layer owner name`() throws {
-        let foundations = GitHub.Organization.Name(rawValue: "swift-foundations")
-        let standards = GitHub.Organization.Name(rawValue: "swift-standards")
+        let foundations = GitHub.Organization.Name("swift-foundations")
+        let standards = GitHub.Organization.Name("swift-standards")
         let annotated = Workspace.Repository.Key(
             owner: foundations,
-            name: .init(rawValue: "swift-zeta")
+            name: .init("swift-zeta")
         )
         let existing = Workspace.Configuration(
             version: 1,
@@ -19,19 +20,19 @@ extension Workspace.Inventory.Test.Unit {
             swift: "6.3.3",
             xcode: "26.6",
             repositories: [
-                .init(name: annotated.name.rawValue, url: annotated.url, layer: .components)
+                .init(name: annotated.name.underlying, url: annotated.url, layer: .components)
             ]
         )
         let discovery = Workspace.Inventory.Discovery(
             repositories: [
                 .init(
-                    id: .init(rawValue: 2),
+                    id: .init(2),
                     key: annotated,
                     layer: .foundations
                 ),
                 .init(
-                    id: .init(rawValue: 1),
-                    key: .init(owner: standards, name: .init(rawValue: "swift-alpha")),
+                    id: .init(1),
+                    key: .init(owner: standards, name: .init("swift-alpha")),
                     layer: .standards
                 ),
             ],
@@ -50,11 +51,11 @@ extension Workspace.Inventory.Test.`Edge Case` {
     @Test
     func `Duplicate existing key is rejected`() {
         let key = Workspace.Repository.Key(
-            owner: .init(rawValue: "swift-foundations"),
-            name: .init(rawValue: "swift-file")
+            owner: .init("swift-foundations"),
+            name: .init("swift-file")
         )
         let repository = Workspace.Repository(
-            name: key.name.rawValue,
+            name: key.name.underlying,
             url: key.url,
             layer: .foundations
         )
@@ -77,11 +78,11 @@ extension Workspace.Inventory.Test.`Edge Case` {
     @Test
     func `Duplicate candidate key is rejected`() {
         let key = Workspace.Repository.Key(
-            owner: .init(rawValue: "swift-foundations"),
-            name: .init(rawValue: "swift-file")
+            owner: .init("swift-foundations"),
+            name: .init("swift-file")
         )
         let candidate = Workspace.Inventory.Repository(
-            id: .init(rawValue: 1),
+            id: .init(1),
             key: key,
             layer: .foundations
         )
@@ -104,11 +105,11 @@ extension Workspace.Inventory.Test.`Edge Case` {
     @Test
     func `Owner change is an explicit transfer with annotation and default layers`() throws {
         let old = Workspace.Repository.Key(
-            owner: .init(rawValue: "swift-standards"),
-            name: .init(rawValue: "swift-moved")
+            owner: .init("swift-standards"),
+            name: .init("swift-moved")
         )
         let new = Workspace.Repository.Key(
-            owner: .init(rawValue: "swift-foundations"),
+            owner: .init("swift-foundations"),
             name: old.name
         )
         let existing = Workspace.Configuration(
@@ -116,10 +117,10 @@ extension Workspace.Inventory.Test.`Edge Case` {
             scope: "swift-institute",
             swift: "6.3.3",
             xcode: "26.6",
-            repositories: [.init(name: old.name.rawValue, url: old.url, layer: .standards)]
+            repositories: [.init(name: old.name.underlying, url: old.url, layer: .standards)]
         )
         let discovery = Workspace.Inventory.Discovery(
-            repositories: [.init(id: .init(rawValue: 1), key: new, layer: .foundations)],
+            repositories: [.init(id: .init(1), key: new, layer: .foundations)],
             exclusions: []
         )
 

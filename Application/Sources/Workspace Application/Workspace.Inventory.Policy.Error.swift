@@ -1,4 +1,5 @@
 public import GitHub
+public import Tagged_Primitives
 
 extension Workspace.Inventory.Policy {
     public enum Error: Swift.Error, Equatable, Sendable {

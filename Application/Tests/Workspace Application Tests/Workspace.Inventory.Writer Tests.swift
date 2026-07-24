@@ -1,6 +1,7 @@
 import Foundation
 import File_System
 import GitHub
+import Tagged_Primitives_Standard_Library_Integration
 import Testing
 
 @testable import Workspace_Application
@@ -9,15 +10,15 @@ extension Workspace.Inventory.Test.Unit {
     @Test
     func `Render is byte-identical for schema version one`() throws {
         let key = Workspace.Repository.Key(
-            owner: .init(rawValue: "swift-primitives"),
-            name: .init(rawValue: "swift-alpha-primitives")
+            owner: .init("swift-primitives"),
+            name: .init("swift-alpha-primitives")
         )
         let configuration = Workspace.Configuration(
             version: 1,
             scope: "swift-institute",
             swift: "6.3.3",
             xcode: "26.6",
-            repositories: [.init(name: key.name.rawValue, url: key.url, layer: .primitives)]
+            repositories: [.init(name: key.name.underlying, url: key.url, layer: .primitives)]
         )
 
         let first = try configuration.rendered()
@@ -45,11 +46,11 @@ extension Workspace.Inventory.Test.Unit {
     @Test
     func `Render rejects unsupported schema duplicate names and noncanonical URLs`() {
         let key = Workspace.Repository.Key(
-            owner: .init(rawValue: "swift-foundations"),
-            name: .init(rawValue: "swift-file")
+            owner: .init("swift-foundations"),
+            name: .init("swift-file")
         )
         let repository = Workspace.Repository(
-            name: key.name.rawValue,
+            name: key.name.underlying,
             url: key.url,
             layer: .foundations
         )
@@ -74,7 +75,7 @@ extension Workspace.Inventory.Test.Unit {
             xcode: "26.6",
             repositories: [
                 .init(
-                    name: key.name.rawValue,
+                    name: key.name.underlying,
                     url: "https://example.com/swift-file.git",
                     layer: .foundations
                 )
@@ -130,7 +131,7 @@ extension Workspace.Inventory.Test.Integration {
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
         let file = location.appending(path: "Workspace.json")
         let root = try File.Directory(validating: location.path)
-        let owner = GitHub.Organization.Name(rawValue: "swift-foundations")
+        let owner = GitHub.Organization.Name("swift-foundations")
         let policy = try Workspace.Inventory.Policy(
             organizations: [.init(name: owner, layer: .foundations)],
             denied: [],
@@ -194,7 +195,7 @@ extension Workspace.Inventory.Test.Integration {
         let replace: @Sendable () throws(File.System.Write.Atomic.Error) -> Void = {
             try target.write.atomic(intervening)
         }
-        let owner = GitHub.Organization.Name(rawValue: "swift-foundations")
+        let owner = GitHub.Organization.Name("swift-foundations")
         let policy = try Workspace.Inventory.Policy(
             organizations: [.init(name: owner, layer: .foundations)],
             denied: [],

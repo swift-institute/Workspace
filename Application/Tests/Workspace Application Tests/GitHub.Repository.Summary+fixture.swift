@@ -1,4 +1,5 @@
 import GitHub
+import Tagged_Primitives
 
 extension GitHub.Repository.Summary {
     init(
@@ -10,8 +11,8 @@ extension GitHub.Repository.Summary {
         visibility: GitHub.Repository.Visibility = .public
     ) {
         self.init(
-            id: .init(rawValue: id),
-            name: .init(rawValue: name),
+            id: .init(id),
+            name: .init(name),
             archived: archived,
             disabled: disabled,
             fork: fork,
