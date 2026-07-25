@@ -13,36 +13,38 @@ extension Workspace.Configuration {
             self.configuration = configuration
             self.bytes = bytes
         }
+    }
+}
 
-        public static func load(at root: File.Directory) throws(Workspace.Error) -> Self {
-            let file = root[file: "Workspace.json"]
-            let bytes: [Byte]
-            do throws(File.System.Read.Full.Error) {
-                bytes = try file.read.full { span in
-                    var storage = [Byte]()
-                    storage.reserveCapacity(span.count)
-                    for index in span.indices {
-                        storage.append(span[index])
-                    }
-                    return storage
+extension Workspace.Configuration.Document {
+    public static func load(at root: File.Directory) throws(Workspace.Error) -> Self {
+        let file = root[file: "Workspace.json"]
+        let bytes: [Byte]
+        do throws(File.System.Read.Full.Error) {
+            bytes = try file.read.full { span in
+                var storage = [Byte]()
+                storage.reserveCapacity(span.count)
+                for index in span.indices {
+                    storage.append(span[index])
                 }
-            } catch {
-                throw .configuration("cannot read \(file): \(error)")
+                return storage
             }
-
-            let configuration: Workspace.Configuration
-            do throws(JSON.Error) {
-                configuration = try .init(
-                    jsonString: Swift.String(decoding: bytes, as: Swift.UTF8.self)
-                )
-            } catch {
-                throw .configuration("cannot decode \(file): \(error)")
-            }
-
-            return try .init(
-                configuration: configuration.validated(),
-                bytes: bytes
-            )
+        } catch {
+            throw .configuration("cannot read \(file): \(error)")
         }
+
+        let configuration: Workspace.Configuration
+        do throws(JSON.Error) {
+            configuration = try .init(
+                jsonString: Swift.String(decoding: bytes, as: Swift.UTF8.self)
+            )
+        } catch {
+            throw .configuration("cannot decode \(file): \(error)")
+        }
+
+        return try .init(
+            configuration: configuration.validated(),
+            bytes: bytes
+        )
     }
 }

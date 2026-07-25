@@ -18,39 +18,41 @@ extension Workspace.Composition {
         public init(records: [Record] = []) {
             self.records = records
         }
+    }
+}
 
-        /// The schema version written to the ledger. Bumped only on a
-        /// breaking shape change; a mismatch is refused during decoding.
-        ///
-        /// The ledger lives at `<root>/.workspace/compositions.json`; those
-        /// two path components are fixed valid names, spelled as literals at
-        /// each subscript so they construct `File.Path.Component` directly.
-        internal static let version: Swift.Int = 1
+extension Workspace.Composition.State {
+    /// The schema version written to the ledger. Bumped only on a
+    /// breaking shape change; a mismatch is refused during decoding.
+    ///
+    /// The ledger lives at `<root>/.workspace/compositions.json`; those
+    /// two path components are fixed valid names, spelled as literals at
+    /// each subscript so they construct `File.Path.Component` directly.
+    internal static let version: Swift.Int = 1
 
-        public static func serialize(_ value: Self) -> JSON {
-            [
-                "version": Self.version.json,
-                "compositions": value.records.json,
-            ]
+    public static func serialize(_ value: Self) -> JSON {
+        [
+            "version": Self.version.json,
+            "compositions": value.records.json,
+        ]
+    }
+
+    public static func deserialize(_ json: JSON) throws(JSON.Error) -> Self {
+        guard let object = json.dictionary else {
+            throw .typeMismatch(expected: "object", got: "non-object")
         }
-
-        public static func deserialize(_ json: JSON) throws(JSON.Error) -> Self {
-            guard let object = json.dictionary else {
-                throw .typeMismatch(expected: "object", got: "non-object")
-            }
-            guard let version = object["version"] else { throw .missingKey("version") }
-            let number = try Swift.Int(json: version)
-            guard number == Self.version else {
-                throw .typeMismatch(
-                    expected: "composition ledger version \(Self.version)",
-                    got: Swift.String(number)
-                )
-            }
-            guard let compositions = object["compositions"] else {
-                throw .missingKey("compositions")
-            }
-            return try Self(records: [Record](json: compositions))
+        guard let version = object["version"] else { throw .missingKey("version") }
+        let number = try Swift.Int(json: version)
+        guard number == Self.version else {
+            throw .typeMismatch(
+                expected: "composition ledger version \(Self.version)",
+                got: Swift.String(number)
+            )
         }
+        guard let compositions = object["compositions"] else {
+            throw .missingKey("compositions")
+        }
+        return try Self(records: [Workspace.Composition.Record](json: compositions))
     }
 }
 

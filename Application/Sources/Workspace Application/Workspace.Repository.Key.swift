@@ -11,10 +11,6 @@ extension Workspace.Repository {
             self.name = name
         }
 
-        public var url: Swift.String {
-            "https://github.com/\(owner.underlying)/\(name.underlying).git"
-        }
-
         public init?(repository: Workspace.Repository) {
             let prefix = "https://github.com/"
             let suffix = ".git"
@@ -37,12 +33,18 @@ extension Workspace.Repository {
                 name: .init(Swift.String(components[1]))
             )
         }
+    }
+}
 
-        package static func precedes(_ lhs: Self, _ rhs: Self) -> Bool {
-            if lhs.owner != rhs.owner {
-                return lhs.owner.underlying.utf8.lexicographicallyPrecedes(rhs.owner.underlying.utf8)
-            }
-            return lhs.name.underlying.utf8.lexicographicallyPrecedes(rhs.name.underlying.utf8)
+extension Workspace.Repository.Key {
+    public var url: Swift.String {
+        "https://github.com/\(owner.underlying)/\(name.underlying).git"
+    }
+
+    package static func precedes(_ lhs: Self, _ rhs: Self) -> Bool {
+        if lhs.owner != rhs.owner {
+            return lhs.owner.underlying.utf8.lexicographicallyPrecedes(rhs.owner.underlying.utf8)
         }
+        return lhs.name.underlying.utf8.lexicographicallyPrecedes(rhs.name.underlying.utf8)
     }
 }

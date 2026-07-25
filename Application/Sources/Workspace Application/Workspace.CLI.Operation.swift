@@ -18,15 +18,17 @@ extension Workspace.CLI {
             default: return nil
             }
         }
+    }
+}
 
-        public var argumentDescription: Swift.String {
-            switch self {
-            case .sync: "sync"
-            case .doctor: "doctor"
-            case .compose: "compose"
-            case .restore: "restore"
-            case .verify: "verify"
-            }
+extension Workspace.CLI.Operation {
+    public var argumentDescription: Swift.String {
+        switch self {
+        case .sync: "sync"
+        case .doctor: "doctor"
+        case .compose: "compose"
+        case .restore: "restore"
+        case .verify: "verify"
         }
     }
 }

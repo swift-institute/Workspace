@@ -6,16 +6,18 @@ extension Workspace {
         case filesystem(Swift.String)
         case process(Swift.String)
         case repository(Swift.String)
+    }
+}
 
-        public var description: Swift.String {
-            switch self {
-            case .changed: "Workspace.json changed during inventory discovery"
-            case .composition(let message): message
-            case .configuration(let message): message
-            case .filesystem(let message): message
-            case .process(let message): message
-            case .repository(let message): message
-            }
+extension Workspace.Error {
+    public var description: Swift.String {
+        switch self {
+        case .changed: "Workspace.json changed during inventory discovery"
+        case .composition(let message): message
+        case .configuration(let message): message
+        case .filesystem(let message): message
+        case .process(let message): message
+        case .repository(let message): message
         }
     }
 }

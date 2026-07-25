@@ -34,84 +34,86 @@ extension Workspace.Sync {
             try client.clone(source.path, branch: "main", bare: true, to: remote.path)
             try client.clone(remote.path, branch: "main", to: local.path)
         }
+    }
+}
 
-        func remove() {
-            try? FileManager.default.removeItem(at: base)
-        }
+extension Workspace.Sync.Fixture {
+    func remove() {
+        try? FileManager.default.removeItem(at: base)
+    }
 
-        func push(_ message: Swift.String, contents: Swift.String) throws {
-            try commit(message, contents: contents, at: source)
-            try command(["push", remote.path, "main"], at: source)
-        }
+    func push(_ message: Swift.String, contents: Swift.String) throws {
+        try commit(message, contents: contents, at: source)
+        try command(["push", remote.path, "main"], at: source)
+    }
 
-        func replaceRemote() throws {
-            let replacement = base.appending(path: "replacement")
-            try client.initialize(at: replacement.path, bare: false)
-            try command(["config", "user.email", "workspace@swift.institute"], at: replacement)
-            try command(["config", "user.name", "Workspace Tests"], at: replacement)
-            try command(["branch", "-M", "main"], at: replacement)
-            try commit("replacement", contents: "replacement\n", at: replacement)
-            try command(["push", "--force", remote.path, "main"], at: replacement)
-        }
+    func replaceRemote() throws {
+        let replacement = base.appending(path: "replacement")
+        try client.initialize(at: replacement.path, bare: false)
+        try command(["config", "user.email", "workspace@swift.institute"], at: replacement)
+        try command(["config", "user.name", "Workspace Tests"], at: replacement)
+        try command(["branch", "-M", "main"], at: replacement)
+        try commit("replacement", contents: "replacement\n", at: replacement)
+        try command(["push", "--force", remote.path, "main"], at: replacement)
+    }
 
-        func application() throws -> Workspace.Sync {
-            let directory = try File.Directory(validating: root.path)
-            return Workspace.Sync(
-                root: directory,
-                configuration: .init(
-                    version: 1,
-                    scope: "swift-institute",
-                    swift: "6.3",
-                    xcode: "26.0",
-                    repositories: [
-                        .init(name: "swift-example", url: remote.path, layer: .foundations)
-                    ]
-                ),
-                client: client
-            )
-        }
+    func application() throws -> Workspace.Sync {
+        let directory = try File.Directory(validating: root.path)
+        return Workspace.Sync(
+            root: directory,
+            configuration: .init(
+                version: 1,
+                scope: "swift-institute",
+                swift: "6.3",
+                xcode: "26.0",
+                repositories: [
+                    .init(name: "swift-example", url: remote.path, layer: .foundations)
+                ]
+            ),
+            client: client
+        )
+    }
 
-        func state() throws -> State {
-            .init(
-                head: try client.head(at: local.path),
-                origin: try client.head("origin/main", at: local.path),
-                fetch: try? Data(contentsOf: local.appending(path: ".git/FETCH_HEAD")),
-                status: try client.status(at: local.path)
-            )
-        }
+    func state() throws -> State {
+        .init(
+            head: try client.head(at: local.path),
+            origin: try client.head("origin/main", at: local.path),
+            fetch: try? Data(contentsOf: local.appending(path: ".git/FETCH_HEAD")),
+            status: try client.status(at: local.path)
+        )
+    }
 
-        func residue() throws -> [Swift.String] {
-            try FileManager.default.contentsOfDirectory(
-                atPath: root.appending(path: "Packages").path
-            ).filter { $0 != "swift-example" }
-        }
+    func residue() throws -> [Swift.String] {
+        try FileManager.default.contentsOfDirectory(
+            atPath: root.appending(path: "Packages").path
+        ).filter { $0 != "swift-example" }
+    }
 
-        private func commit(
-            _ message: Swift.String,
-            contents: Swift.String,
-            at repository: URL
-        ) throws {
-            try contents.write(
-                to: repository.appending(path: "Fixture.txt"),
-                atomically: true,
-                encoding: .utf8
-            )
-            try command(["add", "Fixture.txt"], at: repository)
-            try command(["commit", "-m", message], at: repository)
-        }
+    private func commit(
+        _ message: Swift.String,
+        contents: Swift.String,
+        at repository: URL
+    ) throws {
+        try contents.write(
+            to: repository.appending(path: "Fixture.txt"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try command(["add", "Fixture.txt"], at: repository)
+        try command(["commit", "-m", message], at: repository)
+    }
 
-        private func command(_ arguments: [Swift.String], at directory: URL) throws {
-            let process = Foundation.Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
-            process.arguments = arguments
-            process.currentDirectoryURL = directory
-            process.standardOutput = FileHandle.nullDevice
-            process.standardError = FileHandle.nullDevice
-            try process.run()
-            process.waitUntilExit()
-            guard process.terminationStatus == 0 else {
-                throw CocoaError(.executableNotLoadable)
-            }
+    private func command(_ arguments: [Swift.String], at directory: URL) throws {
+        let process = Foundation.Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.arguments = arguments
+        process.currentDirectoryURL = directory
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            throw CocoaError(.executableNotLoadable)
         }
     }
 }

@@ -11,36 +11,38 @@ extension Workspace {
             self.url = url
             self.layer = layer
         }
+    }
+}
 
-        public static func serialize(_ value: Self) -> JSON {
-            [
-                "name": value.name.json,
-                "url": value.url.json,
-                "layer": value.layer.json,
-            ]
+extension Workspace.Repository {
+    public static func serialize(_ value: Self) -> JSON {
+        [
+            "name": value.name.json,
+            "url": value.url.json,
+            "layer": value.layer.json,
+        ]
+    }
+
+    public static func deserialize(_ json: JSON) throws(JSON.Error) -> Self {
+        guard let object = json.dictionary else {
+            throw .typeMismatch(expected: "object", got: "non-object")
         }
-
-        public static func deserialize(_ json: JSON) throws(JSON.Error) -> Self {
-            guard let object = json.dictionary else {
-                throw .typeMismatch(expected: "object", got: "non-object")
-            }
-            let expected: Set<Swift.String> = ["name", "url", "layer"]
-            let actual = Set(object.keys)
-            guard actual == expected else {
-                throw .typeMismatch(
-                    expected: "repository keys name, url, and layer",
-                    got: actual.sorted().joined(separator: ", ")
-                )
-            }
-            guard let name = object["name"] else { throw .missingKey("name") }
-            guard let url = object["url"] else { throw .missingKey("url") }
-            guard let layer = object["layer"] else { throw .missingKey("layer") }
-
-            return try Self(
-                name: Swift.String(json: name),
-                url: Swift.String(json: url),
-                layer: Layer(json: layer)
+        let expected: Set<Swift.String> = ["name", "url", "layer"]
+        let actual = Set(object.keys)
+        guard actual == expected else {
+            throw .typeMismatch(
+                expected: "repository keys name, url, and layer",
+                got: actual.sorted().joined(separator: ", ")
             )
         }
+        guard let name = object["name"] else { throw .missingKey("name") }
+        guard let url = object["url"] else { throw .missingKey("url") }
+        guard let layer = object["layer"] else { throw .missingKey("layer") }
+
+        return try Self(
+            name: Swift.String(json: name),
+            url: Swift.String(json: url),
+            layer: Workspace.Layer(json: layer)
+        )
     }
 }

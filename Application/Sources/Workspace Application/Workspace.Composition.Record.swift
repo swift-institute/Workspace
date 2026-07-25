@@ -46,39 +46,41 @@ extension Workspace.Composition {
             self.declared = declared
             self.planned = planned
         }
+    }
+}
 
-        public static func serialize(_ value: Self) -> JSON {
-            [
-                "consumer": value.consumer.json,
-                "dependency": value.dependency.json,
-                "declared": value.declared.json,
-                "planned": value.planned.json,
-            ]
+extension Workspace.Composition.Record {
+    public static func serialize(_ value: Self) -> JSON {
+        [
+            "consumer": value.consumer.json,
+            "dependency": value.dependency.json,
+            "declared": value.declared.json,
+            "planned": value.planned.json,
+        ]
+    }
+
+    public static func deserialize(_ json: JSON) throws(JSON.Error) -> Self {
+        guard let object = json.dictionary else {
+            throw .typeMismatch(expected: "object", got: "non-object")
         }
-
-        public static func deserialize(_ json: JSON) throws(JSON.Error) -> Self {
-            guard let object = json.dictionary else {
-                throw .typeMismatch(expected: "object", got: "non-object")
-            }
-            let expected: Set<Swift.String> = ["consumer", "dependency", "declared", "planned"]
-            let actual = Set(object.keys)
-            guard actual == expected else {
-                throw .typeMismatch(
-                    expected: "composition keys consumer, dependency, declared, and planned",
-                    got: actual.sorted().joined(separator: ", ")
-                )
-            }
-            guard let consumer = object["consumer"] else { throw .missingKey("consumer") }
-            guard let dependency = object["dependency"] else { throw .missingKey("dependency") }
-            guard let declared = object["declared"] else { throw .missingKey("declared") }
-            guard let planned = object["planned"] else { throw .missingKey("planned") }
-
-            return try Self(
-                consumer: Swift.String(json: consumer),
-                dependency: Swift.String(json: dependency),
-                declared: Swift.String(json: declared),
-                planned: Swift.String(json: planned)
+        let expected: Set<Swift.String> = ["consumer", "dependency", "declared", "planned"]
+        let actual = Set(object.keys)
+        guard actual == expected else {
+            throw .typeMismatch(
+                expected: "composition keys consumer, dependency, declared, and planned",
+                got: actual.sorted().joined(separator: ", ")
             )
         }
+        guard let consumer = object["consumer"] else { throw .missingKey("consumer") }
+        guard let dependency = object["dependency"] else { throw .missingKey("dependency") }
+        guard let declared = object["declared"] else { throw .missingKey("declared") }
+        guard let planned = object["planned"] else { throw .missingKey("planned") }
+
+        return try Self(
+            consumer: Swift.String(json: consumer),
+            dependency: Swift.String(json: dependency),
+            declared: Swift.String(json: declared),
+            planned: Swift.String(json: planned)
+        )
     }
 }

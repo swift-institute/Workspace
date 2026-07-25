@@ -19,30 +19,32 @@ extension Workspace.Inventory {
             self.policy = policy
             self.client = client
         }
+    }
+}
 
-        public func run(
-            existing: Workspace.Configuration.Document,
-            dry: Bool
-        ) async throws(Workspace.Inventory.Error<Listing, Content>) -> Workspace.Inventory.Writer.Plan {
-            let discovery = try await client.discover(policy)
-            let configuration: Workspace.Configuration
-            do throws(Workspace.Inventory.Merge.Error) {
-                configuration = try Workspace.Inventory.Merge()(
-                    discovery,
-                    into: existing.configuration
-                )
-            } catch {
-                throw .merge(error)
-            }
+extension Workspace.Inventory.Application {
+    public func run(
+        existing: Workspace.Configuration.Document,
+        dry: Bool
+    ) async throws(Workspace.Inventory.Error<Listing, Content>) -> Workspace.Inventory.Writer.Plan {
+        let discovery = try await client.discover(policy)
+        let configuration: Workspace.Configuration
+        do throws(Workspace.Inventory.Merge.Error) {
+            configuration = try Workspace.Inventory.Merge()(
+                discovery,
+                into: existing.configuration
+            )
+        } catch {
+            throw .merge(error)
+        }
 
-            do throws(Workspace.Error) {
-                let writer = Workspace.Inventory.Writer(root: root)
-                return try dry
-                    ? writer.plan(configuration)
-                    : writer.run(configuration, replacing: existing)
-            } catch {
-                throw .workspace(error)
-            }
+        do throws(Workspace.Error) {
+            let writer = Workspace.Inventory.Writer(root: root)
+            return try dry
+                ? writer.plan(configuration)
+                : writer.run(configuration, replacing: existing)
+        } catch {
+            throw .workspace(error)
         }
     }
 }

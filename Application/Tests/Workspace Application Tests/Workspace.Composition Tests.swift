@@ -21,20 +21,6 @@ extension Workspace.Composition.Test {
         let manifest: URL
         let composition: Workspace.Composition
 
-        static let manifestSource = """
-            // swift-tools-version: 6.3.3
-            import PackageDescription
-
-            let package = Package(
-                name: "consumer",
-                dependencies: [
-                    .package(url: "https://github.com/example/swift-dep.git", branch: "main")
-                ],
-                targets: []
-            )
-
-            """
-
         init() throws {
             base = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
             root = base.appending(path: "Workspace")
@@ -72,11 +58,34 @@ extension Workspace.Composition.Test {
             )
         }
 
-        func remove() { try? FileManager.default.removeItem(at: base) }
+        // Stays in the type body deliberately. [API-IMPL-008] would move this
+        // to an extension, but `Fixture` is nested inside the `@Suite` type
+        // `Workspace.Composition.Test`, and [API-ERR-001]'s `@Suite`-member
+        // exemption for bare `throws` does not follow a member out into an
+        // extension. `Swift.String(contentsOf:encoding:)` throws untyped, so
+        // there is no `E` to name and no typed form that satisfies both rules.
         func read() throws -> Swift.String {
             try Swift.String(contentsOf: manifest, encoding: .utf8)
         }
     }
+}
+
+extension Workspace.Composition.Test.Fixture {
+    static let manifestSource = """
+        // swift-tools-version: 6.3.3
+        import PackageDescription
+
+        let package = Package(
+            name: "consumer",
+            dependencies: [
+                .package(url: "https://github.com/example/swift-dep.git", branch: "main")
+            ],
+            targets: []
+        )
+
+        """
+
+    func remove() { try? FileManager.default.removeItem(at: base) }
 }
 
 extension Workspace.Composition.Test.Integration {
