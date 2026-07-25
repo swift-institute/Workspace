@@ -9,9 +9,10 @@ extension Workspace {
             Xcode_Workspace.Xcode.Workspace(
                 references: [
                     .init(location: .group("Application"))
-                ] + repositories.map {
-                    .init(location: .group("Packages/\($0.name)"))
-                }
+                ]
+                    + repositories.map {
+                        .init(location: .group("Packages/\($0.name)"))
+                    }
             )
         }
 
@@ -25,14 +26,16 @@ extension Workspace {
 
         public static func current(_ repositories: [Repository], at root: File.Directory) -> Bool {
             let location = path(at: root)
-            guard let contents = try? location.read.full({ bytes in
-                var storage = [Byte]()
-                storage.reserveCapacity(bytes.count)
-                for index in 0..<bytes.count {
-                    storage.append(bytes[index])
-                }
-                return Swift.String(decoding: storage, as: Swift.UTF8.self)
-            }) else {
+            guard
+                let contents = try? location.read.full({ bytes in
+                    var storage = [Byte]()
+                    storage.reserveCapacity(bytes.count)
+                    for index in 0..<bytes.count {
+                        storage.append(bytes[index])
+                    }
+                    return Swift.String(decoding: storage, as: Swift.UTF8.self)
+                })
+            else {
                 return false
             }
             return contents == render(repositories)

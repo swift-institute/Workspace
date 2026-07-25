@@ -95,7 +95,7 @@ extension Workspace {
 
         /// Restores `consumer`'s manifest to its declared `.package(url:)` clause
         /// **byte-for-byte**, drops the ledger entry, and runs a resolve-free
-        /// structural check on the result (see ``cleanRoom(restored:identity:consumer:dependency:)``).
+        /// structural check on the result (see ``structuralCheck(restored:identity:consumer:dependency:)``).
         /// Never touches the dependency worktree, so a developer's unpushed local
         /// commit is preserved. The full remote-reproducibility resolve is
         /// **not** performed here — it is handed to the developer as an explicit
@@ -133,7 +133,7 @@ extension Workspace {
                     "the recorded declared clause for \(dependency) is not url-form; ledger is corrupt"
                 )
             }
-            try cleanRoom(
+            try structuralCheck(
                 restored: restored,
                 identity: Clause.identity(ofURL: url),
                 consumer: consumer,
@@ -256,7 +256,7 @@ extension Workspace {
         /// absent by construction — but the full resolve is not skipped, only
         /// handed to the developer as an explicit coordinator step by ``restore``.
         /// This never invokes the coordinator itself.
-        private func cleanRoom(
+        private func structuralCheck(
             restored source: Swift.String,
             identity: Swift.String,
             consumer: Swift.String,
@@ -270,25 +270,25 @@ extension Workspace {
                     suffix: ""
                 )
             } catch {
-                throw .composition("cannot allocate a clean-room path: \(error)")
+                throw .composition("cannot allocate an isolated evaluation path: \(error)")
             }
-            let clean = File.Directory(path)
+            let isolated = File.Directory(path)
             do throws(File.System.Create.Directory.Error) {
-                try clean.create.recursive()
+                try isolated.create.recursive()
             } catch {
-                throw .composition("cannot create clean-room directory \(clean): \(error)")
+                throw .composition("cannot create isolated evaluation directory \(isolated): \(error)")
             }
-            defer { try? clean.delete.recursive() }
+            defer { try? isolated.delete.recursive() }
 
             do throws(File.System.Write.Atomic.Error) {
-                try clean[file: "Package.swift"].write.atomic(source)
+                try isolated[file: "Package.swift"].write.atomic(source)
             } catch {
-                throw .composition("cannot stage the clean-room manifest: \(error)")
+                throw .composition("structural check: cannot stage the manifest for evaluation: \(error)")
             }
 
             let manifest: Package.Manifest
             do throws(Package.Manager.Error) {
-                manifest = try packages.manifest(at: clean.description)
+                manifest = try packages.manifest(at: isolated.description)
             } catch {
                 throw .composition(
                     "structural check: the restored \(consumer) manifest does not evaluate: \(error)"

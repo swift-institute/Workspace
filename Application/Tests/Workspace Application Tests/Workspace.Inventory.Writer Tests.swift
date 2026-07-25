@@ -1,5 +1,5 @@
-import Foundation
 import File_System
+import Foundation
 import GitHub
 import Tagged_Primitives_Standard_Library_Integration
 import Testing
@@ -25,22 +25,24 @@ extension Workspace.Inventory.Test.Unit {
         let second = try configuration.rendered()
 
         #expect(first == second)
-        #expect(first == """
-        {
-          "repositories": [
-            {
-              "layer": "primitives",
-              "name": "swift-alpha-primitives",
-              "url": "https://github.com/swift-primitives/swift-alpha-primitives.git"
-            }
-          ],
-          "scope": "swift-institute",
-          "swift": "6.3.3",
-          "version": 1,
-          "xcode": "26.6"
-        }
+        #expect(
+            first == """
+                {
+                  "repositories": [
+                    {
+                      "layer": "primitives",
+                      "name": "swift-alpha-primitives",
+                      "url": "https://github.com/swift-primitives/swift-alpha-primitives.git"
+                    }
+                  ],
+                  "scope": "swift-institute",
+                  "swift": "6.3.3",
+                  "version": 1,
+                  "xcode": "26.6"
+                }
 
-        """)
+                """
+        )
     }
 
     @Test

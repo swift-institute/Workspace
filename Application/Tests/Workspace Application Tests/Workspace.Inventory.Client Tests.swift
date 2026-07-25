@@ -41,36 +41,40 @@ extension Workspace.Inventory.Test.Unit {
     func `Institute policy has the exact public organization roster and excludes meta`() {
         let policy = Workspace.Inventory.Policy.institute()
 
-        #expect(policy.organizations.map(\.name.underlying) == [
-            "swift-primitives",
-            "swift-standards",
-            "swift-ietf",
-            "swift-iso",
-            "swift-w3c",
-            "swift-whatwg",
-            "swift-ieee",
-            "swift-iec",
-            "swift-ecma",
-            "swift-incits",
-            "swift-nist",
-            "swift-linux-foundation",
-            "swift-microsoft",
-            "swift-arm-ltd",
-            "swift-intel",
-            "swift-riscv",
-            "swift-foundations",
-            "swift-components",
-            "swift-applications",
-        ])
-        #expect(policy.organizations.map(\.layer) == [
-            .primitives,
-            .standards, .standards, .standards, .standards, .standards,
-            .standards, .standards, .standards, .standards, .standards,
-            .standards, .standards, .standards, .standards, .standards,
-            .foundations,
-            .components,
-            .applications,
-        ])
+        #expect(
+            policy.organizations.map(\.name.underlying) == [
+                "swift-primitives",
+                "swift-standards",
+                "swift-ietf",
+                "swift-iso",
+                "swift-w3c",
+                "swift-whatwg",
+                "swift-ieee",
+                "swift-iec",
+                "swift-ecma",
+                "swift-incits",
+                "swift-nist",
+                "swift-linux-foundation",
+                "swift-microsoft",
+                "swift-arm-ltd",
+                "swift-intel",
+                "swift-riscv",
+                "swift-foundations",
+                "swift-components",
+                "swift-applications",
+            ]
+        )
+        #expect(
+            policy.organizations.map(\.layer) == [
+                .primitives,
+                .standards, .standards, .standards, .standards, .standards,
+                .standards, .standards, .standards, .standards, .standards,
+                .standards, .standards, .standards, .standards, .standards,
+                .foundations,
+                .components,
+                .applications,
+            ]
+        )
         #expect(!policy.organizations.map(\.name.underlying).contains("swift-institute"))
     }
 
@@ -128,15 +132,17 @@ extension Workspace.Inventory.Test.Unit {
         ).discover(policy)
 
         #expect(discovery.repositories.map(\.key.name.underlying) == ["swift-file"])
-        #expect(discovery.exclusions.map(\.reason) == [
-            .archived,
-            .disabled,
-            .fork,
-            .visibility(.private),
-            .denied,
-            .absent,
-            .kind(.directory),
-        ])
+        #expect(
+            discovery.exclusions.map(\.reason) == [
+                .archived,
+                .disabled,
+                .fork,
+                .visibility(.private),
+                .denied,
+                .absent,
+                .kind(.directory),
+            ]
+        )
     }
 }
 

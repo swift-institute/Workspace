@@ -16,7 +16,7 @@ extension Workspace {
             [
                 "name": value.name.json,
                 "url": value.url.json,
-                "layer": value.layer.json
+                "layer": value.layer.json,
             ]
         }
 

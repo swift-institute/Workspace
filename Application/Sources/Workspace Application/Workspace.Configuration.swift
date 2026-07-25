@@ -27,7 +27,7 @@ extension Workspace {
                 "scope": value.scope.json,
                 "swift": value.swift.json,
                 "xcode": value.xcode.json,
-                "repositories": value.repositories.json
+                "repositories": value.repositories.json,
             ]
         }
 

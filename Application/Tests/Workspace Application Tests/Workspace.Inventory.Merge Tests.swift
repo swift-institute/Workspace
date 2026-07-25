@@ -143,21 +143,21 @@ extension Workspace.Inventory.Test.`Edge Case` {
     @Test
     func `Unknown annotation field is rejected instead of discarded`() {
         let json = """
-        {
-          "version": 1,
-          "scope": "swift-institute",
-          "swift": "6.3.3",
-          "xcode": "26.6",
-          "repositories": [
             {
-              "name": "swift-example",
-              "url": "https://github.com/swift-foundations/swift-example.git",
-              "layer": "foundations",
-              "annotation": "must-survive"
+              "version": 1,
+              "scope": "swift-institute",
+              "swift": "6.3.3",
+              "xcode": "26.6",
+              "repositories": [
+                {
+                  "name": "swift-example",
+                  "url": "https://github.com/swift-foundations/swift-example.git",
+                  "layer": "foundations",
+                  "annotation": "must-survive"
+                }
+              ]
             }
-          ]
-        }
-        """
+            """
 
         #expect(throws: JSON.Error.self) {
             _ = try Workspace.Configuration(jsonString: json)

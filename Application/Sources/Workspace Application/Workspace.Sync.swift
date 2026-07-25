@@ -89,9 +89,11 @@ extension Workspace {
                     action: .fail("path exists and is not a directory")
                 )
             }
-            guard try execute({ () throws(Git.Client.Error) -> Bool in
-                try client.repository(at: path.description)
-            }) else {
+            guard
+                try execute({ () throws(Git.Client.Error) -> Bool in
+                    try client.repository(at: path.description)
+                })
+            else {
                 return .init(
                     repository: repository,
                     action: .fail("path exists and is not a Git repository")
@@ -139,14 +141,18 @@ extension Workspace {
                     action: .skip("current branch is \(branch.isEmpty ? "detached" : branch)")
                 )
             }
-            guard try execute({ () throws(Git.Client.Error) -> [Git.Status.Entry] in
-                try client.status(at: path.description)
-            }).isEmpty else {
+            guard
+                try execute({ () throws(Git.Client.Error) -> [Git.Status.Entry] in
+                    try client.status(at: path.description)
+                }).isEmpty
+            else {
                 return .init(repository: repository, action: .skip("worktree is dirty"))
             }
-            guard try execute({ () throws(Git.Client.Error) -> Swift.String in
-                try client.upstream("main", at: path.description)
-            }) == "origin/main" else {
+            guard
+                try execute({ () throws(Git.Client.Error) -> Swift.String in
+                    try client.upstream("main", at: path.description)
+                }) == "origin/main"
+            else {
                 return .init(
                     repository: repository,
                     action: .fail("local main does not track origin/main")
@@ -184,12 +190,14 @@ extension Workspace {
                     action: .skip("remote update requires a non-dry sync to validate")
                 )
             }
-            guard try remoteContains(
-                head,
-                remote: advertisement.object,
-                repository: repository,
-                beside: path
-            ) else {
+            guard
+                try remoteContains(
+                    head,
+                    remote: advertisement.object,
+                    repository: repository,
+                    beside: path
+                )
+            else {
                 return .init(
                     repository: repository,
                     action: .skip("local main is ahead of or diverged from canonical origin/main")

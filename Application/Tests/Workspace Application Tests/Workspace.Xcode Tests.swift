@@ -30,9 +30,11 @@ extension Workspace.Xcode.Test.Unit {
         #expect(rendered.contains("group:Packages/swift-example"))
         #expect(!rendered.contains("/Users/"))
         #expect(!rendered.contains("absolute:"))
-        #expect(document.references.map(\.location) == [
-            .group("Application"),
-            .group("Packages/swift-example")
-        ])
+        #expect(
+            document.references.map(\.location) == [
+                .group("Application"),
+                .group("Packages/swift-example"),
+            ]
+        )
     }
 }
