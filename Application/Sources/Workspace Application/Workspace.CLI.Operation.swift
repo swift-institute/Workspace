@@ -4,11 +4,17 @@ extension Workspace.CLI {
     public enum Operation: Sendable, Equatable, Argument.Codable {
         case sync
         case doctor
+        case compose
+        case restore
+        case verify
 
         public init?(argument: Swift.String) {
             switch argument {
             case "sync": self = .sync
             case "doctor": self = .doctor
+            case "compose": self = .compose
+            case "restore": self = .restore
+            case "verify": self = .verify
             default: return nil
             }
         }
@@ -17,7 +23,26 @@ extension Workspace.CLI {
             switch self {
             case .sync: "sync"
             case .doctor: "doctor"
+            case .compose: "compose"
+            case .restore: "restore"
+            case .verify: "verify"
             }
+        }
+    }
+}
+
+extension Workspace.CLI.Operation {
+    /// Whether the operation acts on a single composition and therefore
+    /// requires both `--consumer` and `--dependency`.
+    ///
+    /// `sync` and `doctor` act on the whole workspace and take neither; the
+    /// three composition operations name exactly one consumer and one
+    /// dependency. The distinction is what ``Workspace/CLI/validate()`` gates
+    /// on, so it lives here rather than being re-derived at the call site.
+    internal var composesADependency: Swift.Bool {
+        switch self {
+        case .sync, .doctor: false
+        case .compose, .restore, .verify: true
         }
     }
 }
