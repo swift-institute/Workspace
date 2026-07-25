@@ -278,7 +278,16 @@ extension Workspace {
             } catch {
                 throw .composition("cannot create isolated evaluation directory \(isolated): \(error)")
             }
-            defer { try? isolated.delete.recursive() }
+            // The discard is deliberate: this is best-effort cleanup of a
+            // temporary directory, and a failure to remove it must not mask
+            // the structural check's own result. `do/catch` rather than `try?`
+            // so the discard is local and visible per [API-ERR-001]; the error
+            // type is named so the catch stays typed per [IMPL-075].
+            defer {
+                do throws(File.System.Delete.Error) {
+                    try isolated.delete.recursive()
+                } catch {}
+            }
 
             do throws(File.System.Write.Atomic.Error) {
                 try isolated[file: "Package.swift"].write.atomic(source)

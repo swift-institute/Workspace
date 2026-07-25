@@ -223,7 +223,14 @@ extension Workspace {
                 throw .filesystem("cannot create an inspection path for \(repository.name): \(error)")
             }
             let temporary = File.Directory(temporaryPath)
-            defer { try? temporary.delete.recursive() }
+            // Best-effort cleanup of an inspection clone; a failure to remove
+            // it must not mask the inspection's own result. `do/catch` so the
+            // discard is local and visible, with the error type named.
+            defer {
+                do throws(File.System.Delete.Error) {
+                    try temporary.delete.recursive()
+                } catch {}
+            }
 
             do throws(Git.Client.Error) {
                 try client.clone(
@@ -290,14 +297,22 @@ extension Workspace {
                     try client.clone(repository.url, to: temporary.description)
                 }
             } catch {
-                try? temporary.delete.recursive()
+                // Cleanup discard is deliberate — the clone error below is the
+                // one worth reporting, not a failure to remove the staging dir.
+                do throws(File.System.Delete.Error) {
+                    try temporary.delete.recursive()
+                } catch {}
                 throw error
             }
 
             do throws(File.System.Move.Error) {
                 try temporary.move.to(path)
             } catch {
-                try? temporary.delete.recursive()
+                // Cleanup discard is deliberate — the move error below is the
+                // one worth reporting, not a failure to remove the staging dir.
+                do throws(File.System.Delete.Error) {
+                    try temporary.delete.recursive()
+                } catch {}
                 throw .filesystem("cannot install \(repository.name): \(error)")
             }
 
