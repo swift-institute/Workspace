@@ -3,8 +3,8 @@ public import GitHub
 extension Workspace.Inventory {
     public struct Client<Listing, Content>: Sendable
     where
-        Listing: Swift.Error & Sendable,
-        Content: Swift.Error & Sendable
+        Listing: Swift.Error,
+        Content: Swift.Error
     {
         public let repositories: GitHub.Organization.Repositories.Client<Listing>
         public let content: GitHub.Repository.Content.Client<Content>

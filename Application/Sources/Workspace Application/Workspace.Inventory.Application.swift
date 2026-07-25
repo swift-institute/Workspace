@@ -3,8 +3,8 @@ public import File_System
 extension Workspace.Inventory {
     public struct Application<Listing, Content>: Sendable
     where
-        Listing: Swift.Error & Sendable,
-        Content: Swift.Error & Sendable
+        Listing: Swift.Error,
+        Content: Swift.Error
     {
         public let root: File.Directory
         public let policy: Workspace.Inventory.Policy

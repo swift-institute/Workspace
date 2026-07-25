@@ -30,7 +30,7 @@ extension Workspace {
                 let contents = try? location.read.full({ bytes in
                     var storage = [Byte]()
                     storage.reserveCapacity(bytes.count)
-                    for index in 0..<bytes.count {
+                    for index in bytes.indices {
                         storage.append(bytes[index])
                     }
                     return Swift.String(decoding: storage, as: Swift.UTF8.self)

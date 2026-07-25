@@ -66,7 +66,7 @@ extension Workspace.Composition.State {
             bytes = try file.read.full { span in
                 var storage = [Byte]()
                 storage.reserveCapacity(span.count)
-                for index in 0..<span.count {
+                for index in span.indices {
                     storage.append(span[index])
                 }
                 return storage

@@ -14,10 +14,7 @@ extension Workspace.Composition.State {
 }
 
 extension Workspace.Composition.State.Test.Unit {
-    private typealias Record = Workspace.Composition.Record
-    private typealias State = Workspace.Composition.State
-
-    private static let record = Record(
+    private static let record = Workspace.Composition.Record(
         consumer: "swift-color",
         dependency: "swift-color-standard",
         declared: ".package(url: \"https://github.com/swift-standards/swift-color-standard.git\", branch: \"main\")",
@@ -26,21 +23,21 @@ extension Workspace.Composition.State.Test.Unit {
 
     @Test
     func `a record round-trips through JSON`() throws {
-        let json = Record.serialize(Self.record)
-        let decoded = try Record.deserialize(json)
+        let json = Workspace.Composition.Record.serialize(Self.record)
+        let decoded = try Workspace.Composition.Record.deserialize(json)
         #expect(decoded == Self.record)
     }
 
     @Test
     func `a ledger round-trips through JSON`() throws {
-        let state = State(records: [Self.record])
-        let decoded = try State(jsonString: state.jsonString())
+        let state = Workspace.Composition.State(records: [Self.record])
+        let decoded = try Workspace.Composition.State(jsonString: state.jsonString())
         #expect(decoded == state)
     }
 
     @Test
     func `record lookup, add, and remove`() {
-        let empty = State()
+        let empty = Workspace.Composition.State()
         #expect(empty.record(consumer: "swift-color", dependency: "swift-color-standard") == nil)
 
         let one = empty.adding(Self.record)
@@ -53,15 +50,12 @@ extension Workspace.Composition.State.Test.Unit {
     @Test
     func `deserialize rejects a mismatched version`() {
         #expect(throws: JSON.Error.self) {
-            _ = try State(jsonString: "{\"version\": 999, \"compositions\": []}")
+            _ = try Workspace.Composition.State(jsonString: "{\"version\": 999, \"compositions\": []}")
         }
     }
 }
 
 extension Workspace.Composition.State.Test.Integration {
-    private typealias Record = Workspace.Composition.Record
-    private typealias State = Workspace.Composition.State
-
     @Test
     func `an absent ledger loads as empty`() throws {
         let base = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
@@ -69,7 +63,7 @@ extension Workspace.Composition.State.Test.Integration {
         defer { try? FileManager.default.removeItem(at: base) }
 
         let root = try File.Directory(validating: base.path)
-        #expect(try State.load(at: root).records.isEmpty)
+        #expect(try Workspace.Composition.State.load(at: root).records.isEmpty)
     }
 
     @Test
@@ -79,8 +73,8 @@ extension Workspace.Composition.State.Test.Integration {
         defer { try? FileManager.default.removeItem(at: base) }
 
         let root = try File.Directory(validating: base.path)
-        let state = State(records: [
-            Record(
+        let state = Workspace.Composition.State(records: [
+            Workspace.Composition.Record(
                 consumer: "swift-color",
                 dependency: "swift-color-standard",
                 declared: ".package(url: \"https://github.com/swift-standards/swift-color-standard.git\", branch: \"main\")",
@@ -88,7 +82,7 @@ extension Workspace.Composition.State.Test.Integration {
             )
         ])
         try state.save(at: root)
-        #expect(try State.load(at: root) == state)
+        #expect(try Workspace.Composition.State.load(at: root) == state)
 
         // The ledger lives under the git-ignored .workspace/ directory.
         let ledger = base.appending(path: ".workspace/compositions.json")

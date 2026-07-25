@@ -41,7 +41,7 @@ extension Workspace.Inventory {
                 return try file.read.full { bytes in
                     var storage = [Byte]()
                     storage.reserveCapacity(bytes.count)
-                    for index in 0..<bytes.count {
+                    for index in bytes.indices {
                         storage.append(bytes[index])
                     }
                     return storage

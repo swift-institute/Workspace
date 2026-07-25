@@ -10,8 +10,8 @@ extension Workspace.Inventory {
         GitHub.HTTP.Error<Execution, Never>
     >
     where
-        Execution: Swift.Error & Sendable,
-        Pagination: Swift.Error & Sendable
+        Execution: Swift.Error,
+        Pagination: Swift.Error
     {
         .init(
             repositories: http.repositories(authentication: authentication),

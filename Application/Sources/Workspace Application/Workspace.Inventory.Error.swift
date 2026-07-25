@@ -4,8 +4,8 @@ public import Tagged_Primitives
 extension Workspace.Inventory {
     public enum Error<Listing, Content>: Swift.Error, Sendable
     where
-        Listing: Swift.Error & Sendable,
-        Content: Swift.Error & Sendable
+        Listing: Swift.Error,
+        Content: Swift.Error
     {
         case cancellation
         case repositories(
