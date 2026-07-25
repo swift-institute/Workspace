@@ -68,27 +68,28 @@ committed, staged, hand-edited, copied, or deleted to force advancement.
 | `swift-package-graph` `f13f91f2…` | ✅ | ❌ **NOT an ancestor** |
 | `swift-package-graph` `8fbcdb8e…` | ✅ | ✅ — **it *is* HEAD** |
 
-**⚠️ DISCREPANCY 1 — `f13f91f2` is not lost, it is superseded.** It exists as
-`f13f91f Delegate manifest loading to Package.Manager` but is **contained by no branch** (dangling).
-Main carries `8fbcdb8 Delegate existing manifest loading to Package.Manager` — the same work,
-re-authored. Relationship: `f13f91f2` was an earlier attempt replaced by `8fbcdb8e`; treat
-**`8fbcdb8e` as canonical** and `f13f91f2` as historical. History was **not** rewritten to tidy the
-record, per instruction.
+**DISCREPANCY 1 — CLOSED, cause established.** `f13f91f2` is dangling because its author **amended
+it**; `8fbcdb8e` is the same commit with a corrected message (the original wrongly claimed the
+deleted decoder was field-identical to the one `swift-spm-standard` owns — it was field-identical to
+the *manager's*). **`8fbcdb8e` is canonical**, `f13f91f2` historical. History deliberately **not**
+rewritten.
 
-**⚠️ DISCREPANCY 2 — two mandatory governing documents DO NOT EXIST.** The relay directs the new
-session to read these first:
+**⚠️ DISCREPANCY 2 — AMENDED. One document is absent; the other EXISTS OUTSIDE THE REPO.**
 
-- `Workspace/WHY_WORKSPACE_EXISTS.md` — **absent**
-- `Workspace/WORKSPACE_LOCAL_RESOLUTION_IMPLEMENTATION_PLAN.md` — **absent**
+- `Workspace/WHY_WORKSPACE_EXISTS.md` — **genuinely absent.** Not in the repo, not under `Developer`,
+  not under `Downloads`.
+- `WORKSPACE_LOCAL_RESOLUTION_IMPLEMENTATION_PLAN.md` — **EXISTS at
+  `<downloads>/WORKSPACE_LOCAL_RESOLUTION_IMPLEMENTATION_PLAN.md`, 53,681 bytes.**
+  It was supplied as an attachment and never lived in the repo, which is why a repo-scoped probe
+  correctly returned nothing. **It is the founding document of this entire arc and has been read in
+  full.** Do not treat it as non-existent.
 
-Neither has **ever been tracked** in this repository's history (`--diff-filter=D` returns nothing).
-**Positive control:** the identical `find` shape locates `ARCHITECTURE.md`, which is present — so
-this is a real absence, not a mis-anchored probe. The Workspace repo root contains exactly:
-`ARCHITECTURE.md`, `Application`, `LICENSE.md`, `Packages`, `README.md`, `Research`,
-`Workspace.json`, `institute.xcworkspace`.
+The earlier claim that both were absent was a **true observation about the wrong search space** — a
+repo-scoped probe answering a question that was not repo-scoped. Positive control was sound
+(the same `find` locates `ARCHITECTURE.md`); the *scope* was the defect, not the probe.
 
-**Consequence:** `ARCHITECTURE.md` plus this file plus the two Adjudications are the *actual*
-governing record. Do not block on the two absent documents; do not invent them.
+**Consequence:** the actual governing record is `ARCHITECTURE.md` + the Downloads implementation plan
++ this file + the two Adjudications. Do not block on `WHY_WORKSPACE_EXISTS.md`; do not invent it.
 
 ## 4. Completed capabilities
 
