@@ -1,21 +1,58 @@
 # Swift Institute Workspace
 
-The Swift Institute Workspace creates an isolated local checkout of Institute packages for Xcode development. Every package remains a normal, independent Git repository with its canonical `origin`.
+The front door to the Swift Institute: the public package inventory ([Workspace.json](Workspace.json)),
+machine-checked facts about a checkout (`workspace doctor`), and an isolated local development
+checkout for Xcode (`workspace sync`).
 
-This first public proof contains one real three-layer chain:
+## What Swift Institute is
 
-```text
-swift-dimension-primitives → swift-color-standard → swift-color
+Swift Institute builds a layered ecosystem of independent Swift packages. Three layers are
+realised:
+
+| Layer | Family | GitHub org |
+| ---: | --- | --- |
+| 1 | Primitives — atomic, dependency-light identity and value types | [swift-primitives](https://github.com/swift-primitives) |
+| 2 | Standards — models of externally defined formats, protocols, and specifications | [swift-standards](https://github.com/swift-standards) |
+| 3 | Foundations — operational capabilities composed from the lower layers | [swift-foundations](https://github.com/swift-foundations) |
+
+Dependencies flow downward; same-layer edges are permitted only when they express a genuine
+semantic prerequisite and the graph stays acyclic. Names above Layer 3 — components,
+applications — are reservations recording intent. Never read such a name as evidence that the
+thing exists.
+
+Specification packages live in orgs named for the issuing authority:
+[swift-ietf](https://github.com/swift-ietf) (the `swift-rfc-*` family),
+[swift-iso](https://github.com/swift-iso), [swift-w3c](https://github.com/swift-w3c),
+[swift-whatwg](https://github.com/swift-whatwg), and further authority, vendor, and
+jurisdiction orgs on the same pattern. The `swift-*-standard` family inside swift-standards
+models de-facto systems (Git, SwiftPM, GitHub, …) and is a different family from the
+authority specification packages.
+
+Every package is one repository; there is no monorepo. This repository clones selected
+packages as independent sibling checkouts under `Packages/` and composes them into a single
+Xcode workspace.
+
+## Where facts come from
+
+- **Inventory:** [Workspace.json](Workspace.json) is the public roster of packages this
+  workspace manages, intended to grow to every public, non-archived Institute package.
+- **Checkout facts:** `workspace doctor` measures the checkout directly — identities,
+  remotes, branches, upstreams, toolchain, and workspace references.
+
+Prefer running `doctor` over trusting any written snapshot: repository-state prose is a
+measurement with a timestamp, and it drifts.
+
+## Where open work lives
+
+Open objectives are public GitHub issues on the relevant repositories:
+
+```bash
+gh issue list --repo swift-institute/Workspace
 ```
 
-## Requirements
-
-- macOS 26
-- Xcode 26.6
-- Swift 6.3.3
-- Git
-
 ## Get started
+
+Requires macOS 26, Xcode 26.6, Swift 6.3.3, and Git.
 
 ```sh
 git clone https://github.com/swift-institute/Workspace.git
@@ -24,7 +61,10 @@ swift run --package-path Application workspace sync
 open institute.xcworkspace
 ```
 
-`sync` prints its complete plan before changing repositories. It clones missing repositories and only fast-forwards an existing repository when it is clean, currently on `main`, tracks `origin/main`, and has no local commits. It never resets, cleans, stashes, rebases, switches a feature branch, or overwrites a repository.
+`sync` prints its complete plan before changing repositories. It clones missing repositories
+and only fast-forwards an existing repository when it is clean, currently on `main`, tracks
+`origin/main`, and has no local commits. It never resets, cleans, stashes, rebases, switches
+a feature branch, or overwrites a repository.
 
 Preview the plan without changing files or Git metadata:
 
@@ -32,19 +72,25 @@ Preview the plan without changing files or Git metadata:
 swift run --package-path Application workspace sync --dry-run
 ```
 
-Check the checkout, canonical remotes, branches, upstreams, package identities, toolchain, and relative workspace references:
+Check the checkout, canonical remotes, branches, upstreams, package identities, toolchain,
+and relative workspace references:
 
 ```sh
 swift run --package-path Application workspace doctor
 ```
 
-Dirty worktrees and feature branches are reported as warnings and remain untouched. Identity, remote, upstream, divergence, toolchain, missing-package, and workspace-reference problems are errors.
+Dirty worktrees and feature branches are reported as warnings and remain untouched.
+Identity, remote, upstream, divergence, toolchain, missing-package, and workspace-reference
+problems are errors.
 
 ## Scope
 
-`Workspace.json` is the public source of truth. Its schema is intended to grow to every public,
-non-archived Swift Institute package. The initial roster contains the three-repository proof
-chain plus `swift-url-routing` and `swift-http-body`, which are included for the active
-URL-routing and HTTP-body migration workspace.
+The current roster contains a three-repository proof chain spanning all three layers —
+`swift-dimension-primitives → swift-color-standard → swift-color` — plus `swift-url-routing`
+and `swift-http-body` for an active migration workspace. The Xcode workspace uses only
+relative `Packages/<repository>` references; non-selected transitive dependencies still
+resolve from their canonical remote URLs.
 
-The Xcode workspace uses only relative `Packages/<repository>` references. Non-selected transitive dependencies still resolve from their canonical remote URLs during this bounded proof.
+## License
+
+Licensed under the terms in [LICENSE.md](LICENSE.md).

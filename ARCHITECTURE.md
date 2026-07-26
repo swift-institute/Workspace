@@ -2,9 +2,21 @@
 
 ## Mission
 
-Workspace is a thin Layer-5 application that discovers eligible public Swift Institute
-repositories, plans safe synchronization, reports policy violations, and composes the Institute
-packages that own Git, SwiftPM, Xcode, JSON, XML, filesystem, process, and GitHub behavior.
+Workspace is the Swift Institute front door. It serves three roles:
+
+- **Inventory** — `Workspace.json` is the public roster of Institute package repositories,
+  intended to grow to every public, non-archived package.
+- **Fact oracle** — `workspace doctor` reports what is true right now about the checkout:
+  identities, remotes, branches, upstreams, toolchain, and workspace references. Facts come
+  from executed checks, not from prose snapshots; a check that cannot distinguish "measured
+  clean" from "failed to measure" does not ship.
+- **Development checkout** — `workspace sync` materializes eligible repositories as normal,
+  independent Git clones and composes them into a deterministic Xcode workspace.
+
+Architecturally, Workspace remains a thin Layer-5 application that discovers eligible public
+Swift Institute repositories, plans safe synchronization, reports policy violations, and
+composes the Institute packages that own Git, SwiftPM, Xcode, JSON, XML, filesystem, process,
+and GitHub behavior.
 
 Workspace owns application policy only:
 
@@ -15,6 +27,14 @@ Workspace owns application policy only:
 - command-line composition.
 
 It does not own representations or operational clients for external systems.
+
+The widened charter changes what Workspace reports, not how it is built. The immediate
+engineering increment is unchanged: the local-resolution milestone — generated
+`.package(path:)` composition, the sentinel proof, and clean restoration — per
+`Research/Local Resolution/Workspace Finalization Handoff.md`. The decisions recorded in that
+handoff's "Accepted architecture" section are settled and are not reopened by this mission
+statement. Doctor growth (new checks) layers onto the same owner packages and the same
+severity policy; it does not create new packages or new lower-layer ownership.
 
 ## Application layout
 
