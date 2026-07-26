@@ -1,3 +1,4 @@
+private import Environment
 public import File_System
 public import Git_Foundation
 public import Package_Manager
@@ -14,6 +15,7 @@ extension Workspace {
         public let configuration: Configuration
         public let git: Git.Client
         public let packages: Package.Manager
+        public let environment: @Sendable (_ variable: Swift.String) -> Swift.String?
         public let tool:
             @Sendable (
                 _ executable: Swift.String,
@@ -25,6 +27,8 @@ extension Workspace {
             configuration: Configuration,
             git: Git.Client = .init(),
             packages: Package.Manager = .init(),
+            environment: @escaping @Sendable (_ variable: Swift.String) -> Swift.String? =
+                Self.variable,
             tool:
                 @escaping @Sendable (
                     _ executable: Swift.String,
@@ -35,6 +39,7 @@ extension Workspace {
             self.configuration = configuration
             self.git = git
             self.packages = packages
+            self.environment = environment
             self.tool = tool
         }
     }
@@ -101,6 +106,12 @@ extension Workspace.Doctor {
         } catch {
             throw .process("Git operation failed: \(error)")
         }
+    }
+
+    /// Reads the invoking process environment — the default
+    /// interrogation behind ``environment``.
+    public static func variable(_ name: Swift.String) -> Swift.String? {
+        Environment.read(name)
     }
 
     /// Spawns the tool and captures its standard output — the default
