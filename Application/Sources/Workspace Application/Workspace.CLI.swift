@@ -1,6 +1,7 @@
 public import Command
 private import Environment
 private import File_System
+private import Process
 
 extension Workspace {
     public struct CLI: Sendable, Command.`Protocol` {
@@ -103,7 +104,9 @@ extension Workspace.CLI {
         case .sync:
             try Workspace.Sync(root: root, configuration: configuration).run(dry: dry)
         case .doctor:
-            try Workspace.Doctor(root: root, configuration: configuration).run()
+            let report = await Workspace.Doctor(root: root, configuration: configuration).run()
+            print(report)
+            Process.Exit.normal(report.status)
         case .compose:
             try Workspace.Composition(root: root, configuration: configuration)
                 .compose(consumer: consumer, dependency: dependency)

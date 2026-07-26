@@ -27,21 +27,23 @@ extension Workspace.Xcode {
         root[directory: "institute.xcworkspace"][file: "contents.xcworkspacedata"]
     }
 
-    public static func current(_ repositories: [Workspace.Repository], at root: File.Directory) -> Bool {
-        let location = path(at: root)
-        guard
-            let contents = try? location.read.full({ bytes in
+    public static func contents(at root: File.Directory) -> Swift.String? {
+        do throws(File.System.Read.Full.Error) {
+            return try path(at: root).read.full { bytes in
                 var storage = [Byte]()
                 storage.reserveCapacity(bytes.count)
                 for index in bytes.indices {
                     storage.append(bytes[index])
                 }
                 return Swift.String(decoding: storage, as: Swift.UTF8.self)
-            })
-        else {
-            return false
+            }
+        } catch {
+            return nil
         }
-        return contents == render(repositories)
+    }
+
+    public static func current(_ repositories: [Workspace.Repository], at root: File.Directory) -> Bool {
+        contents(at: root) == render(repositories)
     }
 
     public static func write(
