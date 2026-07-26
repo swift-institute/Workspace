@@ -83,11 +83,18 @@ open institute.xcworkspace
 
 **The third command is slow the first time, and it is silent while it works.** Before it does
 anything visible, `swift run` resolves and compiles the command-line application and its whole
-dependency graph — measured from a clean clone, that is roughly **5,900 build steps, about
-4,200 of them compilations, taking 4–7 minutes** depending on the machine and its current load.
-The earliest of those minutes print nothing at all while SwiftPM evaluates manifests, and the
-rest print nothing either: no progress bar, no percentage, nothing until the build finishes and
-`sync` prints its plan. Silence there is expected, not a hang.
+dependency graph. Two costs stack up, and both are silent:
+
+- **Resolution.** SwiftPM fetches the full transitive dependency graph — around **200
+  repositories** — before compiling anything. On a first run with a cold package cache this is
+  network-bound, so how long it takes depends on your connection more than your machine.
+- **Compilation.** Roughly **5,900 build steps, about 4,200 of them compilations**. Measured
+  with sources already local, that alone took **4–7 minutes** depending on the machine and its
+  load; treat it as a floor, with fetching on top.
+
+The earliest minutes print nothing at all while SwiftPM evaluates manifests, and the rest print
+nothing either: no progress bar, no percentage, nothing until the build finishes and `sync`
+prints its plan. Silence there is expected, not a hang.
 
 If you would rather watch it work, run the build as its own step first — `swift build` prints
 per-step progress, so the compile and the sync become two separate, legible steps:
