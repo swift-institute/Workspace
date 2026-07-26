@@ -81,14 +81,6 @@ extension Workspace.Doctor.Fixture {
         try Git.Client().initialize(at: location.path, bare: false)
     }
 
-    /// Materializes `name` at the superseded flat `Packages/<name>`
-    /// location, for exercising the layout-migration check.
-    func materialize(flat name: Swift.String) throws {
-        let location = base.appending(path: "Packages/\(name)")
-        try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
-        try Git.Client().initialize(at: location.path, bare: false)
-    }
-
     /// Writes `contents` at `relative` under the checkout root.
     func write(_ contents: Swift.String, to relative: Swift.String) throws {
         try contents.write(

@@ -1,15 +1,15 @@
 .DS_Store
 .build/
 .swiftpm/
-# Materialized org roots — regenerable state written by `workspace sync`
-# (see ARCHITECTURE.md, "Materialization layout").
+# Materialized org roots — regenerable state written by `workspace sync`.
+# The target layout places these beside the checkout (see ARCHITECTURE.md,
+# "Materialization layout"); the entries remain transitionally for
+# checkouts that materialized inside the clone.
 /swift-primitives/
 /swift-standards/
 /swift-foundations/
 /swift-components/
 /swift-applications/
-# Superseded flat layout — reported by `doctor`, never deleted by tooling.
-Packages/
 .workspace/
 Package.resolved
 **/Package.resolved

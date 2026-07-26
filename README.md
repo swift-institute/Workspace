@@ -117,31 +117,34 @@ Preview the plan without changing files or Git metadata:
 swift run --package-path Application workspace sync --dry-run
 ```
 
-### What appears in your clone
+### Where packages materialize
 
-After `sync`, org-named directories appear **inside** your clone:
+The org hierarchy materializes **beside** your clone — the directory you cloned into plays
+the organization role. For a clone at `X/Workspace`:
 
 ```text
-Workspace/
-├── Application/            the command-line application (part of this repository)
-├── Workspace.json          the inventory — the sole name → org → path authority
+X/
+├── Workspace/              this repository: Application/, Workspace.json, institute.xcworkspace
 ├── swift-primitives/       ┐
 ├── swift-standards/        ├ materialization roots: independent repositories,
-├── swift-foundations/      ┘ each gitignored, none part of this repository
-└── institute.xcworkspace/  the generated Xcode workspace
+└── swift-foundations/      ┘ none part of this repository
 ```
 
 Each package under those roots is an **independent repository** with its own history, remote,
-CI, and license. They are gitignored here, and committing their contents to this repository is
-always wrong — work on a package inside its own checkout and open the pull request on its own
-repository.
+CI, and license. Committing their contents to this repository is always wrong — work on a
+package inside its own checkout and open the pull request on its own repository.
 
-They live inside the clone rather than beside it for two reasons: `sync` must never write
-outside the directory you cloned, and the generated Xcode workspace references packages by
-relative path, which requires them to sit within the repository. Materialized paths are
-regenerable state — if a repository moves between organizations, its inventory entry changes
-and `sync` materializes the new location, so nothing durable should reference one of these
-paths as though it were stable.
+The roots sit beside the clone rather than inside it so the checkout stays a plain repository
+and the hierarchy reads as the organization itself; `sync` writes only these roots beside the
+directory you cloned, and never anywhere else. Materialized paths are regenerable state — if a
+repository moves between organizations, its inventory entry changes and `sync` materializes
+the new location, so nothing durable should reference one of these paths as though it were
+stable.
+
+> **Implementation status.** The tools currently resolve the materialization roots at the
+> checkout root, so `sync` today still materializes the hierarchy inside your clone (those
+> directories are gitignored there). Resolving the roots at the checkout's parent is being
+> landed; this section documents the target layout.
 
 ## Reading `doctor`
 
@@ -158,15 +161,14 @@ A healthy contributor run looks like this:
 toolchain: ok (population 4)
 workspace-reference: ok (population 1)
 materialization: ok (population 5)
-layout-migration: ok (population 5)
 working-state: ok (population 5)
 resolved-pins: ok (population 0)
 manifest-identity: ok (population 5)
 inventory-currency: not run (institute-internal)
-8 checks: 7 ok, 1 not run (institute-internal); measured populations: toolchain 4,
-workspace-reference 1, materialization 5, layout-migration 5, working-state 5,
-resolved-pins 0, manifest-identity 5
-doctor: passed — 7 check(s) measured, 1 not run (institute-internal), 0 warning(s).
+7 checks: 6 ok, 1 not run (institute-internal); measured populations: toolchain 4,
+workspace-reference 1, materialization 5, working-state 5, resolved-pins 0,
+manifest-identity 5
+doctor: passed — 6 check(s) measured, 1 not run (institute-internal), 0 warning(s).
 ```
 
 ### The four results
@@ -213,19 +215,10 @@ as `unmeasured` rather than reporting a green it did not earn.
 
 ### Severities
 
-Dirty worktrees, untracked files, detached HEADs, feature branches, stale resolved pins, and
-leftover flat `Packages/` checkouts are **warnings** — they may hold your unpushed work, so
-they are reported and left alone. Identity, remote, upstream, divergence, toolchain,
-missing-package, and workspace-reference problems are **errors**.
-
-### Migrating from the flat `Packages/` layout
-
-Checkouts synced before the org layout hold packages flat under `Packages/`. That layout is
-superseded. Re-run `workspace sync`: it materializes the org hierarchy as fresh clones and
-leaves `Packages/` untouched. `workspace doctor` reports each remaining flat checkout
-(`layout-migration`, a warning) so nothing is forgotten. Move any local work you want to
-keep — unpushed branches or dirty worktrees — into the new checkout or push it, then remove
-`Packages/` yourself: tooling never deletes it.
+Dirty worktrees, untracked files, detached HEADs, feature branches, and stale resolved pins
+are **warnings** — they may hold your unpushed work, so they are reported and left alone.
+Identity, remote, upstream, divergence, toolchain, missing-package, and workspace-reference
+problems are **errors**.
 
 ## Working across packages locally
 

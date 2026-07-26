@@ -66,18 +66,19 @@ the shared inventory and generated workspace so future end-user applications can
 sibling directories without turning the command-line package into the repository root.
 
 ```text
-Workspace/
-├── Application/                 Layer-5 Swift package
-│   ├── Sources/
-│   │   ├── Workspace Application/
-│   │   └── Workspace CLI/
-│   └── Tests/
-├── Workspace.json              application-owned inventory policy
-├── swift-primitives/           ignored materialized org root (layer 1)
-├── swift-standards/            ignored materialized org root (layer 2)
+X/                              the directory playing the organization role
+├── Workspace/                  this repository, cloned into X
+│   ├── Application/            Layer-5 Swift package
+│   │   ├── Sources/
+│   │   │   ├── Workspace Application/
+│   │   │   └── Workspace CLI/
+│   │   └── Tests/
+│   ├── Workspace.json          application-owned inventory policy
+│   └── institute.xcworkspace/  deterministic generated workspace
+├── swift-primitives/           materialized org root (layer 1)
+├── swift-standards/            materialized org root (layer 2)
 │   └── swift-ietf/             authority orgs nest under their layer root
-├── swift-foundations/          ignored materialized org root (layer 3)
-└── institute.xcworkspace/      deterministic generated workspace
+└── swift-foundations/          materialized org root (layer 3)
 ```
 
 Names such as `macOS Application/` and `iOS Application/` are reserved for concrete future
@@ -86,17 +87,23 @@ application establishes a coherent shared hierarchy.
 
 ## Materialization layout
 
-`sync` materializes the org hierarchy (ruling 139: the one layout for every checkout —
-contributors included; the flat `Packages/` layout is superseded, reported by `doctor`'s
-`layout-migration` check, and never deleted by tooling).
+`sync` materializes the org hierarchy — the one layout for every checkout, contributors
+included.
 
-**Where the roots live.** The materialization roots are directories inside the repository
-root — `swift-primitives/`, `swift-standards/`, `swift-foundations/` (and the reserved
-`swift-components/`, `swift-applications/`) — each gitignored exactly as `Packages/` was.
-Inside the repository rather than beside it, for two reasons: `sync` must never write outside
-the checkout the user cloned, and the generated workspace's relative references must stay
-within the repository. Under the institute's local entry-point convention the hierarchy
-therefore roots at the front door: `…/swift-institute/Workspace/swift-standards/…`.
+**Where the roots live.** The materialization roots are **siblings of the cloned
+repository**. For a checkout cloned into any directory `X` as `X/Workspace`, `sync` populates
+`X/swift-primitives/`, `X/swift-standards/`, `X/swift-foundations/` (and the reserved
+`X/swift-components/`, `X/swift-applications/`): the directory you cloned into plays the
+organization role, and the checkout stays a plain repository beside its org roots. `sync`
+writes only these roots beside the clone, never anywhere else. This supersedes the earlier
+inside-the-checkout materialization; the repository's `.gitignore` keeps the root entries
+transitionally so a checkout that materialized under that earlier layout does not surface
+those trees as untracked noise.
+
+**Implementation status.** The tools currently resolve both the inventory and the
+materialization roots at the invocation root (the checkout), so a fresh `sync` still
+materializes inside the clone; resolving the roots at the checkout's parent is being landed.
+This section records the target layout.
 
 **Where a package materializes.** Its location is a pure function of its `Workspace.json`
 entry: the layer's root organization, then — when the owning organization is not the layer

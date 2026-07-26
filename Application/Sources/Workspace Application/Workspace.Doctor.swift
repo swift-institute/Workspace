@@ -58,7 +58,6 @@ extension Workspace.Doctor {
             toolchain(),
             reference(),
             materialization(),
-            migration(),
             census(checkouts),
             pins(checkouts),
             manifest(checkouts),

@@ -62,16 +62,6 @@ extension Workspace.Layout {
         )
     }
 
-    /// The superseded flat location, `Packages/<name>`. Never used to
-    /// resolve a repository — it exists solely so the migration check
-    /// can report a flat checkout that predates the org layout.
-    public static func legacy(
-        for repository: Workspace.Repository,
-        at root: File.Directory
-    ) throws(Workspace.Error) -> File.Directory {
-        try descend(root, through: ["Packages", repository.name], name: repository.name)
-    }
-
     private static func descend(
         _ root: File.Directory,
         through components: some Swift.Sequence<Swift.String>,

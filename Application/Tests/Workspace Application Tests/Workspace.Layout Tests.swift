@@ -83,19 +83,6 @@ extension Workspace.Layout.Test.Unit {
         #expect(parent.description == "/scratch/swift-standards/swift-ietf")
     }
 
-    @Test
-    func `the legacy location is the superseded flat path`() throws {
-        let root = try File.Directory(validating: "/scratch")
-        let repository = Self.repository(
-            name: "swift-color",
-            organization: "swift-foundations",
-            layer: .foundations
-        )
-
-        let legacy = try Workspace.Layout.legacy(for: repository, at: root)
-
-        #expect(legacy.description == "/scratch/Packages/swift-color")
-    }
 }
 
 extension Workspace.Layout.Test.`Edge Case` {
