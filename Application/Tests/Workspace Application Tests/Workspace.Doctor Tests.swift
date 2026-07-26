@@ -204,9 +204,9 @@ extension Workspace.Doctor.Test.Integration {
 
         #expect(report.status == 2)
         #expect(report.description.contains("unmeasured"))
-        let synchronization = report.outcomes.first { $0.check == "synchronization" }
+        let census = report.outcomes.first { $0.check == "working-state" }
         #expect(
-            synchronization?.result
+            census?.result
                 == .unmeasured(reason: "empty population against an inventory of 1")
         )
     }

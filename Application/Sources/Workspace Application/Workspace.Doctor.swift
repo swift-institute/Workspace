@@ -58,7 +58,8 @@ extension Workspace.Doctor {
             toolchain(),
             reference(),
             materialization(),
-            synchronization(checkouts),
+            census(checkouts),
+            pins(checkouts),
             manifest(checkouts),
         ]
         switch access {

@@ -31,8 +31,8 @@ that it did not run — that is not a failure of your checkout.
   that guarantee in any change you make to it.
 - **`Package.resolved` is generated state.** Never commit, hand-edit, or delete it to force
   resolution. Change `Package.swift` and resolve.
-- **Dependencies are branch-based**, so a green build over old pins is not evidence. Re-resolve
-  before treating a result as proof.
+- **Dependencies are branch-based.** `doctor` warns when a recorded pin lags its branch tip;
+  a green over stale pins is not evidence — re-resolve.
 - **The generated Xcode workspace uses relative references only.** Never emit an absolute path
   into `institute.xcworkspace` or into `Workspace.json` — a test asserts this.
 
