@@ -13,6 +13,29 @@ Workspace is the Swift Institute front door. It serves three roles:
 - **Development checkout** — `workspace sync` materializes eligible repositories as normal,
   independent Git clones and composes them into a deterministic Xcode workspace.
 
+### The contributor path is a first-class surface
+
+Someone with no Institute access clones this repository alone and gets to a working, understood
+setup from its README. That path is a product surface, not a by-product of the internal one, and
+it constrains the design:
+
+- **Nothing on the contributor path may depend on a private repository.** `sync` and `doctor`
+  run under plain `swift run`; no step may require internal tooling, credentials, or a
+  repository the contributor cannot read.
+- **A check that cannot run without Institute access is scoped, not silently skipped.** Such a
+  check declares itself institute-internal and reports that it did not run. "Did not run,
+  by scope" and "ran and found nothing" are different results and are never printed the same
+  way.
+- A contributor run that reaches a correct, complete conclusion exits successfully. Absence of
+  private access is not a defect in the checkout and is never reported as one.
+
+### Composition boundary
+
+Policy, planning, inspection, and reporting live in the `Workspace Application` library target.
+The `workspace` executable is thin composition over it and owns nothing else. Any future
+front-end composes the same library rather than reimplementing its policy — the split exists so
+that the choice of front-end stays open.
+
 Architecturally, Workspace remains a thin Layer-5 application that discovers eligible public
 Swift Institute repositories, plans safe synchronization, reports policy violations, and
 composes the Institute packages that own Git, SwiftPM, Xcode, JSON, XML, filesystem, process,

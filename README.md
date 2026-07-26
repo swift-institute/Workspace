@@ -52,6 +52,10 @@ gh issue list --repo swift-institute/Workspace
 
 ## Get started
 
+**No Institute access is required.** Everything below works from a clone of this repository
+alone, against public repositories, with no credentials and no internal tooling. If a step here
+needs anything you cannot get, that is a defect — please open an issue.
+
 Requires macOS 26, Xcode 26.6, Swift 6.3.3, and Git.
 
 ```sh
@@ -82,6 +86,16 @@ swift run --package-path Application workspace doctor
 Dirty worktrees and feature branches are reported as warnings and remain untouched.
 Identity, remote, upstream, divergence, toolchain, missing-package, and workspace-reference
 problems are errors.
+
+## Contributing
+
+Contributions come through the same path this README describes — there is no second, internal
+one. Pick up an issue, work in the package's own repository under `Packages/`, and open a pull
+request there; each package is an independent repository with its own history and CI.
+
+Before opening a pull request, run `doctor` and make sure the package builds and tests from its
+own repository. `doctor` reports which of its checks apply to your setup; checks that need
+Institute access report that they did not run rather than failing your checkout.
 
 ## Scope
 
