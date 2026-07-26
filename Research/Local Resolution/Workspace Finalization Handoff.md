@@ -51,6 +51,11 @@ Finalize the first useful Workspace local-development workflow:
 
 ## 3. Actual repository state — measured 2026-07-24
 
+> **Superseded 2026-07-26 by `workspace doctor`.** Repository state is now measured by running
+> doctor (working-state census, commit `ee651f00`), not by reading a table dated the day it was
+> written. The snapshot below stays as historical record; dated repo-state tables are retired as
+> a genre — a handoff cites the tool instead.
+
 | Repository | HEAD | Branch | Tracking | Visibility | Dirty | Scoped mirrors |
 |---|---|---|---|---|---|---|
 | `swift-institute/Workspace` | `b917a00` | main | **ahead 1** | **PUBLIC** | clean | absent |
