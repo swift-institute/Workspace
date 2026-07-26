@@ -61,11 +61,11 @@
       ],
       "displayName": "swift-dimension-primitives",
       "identity": {
-        "basis": "empirical: appears as packageRef.identity in 5 inspected .build/workspace-state.json files, kind=localSourceControl, location=/Users/coen/Developer/swift-primitives/swift-dimension-primitives",
+        "basis": "empirical: appears as packageRef.identity in 5 inspected .build/workspace-state.json files, kind=localSourceControl, location=<developer-root>/swift-primitives/swift-dimension-primitives",
         "value": "swift-dimension-primitives"
       },
       "layer": "primitives",
-      "localPath": "/Users/coen/Developer/swift-primitives/swift-dimension-primitives",
+      "localPath": "<developer-root>/swift-primitives/swift-dimension-primitives",
       "macros": [],
       "materiallyRelevantImports": [
         "Axis_Primitive",
@@ -139,11 +139,11 @@
       ],
       "displayName": "swift-color-standard",
       "identity": {
-        "basis": "empirical: packageRef.identity in 2 inspected .build/workspace-state.json files (swift-color, Workspace/Application chain), kind=localSourceControl, location=/Users/coen/Developer/swift-standards/swift-color-standard",
+        "basis": "empirical: packageRef.identity in 2 inspected .build/workspace-state.json files (swift-color, Workspace/Application chain), kind=localSourceControl, location=<developer-root>/swift-standards/swift-color-standard",
         "value": "swift-color-standard"
       },
       "layer": "standards",
-      "localPath": "/Users/coen/Developer/swift-standards/swift-color-standard",
+      "localPath": "<developer-root>/swift-standards/swift-color-standard",
       "macros": [],
       "materiallyRelevantImports": [
         "Dimension_Primitives",
@@ -201,11 +201,11 @@
       ],
       "displayName": "swift-color",
       "identity": {
-        "basis": "empirical: packageRef.identity in swift-foundations/swift-html/.build/workspace-state.json, kind=localSourceControl, location=/Users/coen/Developer/swift-foundations/swift-color",
+        "basis": "empirical: packageRef.identity in swift-foundations/swift-html/.build/workspace-state.json, kind=localSourceControl, location=<developer-root>/swift-foundations/swift-color",
         "value": "swift-color"
       },
       "layer": "foundations",
-      "localPath": "/Users/coen/Developer/swift-foundations/swift-color",
+      "localPath": "<developer-root>/swift-foundations/swift-color",
       "macros": [],
       "materiallyRelevantImports": [
         "Color_Standard",
@@ -388,7 +388,7 @@
         "value": null
       },
       "layer": "foundations",
-      "localPath": "/Users/coen/Developer/swift-foundations/swift-url-routing",
+      "localPath": "<developer-root>/swift-foundations/swift-url-routing",
       "macros": [],
       "materiallyRelevantImports": [],
       "organization": "swift-foundations",
@@ -472,11 +472,11 @@
       ],
       "displayName": "swift-http-body",
       "identity": {
-        "basis": "empirical: packageRef.identity in 2 inspected .build/workspace-state.json files, kind=localSourceControl, location=/Users/coen/Developer/swift-foundations/swift-http-body",
+        "basis": "empirical: packageRef.identity in 2 inspected .build/workspace-state.json files, kind=localSourceControl, location=<developer-root>/swift-foundations/swift-http-body",
         "value": "swift-http-body"
       },
       "layer": "foundations",
-      "localPath": "/Users/coen/Developer/swift-foundations/swift-http-body",
+      "localPath": "<developer-root>/swift-foundations/swift-http-body",
       "macros": [],
       "materiallyRelevantImports": [],
       "organization": "swift-foundations",
@@ -559,11 +559,11 @@
       ],
       "displayName": "swift-witnesses",
       "identity": {
-        "basis": "empirical: packageRef.identity in 2 inspected .build/workspace-state.json files, kind=localSourceControl, location=/Users/coen/Developer/swift-foundations/swift-witnesses",
+        "basis": "empirical: packageRef.identity in 2 inspected .build/workspace-state.json files, kind=localSourceControl, location=<developer-root>/swift-foundations/swift-witnesses",
         "value": "swift-witnesses"
       },
       "layer": "foundations",
-      "localPath": "/Users/coen/Developer/swift-foundations/swift-witnesses",
+      "localPath": "<developer-root>/swift-foundations/swift-witnesses",
       "macros": [
         "Witnesses Macros Implementation"
       ],
@@ -673,7 +673,7 @@
         "value": null
       },
       "layer": "foundations",
-      "localPath": "/Users/coen/Developer/swift-foundations/swift-html",
+      "localPath": "<developer-root>/swift-foundations/swift-html",
       "macros": [],
       "materiallyRelevantImports": [
         "Color",

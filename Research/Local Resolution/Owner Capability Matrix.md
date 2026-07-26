@@ -3,6 +3,7 @@
 **Gate:** 0A — pre-project repository and capability audit
 **Date:** 2026-07-24
 **Governing documents:** `WHY_WORKSPACE_EXISTS.md` (constitution), `WORKSPACE_LOCAL_RESOLUTION_IMPLEMENTATION_PLAN.md` (protocol)
+**Path convention:** this repository is public; machine-specific path prefixes are rendered as `<developer-root>` deliberately (redacted 2026-07-26, per ADR-001).
 **Method — two distinct passes, do not conflate them:**
 
 | Pass | Date | What was done | What it can support |
@@ -90,8 +91,8 @@ not clean-room compilation evidence.
 **Command form** (the only two issued, per package):
 
 ```
-/Users/coen/Developer/swift-institute/Scripts/swift-build package build --package-path <abs>
-/Users/coen/Developer/swift-institute/Scripts/swift-build package test  --package-path <abs>
+<developer-root>/swift-institute/Scripts/swift-build package build --package-path <abs>
+<developer-root>/swift-institute/Scripts/swift-build package test  --package-path <abs>
 ```
 
 **Scope.** The correction baseline was reduced to nine decision-driving owner packages; all claims based on omitted packages were downgraded to `unresolved`.
@@ -216,9 +217,9 @@ against.
 
 ### 1.1 A machine-wide SwiftPM mirror map is the ecosystem's active substitution layer
 
-`/Users/coen/.swiftpm/configuration/mirrors.json` — **1,256 entries** (≈628 unique
+`~/.swiftpm/configuration/mirrors.json` — **1,256 entries** (≈628 unique
 originals, each spelled with and without `.git`) mapping canonical GitHub URLs to
-local directories under `/Users/coen/Developer/<org>/<repo>`.
+local directories under `<developer-root>/<org>/<repo>`.
 
 - Mirror targets by directory: `swift-primitives` 410, `swift-foundations` 376,
   `swift-ietf` 272, `swift-standards` 70, `swift-iso` 44, `swift-w3c` 24,
@@ -235,7 +236,7 @@ local directories under `/Users/coen/Developer/<org>/<repo>`.
 ### 1.2 Mirrors resolve to a pinned clone, not to the mutable worktree
 
 From `Workspace/Application/.build/workspace-state.json` (200 dependencies):
-`"kind": "localSourceControl"`, `"location": "/Users/coen/Developer/…"`,
+`"kind": "localSourceControl"`, `"location": "<developer-root>/…"`,
 `"state": { "checkoutState": { "branch", "revision" }, "name": "sourceControlCheckout" }`.
 In `.build/checkouts/swift-arguments`, `git remote -v` reports
 `origin  …/Application/.build/repositories/swift-arguments-7619971a`.
@@ -346,7 +347,7 @@ adjudication is narrow and answerable: should `Package.Manager` decode via
 
 ### 3.2 `edit` / `unedit` are retired, and scratch paths are not caller-supplied
 
-`/Users/coen/Developer/swift-institute/Scripts/swift-build` is a 1,486-line
+`<developer-root>/swift-institute/Scripts/swift-build` is a 1,486-line
 machine-wide coordinator that also installs as a `PreToolUse` guard.
 
 ```python
@@ -380,7 +381,7 @@ this audit.
 ### 3.3 Residual editable state exists and disagrees with resolver state
 
 `Workspace/Application/Packages/swift-git` is a symlink to
-`/Users/coen/Developer/swift-foundations/swift-git` — the artifact of
+`<developer-root>/swift-foundations/swift-git` — the artifact of
 `swift package edit … --path`. `Application/.build/workspace-state.json` contains
 no `edited` entry and records `swift-git` as `remoteSourceControl` at its GitHub
 URL. Status: **unresolved**; the divergence is real and preserved untouched.
@@ -494,7 +495,7 @@ Owners: **`swift-xcode-standard`** (L2, provisional) and **`swift-xcode`** (L3).
 
 This is not a spike question on this machine; it is settled operational practice.
 
-`/Users/coen/Developer/swift-institute/Internal/institute.xcworkspace` contains
+`<developer-root>/swift-institute/Internal/institute.xcworkspace` contains
 **457 FileRefs**, every one of the relative form `group:../../<org>/<repo>`.
 
 `Internal/INTEGRATION-WORKSPACE.md` states:

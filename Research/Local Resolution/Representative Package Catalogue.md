@@ -3,8 +3,9 @@
 **Gate:** 0A — pre-project repository and capability audit
 **Date captured:** 2026-07-24
 **Toolchain declared by the workspace inventory:** Swift 6.3.3, Xcode 26.6
-**Machine-readable companion:** `Representative Package Catalogue.json` (schema 1, `sort_keys` serialisation, SHA-256 `c31a96964cf4841a21c3662de86c06f9ed3ae5c3f6d24134c87ad44747907573`)
+**Machine-readable companion:** `Representative Package Catalogue.json` (schema 1, `sort_keys` serialisation, SHA-256 `9c869402d5a4251b4f1b72529b919be516b11a08917b0827ead7ef214e18bdd7` — recomputed 2026-07-26 after path generalisation; the as-captured hash was `c31a96964cf4841a21c3662de86c06f9ed3ae5c3f6d24134c87ad44747907573`)
 **Method:** read-only. No build, test, or resolution command was executed.
+**Path convention:** this repository is public; machine-specific path prefixes are rendered as `<developer-root>` deliberately (redacted 2026-07-26, per ADR-001).
 
 ---
 
@@ -42,10 +43,10 @@ All revisions are on `main` with a clean working tree, and all declare
 | Organization | `swift-primitives` |
 | Repository | `swift-dimension-primitives` |
 | Canonical remote | `https://github.com/swift-primitives/swift-dimension-primitives.git` |
-| Local path | `/Users/coen/Developer/swift-primitives/swift-dimension-primitives` |
+| Local path | `<developer-root>/swift-primitives/swift-dimension-primitives` |
 | Branch / revision | `main` / `f123b8b8a` |
 | Manifest display name | `swift-dimension-primitives` |
-| **SwiftPM identity** | `swift-dimension-primitives` — **empirical**: observed as `packageRef.identity` in **five** inspected `.build/workspace-state.json` files, `kind=localSourceControl`, `location=/Users/coen/Developer/swift-primitives/swift-dimension-primitives` |
+| **SwiftPM identity** | `swift-dimension-primitives` — **empirical**: observed as `packageRef.identity` in **five** inspected `.build/workspace-state.json` files, `kind=localSourceControl`, `location=<developer-root>/swift-primitives/swift-dimension-primitives` |
 | Products | `Dimension Primitives`, `Dimension Primitives Test Support` |
 | Targets | `Dimension Primitives`, `Dimension Primitives Test Support`, `Dimension Primitives Tests` |
 | Platforms | macOS/iOS/tvOS/watchOS/visionOS v26 |
@@ -65,7 +66,7 @@ modules must apply it.
 | Organization | `swift-standards` |
 | Repository | `swift-color-standard` |
 | Canonical remote | `https://github.com/swift-standards/swift-color-standard.git` |
-| Local path | `/Users/coen/Developer/swift-standards/swift-color-standard` |
+| Local path | `<developer-root>/swift-standards/swift-color-standard` |
 | Branch / revision | `main` / `ba61bd79b` |
 | Manifest display name | `swift-color-standard` |
 | **SwiftPM identity** | `swift-color-standard` — **empirical**: `packageRef.identity` in two inspected state files, `kind=localSourceControl` |
@@ -89,7 +90,7 @@ redirections alone.
 | Organization | `swift-foundations` |
 | Repository | `swift-color` |
 | Canonical remote | `https://github.com/swift-foundations/swift-color.git` |
-| Local path | `/Users/coen/Developer/swift-foundations/swift-color` |
+| Local path | `<developer-root>/swift-foundations/swift-color` |
 | Branch / revision | `main` / `0799a5711` |
 | Manifest display name | `swift-color` |
 | **SwiftPM identity** | `swift-color` — **empirical**: `packageRef.identity` in `swift-foundations/swift-html/.build/workspace-state.json`, `kind=localSourceControl` |
@@ -113,7 +114,7 @@ anything in the manifest.
 | Organization | `swift-foundations` |
 | Repository | `swift-url-routing` |
 | Canonical remote | `https://github.com/swift-foundations/swift-url-routing.git` |
-| Local path | `/Users/coen/Developer/swift-foundations/swift-url-routing` |
+| Local path | `<developer-root>/swift-foundations/swift-url-routing` |
 | Branch / revision | `main` / `45548aaa5` |
 | Manifest display name | `swift-url-routing` |
 | **SwiftPM identity** | **UNESTABLISHED.** Root in every inspected build state; never resolved as a dependency, so no `packageRef.identity` was observed. Not asserted from basename or display name. |
@@ -143,7 +144,7 @@ anything in the manifest.
 | Organization | `swift-foundations` |
 | Repository | `swift-http-body` |
 | Canonical remote | `https://github.com/swift-foundations/swift-http-body.git` |
-| Local path | `/Users/coen/Developer/swift-foundations/swift-http-body` |
+| Local path | `<developer-root>/swift-foundations/swift-http-body` |
 | Branch / revision | `main` / `eb62e8c3e` |
 | Manifest display name | `swift-http-body` |
 | **SwiftPM identity** | `swift-http-body` — **empirical**: `packageRef.identity` in two inspected state files, `kind=localSourceControl` |
@@ -161,7 +162,7 @@ anything in the manifest.
 | Organization | `swift-foundations` |
 | Repository | `swift-witnesses` |
 | Canonical remote | `https://github.com/swift-foundations/swift-witnesses.git` |
-| Local path | `/Users/coen/Developer/swift-foundations/swift-witnesses` |
+| Local path | `<developer-root>/swift-foundations/swift-witnesses` |
 | Branch / revision | `main` / `8297968ac` |
 | Manifest display name | `swift-witnesses` |
 | **SwiftPM identity** | `swift-witnesses` — **empirical**: `packageRef.identity` in two inspected state files, `kind=localSourceControl` |
@@ -189,7 +190,7 @@ version enforcement.
 | Organization | `swift-foundations` |
 | Repository | `swift-html` |
 | Canonical remote | `https://github.com/swift-foundations/swift-html.git` |
-| Local path | `/Users/coen/Developer/swift-foundations/swift-html` |
+| Local path | `<developer-root>/swift-foundations/swift-html` |
 | Branch / revision | `main` / `d76cb8a99` |
 | Manifest display name | `swift-html` |
 | **SwiftPM identity** | **UNESTABLISHED.** Root in every inspected build state. |
@@ -215,7 +216,7 @@ products: [ .library(name: .html, targets: [.html]) ]
 A literal grep over `Package.swift` extracts `.html`. The real product and target
 name is `HTML`. **This package alone proves that the catalogue cannot be built by
 static text matching** — it requires `dump-package`, which is exactly what
-`/Users/coen/Developer/CLAUDE.md` requires ("Parse manifests with the repository's
+`<developer-root>/CLAUDE.md` requires ("Parse manifests with the repository's
 authoritative probe rather than a comment-blind, single-line grep").
 
 It further declares trait-conditional dependencies:

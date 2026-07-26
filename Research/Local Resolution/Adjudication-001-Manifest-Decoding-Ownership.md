@@ -4,6 +4,7 @@
 **Date:** 2026-07-24
 **Subject:** ownership of SwiftPM `dump-package` wire decoding, and disposition of the in-flight `swift-package-graph` migration
 **Method:** read-only source inspection plus coordinator-approved `swift-build package dump-package` observations. No production source was modified. The dirty migration was preserved byte-for-byte (fingerprint verified before and after).
+**Path convention:** this repository is public; machine-specific path prefixes are rendered as `<developer-root>` deliberately (redacted 2026-07-26, per ADR-001).
 
 ---
 
@@ -148,7 +149,7 @@ Mirror-transformed dependency — five of the six deps in this manifest:
 ```json
 { "sourceControl": [ {
     "identity": "swift-paths",
-    "location": { "local": [ "/Users/coen/Developer/swift-foundations/swift-paths" ] },
+    "location": { "local": [ "<developer-root>/swift-foundations/swift-paths" ] },
     "productFilter": null,
     "requirement": { "branch": [ "main" ] },
     "traits": [ { "name": "default" } ]

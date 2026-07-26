@@ -4,6 +4,7 @@
 **Date:** 2026-07-24
 **Method:** read-only. `git rev-parse`, `git status --porcelain`, `git remote get-url`, `git rev-list --left-right --count`, `git symbolic-ref refs/remotes/origin/HEAD`, and `head -1 Package.swift`.
 **Mutation performed:** none. No checkout, switch, reset, clean, stash, pull, merge, rebase, fetch, or build was executed against any inspected repository.
+**Path convention:** this repository is public; machine-specific path prefixes are rendered as `<developer-root>` deliberately (redacted 2026-07-26, per ADR-001).
 
 ---
 
@@ -52,7 +53,7 @@ See §5.2 for exact `git remote get-url origin` output.
 | `swift-primitives/swift-graph-primitives` | `swift-primitives/swift-graph-primitives` | `main` | `ca5b9d699` | `origin/main` | 0/0 | clean | 6.3.3 | default branch, clean |
 | `swift-primitives/swift-path-primitives` | `swift-primitives/swift-path-primitives` | `main` | `5d5d182ea` | `origin/main` | 0/0 | clean | 6.3.3 | default branch, clean |
 
-All paths are relative to `/Users/coen/Developer/`.
+All paths are relative to `<developer-root>/`.
 
 > **Correction — 2026-07-24, supervisory review.** Five rows above report
 > `Ahead/Behind` as `0/0` that were **never measured** in the original inspection:
@@ -144,7 +145,7 @@ committed or the intended state. See Owner Capability Matrix §4.1 and §9.1.
 ### 4.3 Untracked local-only state — `Workspace/Application/Packages/swift-git`
 
 ```
-Application/Packages/swift-git -> /Users/coen/Developer/swift-foundations/swift-git
+Application/Packages/swift-git -> <developer-root>/swift-foundations/swift-git
 ```
 
 A symlink, ignored by `.gitignore` (`Packages/`). It is the on-disk artifact left
@@ -195,7 +196,7 @@ filesystem remotes are present. Every repository has **exactly one** remote, nam
 `git remote` and `git remote get-url --push origin`.
 
 Note the contrast with resolver state: `Workspace/Application/.build/workspace-state.json`
-records `swift-file-system` and `swift-spm-standard` at `file:///Users/coen/Developer/…`.
+records `swift-file-system` and `swift-spm-standard` at `file://<developer-root>/…`.
 Those are **SwiftPM dependency locations**, not Git remotes, and they are unaffected
 by this correction.
 

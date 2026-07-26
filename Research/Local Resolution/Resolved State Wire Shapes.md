@@ -7,12 +7,15 @@ before anything is built against it, the same discipline that produced
 `Fixtures/dump-package-wire-shapes.json` before `Package.Manifest.Evaluation`
 was written.
 
+This repository is public; machine-specific path prefixes are rendered as
+`<developer-root>` deliberately (redacted 2026-07-26, per ADR-001).
+
 Approved by the team lead as design input, explicitly not implementation.
 
 ## Method
 
 ```
-find /Users/coen/Developer -maxdepth 4 -name workspace-state.json -path '*/.build/*'
+find <developer-root> -maxdepth 4 -name workspace-state.json -path '*/.build/*'
 ```
 
 **483 files, 483 parsed without error, 27,003 dependency records.** No sampling —

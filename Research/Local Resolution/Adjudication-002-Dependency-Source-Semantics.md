@@ -4,6 +4,7 @@
 **Date:** 2026-07-24
 **Blocks:** manifest-decoder consolidation (`Adjudication-001` slices 2–3)
 **Method:** read-only inspection of Institute repositories, pre-existing generated state, and **authoritative SwiftPM source at `swift-6.3.3-RELEASE` (`5f6969f5b`)** — the exact tag of the installed toolchain — plus two coordinator-approved `dump-package` observations. No production source modified. Dirty graph migration preserved byte-for-byte.
+**Path convention:** this repository is public; machine-specific path prefixes are rendered as `<developer-root>` deliberately (redacted 2026-07-26, per ADR-001).
 
 ---
 
@@ -172,9 +173,9 @@ link observed:
 | Stage | Value |
 |---|---|
 | 1. Declaration | `.package(url: "https://github.com/swift-foundations/swift-paths.git", branch: "main")` |
-| 2. Mirror entry | `https://github.com/swift-foundations/swift-paths[.git]` → `/Users/coen/Developer/swift-foundations/swift-paths` (bare path, 2 spellings) |
-| 3. `dump-package` | `sourceControl` · `location.local = ["/Users/coen/Developer/swift-foundations/swift-paths"]` · `requirement.branch = ["main"]` · `identity = swift-paths` |
-| 4. `workspace-state.json` | `kind = localSourceControl`, `location = /Users/…/swift-paths`, `state = sourceControlCheckout{branch: main, revision: 9bbec4478}`, `subpath = swift-paths` |
+| 2. Mirror entry | `https://github.com/swift-foundations/swift-paths[.git]` → `<developer-root>/swift-foundations/swift-paths` (bare path, 2 spellings) |
+| 3. `dump-package` | `sourceControl` · `location.local = ["<developer-root>/swift-foundations/swift-paths"]` · `requirement.branch = ["main"]` · `identity = swift-paths` |
+| 4. `workspace-state.json` | `kind = localSourceControl`, `location = <developer-root>/…/swift-paths`, `state = sourceControlCheckout{branch: main, revision: 9bbec4478}`, `subpath = swift-paths` |
 | 5. Materialized tree | `.build/checkouts/swift-paths`, HEAD **`9bbec44787745de50bc80ed8191d055ba51ed2b5`**, `origin → .build/repositories/swift-paths-ba386da9` (a bare cache clone) |
 | 6. Mutable worktree HEAD | **`f20b5315f`** — **DIVERGED** |
 
@@ -270,7 +271,7 @@ Every observable dependency on this machine is a managed source-control checkout
 > **withdrawn**; the mechanism is now established, and it is not drift.
 
 `swift-file-system` and `swift-spm-standard` resolve as
-`kind = remoteSourceControl` with `location = file:///Users/coen/Developer/…`.
+`kind = remoteSourceControl` with `location = file://<developer-root>/…`.
 The **global** mirror map does map them to bare paths (all 1,256 targets are
 bare paths; zero are `file://`), which would yield `localSourceControl` — but
 the global map is not the one in force. A **package-scoped**
@@ -282,8 +283,8 @@ The load-bearing semantic consequence:
 
 | Mirror target spelling | Resolved `PackageReference.Kind` |
 |---|---|
-| bare path (`/Users/…`) | `localSourceControl` |
-| `file:///Users/…` | `remoteSourceControl`, location `file://…` |
+| bare path (`<developer-root>/…`) | `localSourceControl` |
+| `file://<developer-root>/…` | `remoteSourceControl`, location `file://…` |
 
 **`PackageReference.Kind` therefore cannot be read as "local versus remote
 machine storage."** Both rows above are the same directory on the same disk;

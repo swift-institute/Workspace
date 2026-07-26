@@ -3,7 +3,8 @@
 **Gate:** 0A — correction slice
 **Executed:** 2026-07-24, 12:24–12:43 UTC
 **Scope:** nine decision-driving owner packages, reduced from twenty-three
-**Coordinator:** `/Users/coen/Developer/swift-institute/Scripts/swift-build`
+**Coordinator:** `<developer-root>/swift-institute/Scripts/swift-build`
+**Path convention:** this repository is public; machine-specific path prefixes are rendered as `<developer-root>` deliberately (redacted 2026-07-26, per ADR-001).
 
 ---
 
@@ -14,7 +15,7 @@
 > Every result in this document was produced on a machine with an **active SwiftPM
 > mirror configuration** (`~/.swiftpm/configuration/mirrors.json`, 1,256 entries
 > redirecting canonical GitHub URLs to local directories under
-> `/Users/coen/Developer/`), against **pre-existing warm `.build` directories**.
+> `<developer-root>/`), against **pre-existing warm `.build` directories**.
 >
 > These results are **not**:
 > - canonical URL validation;
@@ -66,8 +67,8 @@ Toolchain and declared requirement agree.
 Exactly two command forms were issued, per package:
 
 ```
-/Users/coen/Developer/swift-institute/Scripts/swift-build package build --package-path <abs>
-/Users/coen/Developer/swift-institute/Scripts/swift-build package test  --package-path <abs>
+<developer-root>/swift-institute/Scripts/swift-build package build --package-path <abs>
+<developer-root>/swift-institute/Scripts/swift-build package test  --package-path <abs>
 ```
 
 `--package-path` here is the **coordinator's own** argument, not a pass-through
@@ -124,8 +125,8 @@ all logs is either a local mirror-target path or carries the `from cache` suffix
 Two lines lack `from cache`:
 
 ```
-Fetching /Users/coen/Developer/swift-foundations/swift-process
-Fetching /Users/coen/Developer/swift-foundations/swift-dependencies
+Fetching <developer-root>/swift-foundations/swift-process
+Fetching <developer-root>/swift-foundations/swift-dependencies
 ```
 
 Both are **local filesystem paths** — a first population of the local SwiftPM
@@ -326,7 +327,7 @@ fourteen lines unchanged.
 
 Every package had a warm `.build` directory. `swift-git-standard` (1s) and
 `swift-xcode-standard` (2s) were essentially no-ops. Per
-`/Users/coen/Developer/CLAUDE.md`, *"a cached build is not fresh compilation
+`<developer-root>/CLAUDE.md`, *"a cached build is not fresh compilation
 evidence"* — so these results attest that **nothing has regressed since each
 package was last built**, not that each compiles from scratch. A clean-room
 baseline would be a separate, and much longer, exercise.
