@@ -72,6 +72,10 @@ swift run --package-path Application workspace sync
 open institute.xcworkspace
 ```
 
+The first `swift run` builds the application before it does anything visible: roughly four
+thousand compile steps, several minutes, and the earliest of those minutes print nothing at
+all while SwiftPM evaluates manifests. Silence there is expected, not a hang.
+
 `sync` prints its complete plan before changing repositories. It clones missing repositories
 into the org hierarchy described above and only fast-forwards an existing repository when it
 is clean, currently on `main`, tracks `origin/main`, and has no local commits. It never
@@ -93,6 +97,40 @@ swift run --package-path Application workspace doctor
 Dirty worktrees and feature branches are reported as warnings and remain untouched.
 Identity, remote, upstream, divergence, toolchain, missing-package, and workspace-reference
 problems are errors.
+
+### Editing across package boundaries
+
+Every package depends on its siblings by URL, so an edit to a dependency normally has to be
+pushed before the package consuming it can see the change. That is the wrong loop for work
+that spans two repositories at once. `compose` closes it: it rewrites one `.package(url:)`
+clause in the consumer's manifest to a `.package(path:)` clause pointing at the dependency's
+own checkout in this workspace, so builds compile the source you are editing.
+
+```sh
+swift run --package-path Application workspace compose --consumer <name> --dependency <name>
+swift run --package-path Application workspace verify  --consumer <name> --dependency <name>
+swift run --package-path Application workspace restore --consumer <name> --dependency <name>
+```
+
+Both names are repositories in [Workspace.json](Workspace.json), already materialized by
+`sync`. `compose` records the clause it replaced, so `restore` puts the original back
+**byte for byte** — the manifest returns to exactly the bytes it had, not to a regenerated
+equivalent — and drops the record. `restore` never touches the dependency's worktree, so an
+unpushed local commit there survives the whole cycle.
+
+A composed manifest holds an absolute path that is meaningful only on the machine that wrote
+it. That is deliberate — off-machine it fails loudly at resolution rather than quietly
+resolving to something else — but it means a composed manifest must never be committed or
+pushed. `compose` prints that warning; run `restore` before you push.
+
+`verify` answers a different question from either: it reports which source the compiler is
+actually using, read from SwiftPM's own resolved state rather than inferred from the manifest,
+and says so when that disagrees with what `compose` recorded.
+
+What `restore` checks, and what it does not: it evaluates the restored manifest in isolation
+and confirms it parses, declares the dependency by URL again, and leaked no local path. It
+does **not** resolve dependencies, so it is not a guarantee that the dependency resolves from
+its canonical remote. Run a full build afterwards to establish that.
 
 ### Migrating from the flat `Packages/` layout
 
