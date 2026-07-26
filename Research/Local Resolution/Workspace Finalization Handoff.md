@@ -5,6 +5,12 @@ this arc from a ChatGPT supervisory session into Claude Code. Operational handof
 report. Repository state below was **measured, not recalled**; every absence carries its positive
 control.
 
+> **SUPERSEDED 2026-07-26 (team lead).** The gate below was overtaken by events: this
+> repository is published and this corpus is public. Machine-specific paths in the corpus
+> were generalised to placeholder form on 2026-07-26 (`3bd804f8`), and
+> `swift-foundations/swift-package-manager` has been **PUBLIC** since 2026-07-24. The
+> original gate paragraph is retained below for the record; do not act on it.
+>
 > ⚠️ **PUBLICATION GATE — READ FIRST.** `swift-institute/Workspace` is a **PUBLIC** repository.
 > `swift-foundations/swift-package-manager`, which this arc documents in detail, is **PRIVATE**.
 > This file and the whole `Research/Local Resolution/` corpus are committed **locally only**;
