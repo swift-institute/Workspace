@@ -14,7 +14,7 @@ extension Workspace.Composition {
 
 extension Workspace.Composition.Test {
     /// A throwaway workspace: a consumer package declaring one URL dependency,
-    /// and that dependency present as a sibling checkout under `Packages/`.
+    /// and that dependency present at its org-layout checkout.
     struct Fixture {
         let base: URL
         let root: URL
@@ -24,20 +24,20 @@ extension Workspace.Composition.Test {
         init() throws {
             base = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
             root = base.appending(path: "Workspace")
-            manifest = root.appending(path: "Packages/consumer/Package.swift")
+            manifest = root.appending(path: "swift-foundations/example/consumer/Package.swift")
 
             try FileManager.default.createDirectory(
-                at: root.appending(path: "Packages/consumer"),
+                at: root.appending(path: "swift-foundations/example/consumer"),
                 withIntermediateDirectories: true
             )
             try FileManager.default.createDirectory(
-                at: root.appending(path: "Packages/swift-dep"),
+                at: root.appending(path: "swift-standards/example/swift-dep"),
                 withIntermediateDirectories: true
             )
             // A workspace repository present on disk but NOT declared by the
             // consumer manifest — the "nothing to compose" case.
             try FileManager.default.createDirectory(
-                at: root.appending(path: "Packages/swift-other"),
+                at: root.appending(path: "swift-standards/example/swift-other"),
                 withIntermediateDirectories: true
             )
             try Self.manifestSource.write(to: manifest, atomically: true, encoding: .utf8)
@@ -50,9 +50,24 @@ extension Workspace.Composition.Test {
                     swift: "6.3.3",
                     xcode: "26.6",
                     repositories: [
-                        .init(name: "consumer", url: "https://github.com/example/consumer.git", layer: .foundations),
-                        .init(name: "swift-dep", url: "https://github.com/example/swift-dep.git", layer: .standards),
-                        .init(name: "swift-other", url: "https://github.com/example/swift-other.git", layer: .standards),
+                        .init(
+                            name: "consumer",
+                            url: "https://github.com/example/consumer.git",
+                            organization: "example",
+                            layer: .foundations
+                        ),
+                        .init(
+                            name: "swift-dep",
+                            url: "https://github.com/example/swift-dep.git",
+                            organization: "example",
+                            layer: .standards
+                        ),
+                        .init(
+                            name: "swift-other",
+                            url: "https://github.com/example/swift-other.git",
+                            organization: "example",
+                            layer: .standards
+                        ),
                     ]
                 )
             )
@@ -97,7 +112,11 @@ extension Workspace.Composition.Test.Integration {
         try fixture.composition.compose(consumer: "consumer", dependency: "swift-dep")
 
         let rewritten = try fixture.read()
-        #expect(rewritten.contains(".package(path: \"\(fixture.root.path)/Packages/swift-dep\")"))
+        #expect(
+            rewritten.contains(
+                ".package(path: \"\(fixture.root.path)/swift-standards/example/swift-dep\")"
+            )
+        )
         #expect(!rewritten.contains("https://github.com/example/swift-dep.git"))
 
         let ledger = try Workspace.Composition.State.load(

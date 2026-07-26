@@ -21,16 +21,17 @@ extension Workspace {
 
 extension Workspace.Sync {
     public func run(dry: Bool) throws(Workspace.Error) {
-        let packages = root[directory: "Packages"]
         var inspections = [Workspace.Inspection]()
         for repository in configuration.repositories {
-            inspections.append(try inspect(repository, in: packages, dry: dry))
+            inspections.append(try inspect(repository, dry: dry))
         }
         let workspace = Workspace.Xcode.current(configuration.repositories, at: root)
 
         print("Workspace sync plan")
         for inspection in inspections {
-            print("  \(inspection.repository.name): \(inspection.action.text)")
+            print(
+                "  \(Workspace.Layout.reference(for: inspection.repository)): \(inspection.action.text)"
+            )
         }
         print("  institute.xcworkspace: \(workspace ? "current" : "generate")")
 
@@ -42,16 +43,16 @@ extension Workspace.Sync {
             return
         }
 
-        do throws(File.System.Create.Directory.Error) {
-            try packages.create.recursive()
-        } catch {
-            throw .filesystem("cannot create \(packages): \(error)")
-        }
-
         for inspection in inspections {
-            let path = try path(for: inspection.repository, in: packages)
+            let path = try Workspace.Layout.directory(for: inspection.repository, at: root)
             switch inspection.action {
             case .clone:
+                let parent = try Workspace.Layout.parent(for: inspection.repository, at: root)
+                do throws(File.System.Create.Directory.Error) {
+                    try parent.create.recursive()
+                } catch {
+                    throw .filesystem("cannot create \(parent): \(error)")
+                }
                 try clone(inspection.repository, to: path)
             case .update(let remote):
                 try update(inspection.repository, to: remote, at: path)
@@ -70,10 +71,9 @@ extension Workspace.Sync {
 
     private func inspect(
         _ repository: Workspace.Repository,
-        in packages: File.Directory,
         dry: Bool
     ) throws(Workspace.Error) -> Workspace.Inspection {
-        let path = try path(for: repository, in: packages)
+        let path = try Workspace.Layout.directory(for: repository, at: root)
         let file = File(path.path)
         let main = try reference("refs/heads/main")
 
@@ -324,17 +324,6 @@ extension Workspace.Sync {
         }
         try execute { () throws(Git.Client.Error) -> Void in
             try client.track("main", upstream: "origin/main", at: path.description)
-        }
-    }
-
-    private func path(
-        for repository: Workspace.Repository,
-        in packages: File.Directory
-    ) throws(Workspace.Error) -> File.Directory {
-        do throws(File.Path.Component.Error) {
-            return packages[directory: try File.Path.Component(repository.name)]
-        } catch {
-            throw .configuration("invalid repository name \(repository.name): \(error)")
         }
     }
 

@@ -73,13 +73,44 @@ Workspace/
 │   │   └── Workspace CLI/
 │   └── Tests/
 ├── Workspace.json              application-owned inventory policy
-├── Packages/                   ignored synchronized repositories
+├── swift-primitives/           ignored materialized org root (layer 1)
+├── swift-standards/            ignored materialized org root (layer 2)
+│   └── swift-ietf/             authority orgs nest under their layer root
+├── swift-foundations/          ignored materialized org root (layer 3)
 └── institute.xcworkspace/      deterministic generated workspace
 ```
 
 Names such as `macOS Application/` and `iOS Application/` are reserved for concrete future
 products. A generic `Application/` container is not introduced until more than one graphical
 application establishes a coherent shared hierarchy.
+
+## Materialization layout
+
+`sync` materializes the org hierarchy (ruling 139: the one layout for every checkout —
+contributors included; the flat `Packages/` layout is superseded, reported by `doctor`'s
+`layout-migration` check, and never deleted by tooling).
+
+**Where the roots live.** The materialization roots are directories inside the repository
+root — `swift-primitives/`, `swift-standards/`, `swift-foundations/` (and the reserved
+`swift-components/`, `swift-applications/`) — each gitignored exactly as `Packages/` was.
+Inside the repository rather than beside it, for two reasons: `sync` must never write outside
+the checkout the user cloned, and the generated workspace's relative references must stay
+within the repository. Under the institute's local entry-point convention the hierarchy
+therefore roots at the front door: `…/swift-institute/Workspace/swift-standards/…`.
+
+**Where a package materializes.** Its location is a pure function of its `Workspace.json`
+entry: the layer's root organization, then — when the owning organization is not the layer
+root — the organization, then the repository name. `swift-primitives/swift-dimension-primitives`;
+`swift-standards/swift-ietf/swift-rfc-9110`. Two properties are requirements (issue #17):
+
+1. **The inventory is the sole name → org → path authority.** Every tool resolves locations
+   through `Workspace.Layout` over inventory fields (`organization`, `layer`, `name`); no
+   tool walks the tree or infers a path from a name pattern. Packages sit at varying depths,
+   and a walker with its own layout assumptions fails toward clean-looking empties.
+2. **Materialized paths are regenerable state.** A repository that transfers between
+   organizations changes its inventory entry, and `sync` materializes the new location.
+   Generated composition references and workspace files are re-derived, never hand-maintained,
+   and nothing durable may reference a materialized path as stable.
 
 ## Package missions and layers
 

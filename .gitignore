@@ -1,6 +1,14 @@
 .DS_Store
 .build/
 .swiftpm/
+# Materialized org roots — regenerable state written by `workspace sync`
+# (see ARCHITECTURE.md, "Materialization layout").
+/swift-primitives/
+/swift-standards/
+/swift-foundations/
+/swift-components/
+/swift-applications/
+# Superseded flat layout — reported by `doctor`, never deleted by tooling.
 Packages/
 .workspace/
 Package.resolved

@@ -198,6 +198,7 @@ extension Workspace.Doctor.Test.Integration {
     private static let repository = Workspace.Repository(
         name: "swift-example",
         url: "https://github.com/swift-foundations/swift-example.git",
+        organization: "swift-foundations",
         layer: .foundations
     )
 
@@ -228,7 +229,7 @@ extension Workspace.Doctor.Test.Integration {
         try fixture.materialize("swift-example")
         try fixture.write(
             Workspace.Doctor.Test.Unit.resolved,
-            to: "Packages/swift-example/Package.resolved"
+            to: "swift-foundations/swift-example/Package.resolved"
         )
 
         let report = await fixture.doctor(tool: {
@@ -251,7 +252,7 @@ extension Workspace.Doctor.Test.Integration {
         try fixture.materialize("swift-example")
         try fixture.write(
             Workspace.Doctor.Test.Unit.resolved,
-            to: "Packages/swift-example/Package.resolved"
+            to: "swift-foundations/swift-example/Package.resolved"
         )
 
         let report = await fixture.doctor(tool: {

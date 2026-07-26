@@ -18,12 +18,12 @@ extension Workspace.Sync {
             root = base.appending(path: "Workspace")
             source = base.appending(path: "source")
             remote = base.appending(path: "remote.git")
-            local = root.appending(path: "Packages/swift-example")
+            local = root.appending(path: "swift-foundations/swift-example")
             client = .init()
 
             try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
             try FileManager.default.createDirectory(
-                at: root.appending(path: "Packages"),
+                at: root.appending(path: "swift-foundations"),
                 withIntermediateDirectories: true
             )
             try client.initialize(at: source.path, bare: false)
@@ -67,7 +67,12 @@ extension Workspace.Sync.Fixture {
                 swift: "6.3",
                 xcode: "26.0",
                 repositories: [
-                    .init(name: "swift-example", url: remote.path, layer: .foundations)
+                    .init(
+                        name: "swift-example",
+                        url: remote.path,
+                        organization: "swift-foundations",
+                        layer: .foundations
+                    )
                 ]
             ),
             client: client
@@ -85,7 +90,7 @@ extension Workspace.Sync.Fixture {
 
     func residue() throws -> [Swift.String] {
         try FileManager.default.contentsOfDirectory(
-            atPath: root.appending(path: "Packages").path
+            atPath: root.appending(path: "swift-foundations").path
         ).filter { $0 != "swift-example" }
     }
 

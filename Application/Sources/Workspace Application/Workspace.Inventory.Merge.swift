@@ -58,6 +58,7 @@ extension Workspace.Inventory.Merge {
                     .init(
                         name: candidate.key.name.underlying,
                         url: candidate.key.url,
+                        organization: candidate.key.owner.underlying,
                         layer: layer
                     )
                 )

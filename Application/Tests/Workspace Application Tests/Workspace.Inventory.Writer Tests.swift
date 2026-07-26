@@ -18,7 +18,14 @@ extension Workspace.Inventory.Test.Unit {
             scope: "swift-institute",
             swift: "6.3.3",
             xcode: "26.6",
-            repositories: [.init(name: key.name.underlying, url: key.url, layer: .primitives)]
+            repositories: [
+                .init(
+                    name: key.name.underlying,
+                    url: key.url,
+                    organization: key.owner.underlying,
+                    layer: .primitives
+                )
+            ]
         )
 
         let first = try configuration.rendered()
@@ -32,6 +39,7 @@ extension Workspace.Inventory.Test.Unit {
                     {
                       "layer": "primitives",
                       "name": "swift-alpha-primitives",
+                      "organization": "swift-primitives",
                       "url": "https://github.com/swift-primitives/swift-alpha-primitives.git"
                     }
                   ],
@@ -54,6 +62,7 @@ extension Workspace.Inventory.Test.Unit {
         let repository = Workspace.Repository(
             name: key.name.underlying,
             url: key.url,
+            organization: key.owner.underlying,
             layer: .foundations
         )
         let unsupported = Workspace.Configuration(
@@ -79,6 +88,7 @@ extension Workspace.Inventory.Test.Unit {
                 .init(
                     name: key.name.underlying,
                     url: "https://example.com/swift-file.git",
+                    organization: key.owner.underlying,
                     layer: .foundations
                 )
             ]

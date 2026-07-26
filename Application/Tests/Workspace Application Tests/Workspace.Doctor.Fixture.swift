@@ -53,10 +53,11 @@ extension Workspace.Doctor.Fixture {
 
     func doctor(
         environment: @escaping @Sendable (Swift.String) -> Swift.String? = { _ in nil },
-        tool: @escaping @Sendable (
-            _ executable: Swift.String,
-            _ arguments: [Swift.String]
-        ) throws(Workspace.Error) -> Swift.String = Self.interrogation
+        tool:
+            @escaping @Sendable (
+                _ executable: Swift.String,
+                _ arguments: [Swift.String]
+            ) throws(Workspace.Error) -> Swift.String = Self.interrogation
     ) -> Workspace.Doctor {
         .init(
             root: directory,
@@ -66,12 +67,26 @@ extension Workspace.Doctor.Fixture {
         )
     }
 
-    /// Materializes `name` under `Packages/` as a real Git repository,
-    /// so gathers that interrogate the checkout have a subject.
+    /// Materializes `name` at its org-layout location as a real Git
+    /// repository, so gathers that interrogate the checkout have a
+    /// subject. The location is derived through ``Workspace/Layout``
+    /// from the fixture's configuration — the fixture holds no layout
+    /// assumption of its own.
     func materialize(_ name: Swift.String) throws {
-        let repository = base.appending(path: "Packages/\(name)")
-        try FileManager.default.createDirectory(at: repository, withIntermediateDirectories: true)
-        try Git.Client().initialize(at: repository.path, bare: false)
+        guard let repository = configuration.repositories.first(where: { $0.name == name }) else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+        let location = base.appending(path: Workspace.Layout.reference(for: repository))
+        try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
+        try Git.Client().initialize(at: location.path, bare: false)
+    }
+
+    /// Materializes `name` at the superseded flat `Packages/<name>`
+    /// location, for exercising the layout-migration check.
+    func materialize(flat name: Swift.String) throws {
+        let location = base.appending(path: "Packages/\(name)")
+        try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
+        try Git.Client().initialize(at: location.path, bare: false)
     }
 
     /// Writes `contents` at `relative` under the checkout root.

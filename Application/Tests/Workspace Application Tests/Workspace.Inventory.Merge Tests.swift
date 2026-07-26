@@ -20,7 +20,12 @@ extension Workspace.Inventory.Test.Unit {
             swift: "6.3.3",
             xcode: "26.6",
             repositories: [
-                .init(name: annotated.name.underlying, url: annotated.url, layer: .components)
+                .init(
+                    name: annotated.name.underlying,
+                    url: annotated.url,
+                    organization: annotated.owner.underlying,
+                    layer: .components
+                )
             ]
         )
         let discovery = Workspace.Inventory.Discovery(
@@ -57,6 +62,7 @@ extension Workspace.Inventory.Test.`Edge Case` {
         let repository = Workspace.Repository(
             name: key.name.underlying,
             url: key.url,
+            organization: key.owner.underlying,
             layer: .foundations
         )
         let existing = Workspace.Configuration(
@@ -117,7 +123,14 @@ extension Workspace.Inventory.Test.`Edge Case` {
             scope: "swift-institute",
             swift: "6.3.3",
             xcode: "26.6",
-            repositories: [.init(name: old.name.underlying, url: old.url, layer: .standards)]
+            repositories: [
+                .init(
+                    name: old.name.underlying,
+                    url: old.url,
+                    organization: old.owner.underlying,
+                    layer: .standards
+                )
+            ]
         )
         let discovery = Workspace.Inventory.Discovery(
             repositories: [.init(id: .init(1), key: new, layer: .foundations)],
@@ -152,6 +165,7 @@ extension Workspace.Inventory.Test.`Edge Case` {
                 {
                   "name": "swift-example",
                   "url": "https://github.com/swift-foundations/swift-example.git",
+                  "organization": "swift-foundations",
                   "layer": "foundations",
                   "annotation": "must-survive"
                 }

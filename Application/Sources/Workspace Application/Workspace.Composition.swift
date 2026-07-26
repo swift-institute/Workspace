@@ -8,8 +8,8 @@ internal import SPM_Standard
 
 extension Workspace {
     /// Local-development composition: redirecting a workspace consumer's
-    /// URL-declared dependency to a **local mutable source** under `Packages/`,
-    /// and undoing it.
+    /// URL-declared dependency to a **local mutable source** at its
+    /// org-layout checkout (``Workspace/Layout``), and undoing it.
     ///
     /// The production backend is generated `.package(path:)` composition, chosen
     /// by ADR-001 and since *measured* against Slice 3's failure matrix: the two
@@ -24,7 +24,7 @@ extension Workspace {
     /// committed, and ``restore`` returns the declared clause byte-for-byte.
     ///
     /// Both the consumer and the dependency are workspace repositories named in
-    /// `Workspace.json` and checked out under `Packages/`. Multi-root contexts,
+    /// `Workspace.json` and checked out at their org-layout locations. Multi-root contexts,
     /// arbitrary consumers, Xcode, worktrees, and traits are out of scope per
     /// ADR-001's Limits.
     public struct Composition: Swift.Sendable {
@@ -45,7 +45,7 @@ extension Workspace {
 }
 
 extension Workspace.Composition {
-    /// Redirects `consumer`'s `dependency` to the local `Packages/<dependency>`
+    /// Redirects `consumer`'s `dependency` to its local org-layout
     /// checkout by rewriting the consumer manifest's `.package(url:)` clause
     /// to a `.package(path:)` clause, recording the reversal in the ledger.
     public func compose(
@@ -55,7 +55,7 @@ extension Workspace.Composition {
         guard consumer != dependency else {
             throw .composition("a package cannot compose itself")
         }
-        _ = try require(consumer)
+        let consumerRepository = try require(consumer)
         let dependencyRepository = try require(dependency)
 
         let state = try State.load(at: root)
@@ -65,14 +65,18 @@ extension Workspace.Composition {
             )
         }
 
-        let dependencyDirectory = try directory(for: dependency)
+        let dependencyDirectory = try directory(for: dependencyRepository)
         guard File(dependencyDirectory.path).stat.isDirectory else {
             throw .composition(
-                "\(dependency) is not checked out under Packages/; run `workspace sync` first"
+                """
+                \(dependency) is not checked out at \
+                \(Workspace.Layout.reference(for: dependencyRepository)); \
+                run `workspace sync` first
+                """
             )
         }
 
-        let manifest = try manifestFile(for: consumer)
+        let manifest = try manifestFile(for: consumerRepository)
         let source = try read(manifest)
 
         let identity = Clause.identity(ofURL: dependencyRepository.url)
@@ -107,7 +111,7 @@ extension Workspace.Composition {
         consumer: Swift.String,
         dependency: Swift.String
     ) throws(Workspace.Error) {
-        _ = try require(consumer)
+        let consumerRepository = try require(consumer)
 
         let state = try State.load(at: root)
         guard let record = state.record(consumer: consumer, dependency: dependency) else {
@@ -116,7 +120,7 @@ extension Workspace.Composition {
             )
         }
 
-        let manifest = try manifestFile(for: consumer)
+        let manifest = try manifestFile(for: consumerRepository)
         let source = try read(manifest)
         guard let clause = Clause.all(in: source).first(where: { $0.text == record.planned }) else {
             throw .composition(
@@ -154,9 +158,9 @@ extension Workspace.Composition {
         consumer: Swift.String,
         dependency: Swift.String
     ) throws(Workspace.Error) {
-        _ = try require(consumer)
+        let consumerRepository = try require(consumer)
         let dependencyRepository = try require(dependency)
-        let consumerDirectory = try directory(for: consumer)
+        let consumerDirectory = try directory(for: consumerRepository)
         let identity = Clause.identity(ofURL: dependencyRepository.url)
 
         let resolution: Package.Resolution
@@ -204,19 +208,23 @@ extension Workspace.Composition {
         return repository
     }
 
-    private func directory(for name: Swift.String) throws(Workspace.Error) -> File.Directory {
-        let packages = root[directory: "Packages"]
-        do throws(File.Path.Component.Error) {
-            return packages[directory: try File.Path.Component(name)]
-        } catch {
-            throw .composition("invalid repository name \(name): \(error)")
-        }
+    private func directory(
+        for repository: Workspace.Repository
+    ) throws(Workspace.Error) -> File.Directory {
+        try Workspace.Layout.directory(for: repository, at: root)
     }
 
-    private func manifestFile(for name: Swift.String) throws(Workspace.Error) -> File {
-        let file = try directory(for: name)[file: "Package.swift"]
+    private func manifestFile(
+        for repository: Workspace.Repository
+    ) throws(Workspace.Error) -> File {
+        let file = try directory(for: repository)[file: "Package.swift"]
         guard file.stat.exists else {
-            throw .composition("\(name) has no Package.swift under Packages/; run `workspace sync` first")
+            throw .composition(
+                """
+                \(repository.name) has no Package.swift at \
+                \(Workspace.Layout.reference(for: repository)); run `workspace sync` first
+                """
+            )
         }
         return file
     }

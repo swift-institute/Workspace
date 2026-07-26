@@ -195,6 +195,7 @@ extension Workspace.Doctor.Test.Integration {
             .init(
                 name: "swift-example",
                 url: "https://github.com/swift-foundations/swift-example.git",
+                organization: "swift-foundations",
                 layer: .foundations
             )
         ])
@@ -208,6 +209,35 @@ extension Workspace.Doctor.Test.Integration {
         #expect(
             census?.result
                 == .unmeasured(reason: "empty population against an inventory of 1")
+        )
+    }
+
+    @Test
+    func `a flat checkout is a migration warning naming both locations, never deleted`()
+        async throws
+    {
+        let fixture = try Workspace.Doctor.Fixture(repositories: [
+            .init(
+                name: "swift-example",
+                url: "https://github.com/swift-foundations/swift-example.git",
+                organization: "swift-foundations",
+                layer: .foundations
+            )
+        ])
+        defer { fixture.remove() }
+        try fixture.materialize("swift-example")
+        try fixture.materialize(flat: "swift-example")
+
+        let report = await fixture.doctor().run()
+
+        let migration = report.outcomes.first { $0.check == "layout-migration" }
+        #expect(migration?.result == .finding(severity: .warning, population: 1))
+        #expect(
+            migration?.findings.contains {
+                $0.message.contains("Packages/swift-example")
+                    && $0.message.contains("swift-foundations/swift-example")
+                    && $0.message.contains("never deletes")
+            } == true
         )
     }
 
@@ -235,6 +265,7 @@ extension Workspace.Doctor.Test.Integration {
             .init(
                 name: "swift-example",
                 url: "https://github.com/swift-foundations/swift-example.git",
+                organization: "swift-foundations",
                 layer: .foundations
             )
         ])
@@ -262,6 +293,7 @@ extension Workspace.Doctor.Test.Integration {
             .init(
                 name: "swift-example",
                 url: "https://github.com/swift-foundations/swift-example.git",
+                organization: "swift-foundations",
                 layer: .foundations
             )
         ])

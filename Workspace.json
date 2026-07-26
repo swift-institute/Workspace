@@ -7,26 +7,31 @@
     {
       "name": "swift-dimension-primitives",
       "url": "https://github.com/swift-primitives/swift-dimension-primitives.git",
+      "organization": "swift-primitives",
       "layer": "primitives"
     },
     {
       "name": "swift-color-standard",
       "url": "https://github.com/swift-standards/swift-color-standard.git",
+      "organization": "swift-standards",
       "layer": "standards"
     },
     {
       "name": "swift-color",
       "url": "https://github.com/swift-foundations/swift-color.git",
+      "organization": "swift-foundations",
       "layer": "foundations"
     },
     {
       "name": "swift-url-routing",
       "url": "https://github.com/swift-foundations/swift-url-routing.git",
+      "organization": "swift-foundations",
       "layer": "foundations"
     },
     {
       "name": "swift-http-body",
       "url": "https://github.com/swift-foundations/swift-http-body.git",
+      "organization": "swift-foundations",
       "layer": "foundations"
     }
   ]

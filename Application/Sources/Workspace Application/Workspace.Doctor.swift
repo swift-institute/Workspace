@@ -58,6 +58,7 @@ extension Workspace.Doctor {
             toolchain(),
             reference(),
             materialization(),
+            migration(),
             census(checkouts),
             pins(checkouts),
             manifest(checkouts),
@@ -92,11 +93,7 @@ extension Workspace.Doctor {
     }
 
     func path(for repository: Workspace.Repository) throws(Workspace.Error) -> File.Directory {
-        do throws(File.Path.Component.Error) {
-            return root[directory: "Packages"][directory: try File.Path.Component(repository.name)]
-        } catch {
-            throw .configuration("invalid repository name \(repository.name): \(error)")
-        }
+        try Workspace.Layout.directory(for: repository, at: root)
     }
 
     func execute<Result>(
