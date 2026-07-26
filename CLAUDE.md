@@ -14,7 +14,16 @@ swift run --package-path Application workspace sync --dry-run   # plan only, cha
 swift run --package-path Application workspace sync             # clone and fast-forward
 swift run --package-path Application workspace doctor           # report checkout facts
 swift test --package-path Application                           # the application's own tests
+
+# local-source composition, for changing a package and its consumer together
+swift run --package-path Application workspace compose --consumer <c> --dependency <d>
+swift run --package-path Application workspace verify  --consumer <c> --dependency <d>
+swift run --package-path Application workspace restore --consumer <c> --dependency <d>
 ```
+
+The first `swift run` in a fresh clone compiles the whole dependency graph and is **silent for
+several minutes**. It is not hung. Build first (`swift build --package-path Application`) when
+you want the compile and the command to be separate, legible steps.
 
 `doctor` reports which checks apply to your setup. A check that needs Institute access reports
 that it did not run — that is not a failure of your checkout.
@@ -44,6 +53,15 @@ that it did not run — that is not a failure of your checkout.
   a green over stale pins is not evidence — re-resolve.
 - **The generated Xcode workspace uses relative references only.** Never emit an absolute path
   into `institute.xcworkspace` or into `Workspace.json` — a test asserts this.
+- **A composed manifest is uncommittable local state.** `compose` writes a machine-local
+  absolute path deliberately: off-machine it must fail loudly at resolution rather than silently
+  resolve elsewhere. Never commit one; `restore` before pushing. `restore` returns the declared
+  clause byte-for-byte and never touches the dependency's worktree.
+- **`restore`'s structural check is not a reproducibility guarantee.** It evaluates the restored
+  manifest in isolation and confirms three things: it evaluates, the dependency is declared by
+  URL again, and no local path leaked. It resolves nothing and contacts no remote. Report its
+  scope honestly — a green structural check does not mean the consumer builds from canonical
+  sources, and unpushed dependency commits will only surface in a real resolve.
 
 ## Contributing
 
