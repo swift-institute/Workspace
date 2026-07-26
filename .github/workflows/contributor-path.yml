@@ -1,0 +1,55 @@
+# The contributor-path acceptance (issue #11): a clean clone with NO
+# credentials follows the README quickstart verbatim — plain `swift run`,
+# never the internal build coordinator — and reaches the expected result.
+# Until this job is green the contributor path is a claim, not a property.
+name: contributor-path
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: contributor-path-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contributor-path:
+    name: clean clone → sync → doctor, no credentials
+    if: ${{ !github.event.repository.private }}
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      # persist-credentials: false removes the checkout token from git
+      # config, so every clone `sync` performs below proves public,
+      # credential-free resolution — the property under test.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The README requires Xcode 26.6 (Workspace.json is the authority);
+      # the macos-26 image defaults to a different Xcode, so select it the
+      # way a contributor would.
+      - name: Select the required Xcode
+        run: sudo xcode-select --switch /Applications/Xcode_26.6.app
+
+      - name: Quickstart — plan, then sync (README verbatim)
+        run: |
+          swift run --package-path Application workspace sync --dry-run
+          swift run --package-path Application workspace sync
+
+      # A healthy contributor checkout exits 0: institute-internal checks
+      # report "not run", never failure; every measured check states its
+      # population.
+      - name: Facts — doctor
+        run: swift run --package-path Application workspace doctor
