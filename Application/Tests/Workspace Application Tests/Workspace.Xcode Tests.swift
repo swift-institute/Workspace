@@ -16,6 +16,14 @@ extension Workspace.Xcode {
 
 extension Workspace.Xcode.Test.Unit {
     @Test
+    func `render terminates the workspace artifact with one line feed`() {
+        let rendered = Workspace.Xcode.render([])
+
+        #expect(Data(rendered.utf8).last == 0x0A)
+        #expect(rendered.hasSuffix("</Workspace>\n"))
+    }
+
+    @Test
     func `render uses checkout relative application and sibling hierarchy package references`() {
         let repositories = [
             Workspace.Repository(
@@ -72,6 +80,7 @@ extension Workspace.Xcode.Test.Integration {
         let generated = checkout.appending(path: "institute.xcworkspace/contents.xcworkspacedata")
         #expect(FileManager.default.fileExists(atPath: generated.path))
         #expect(!FileManager.default.fileExists(atPath: base.appending(path: "institute.xcworkspace").path))
+        #expect(try Data(contentsOf: generated) == Data(Workspace.Xcode.render(repositories).utf8))
         #expect(Workspace.Xcode.current(repositories, at: root))
         #expect(try #require(Workspace.Xcode.contents(at: root)).contains("../swift-foundations/swift-example"))
     }

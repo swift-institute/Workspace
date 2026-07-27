@@ -20,7 +20,7 @@ extension Workspace.Xcode {
     }
 
     public static func render(_ repositories: [Workspace.Repository]) -> Swift.String {
-        document(repositories).xml
+        document(repositories).xml + "\n"
     }
 
     public static func path(at root: File.Directory) -> File {
@@ -51,8 +51,13 @@ extension Workspace.Xcode {
         at root: File.Directory
     ) throws(Workspace.Error) {
         let bundle = root[directory: "institute.xcworkspace"]
-        do throws(Xcode_Workspace.Xcode.Workspace.Error) {
-            try document(repositories).write(to: bundle.description)
+        do throws(File.System.Create.Directory.Error) {
+            try bundle.create.recursive()
+        } catch {
+            throw .filesystem("cannot create \(bundle): \(error)")
+        }
+        do throws(File.System.Write.Atomic.Error) {
+            try path(at: root).write.atomic(render(repositories))
         } catch {
             throw .filesystem("cannot write \(bundle): \(error)")
         }
