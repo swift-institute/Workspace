@@ -15,6 +15,7 @@ and local-source composition for cross-package work (`workspace compose` / `rest
 | `restore` | Undo a composition, returning the manifest to its declared form byte-for-byte. |
 | `verify` | Report which source a dependency actually compiled from, read from resolved state. |
 | `context install\|check` | Install or verify the checkout-root agent entry point and canonical skill projections. |
+| `navigation install\|check` | Install or verify the pinned cclsp/SourceKit-LSP integration for this checkout. |
 | `package <action>` | Run SwiftPM build, test, resolution, and administration through the Swift coordinator. |
 
 ## What Swift Institute is
@@ -87,7 +88,8 @@ gh issue list --repo swift-institute/Workspace
 alone, against public repositories, with no credentials and no internal tooling. If a step here
 needs anything you cannot get, that is a defect — please open an issue.
 
-Requires macOS 26, Xcode 26.6, Swift 6.3.3, and Git.
+Requires macOS 26, Xcode 26.6, Swift 6.3.3, and Git. The optional navigation
+setup additionally requires Node 18 or newer and Bun.
 
 ```sh
 git clone https://github.com/swift-institute/Workspace.git
@@ -129,6 +131,51 @@ swift run --package-path Application workspace context install
 
 This validates every canonical skill before projecting it, writes the generated
 root `AGENTS.md` and `CLAUDE.md`, and fails closed on any path it does not own.
+
+### Install code navigation
+
+Workspace owns the reproducible integration boundary between
+[cclsp](https://github.com/swift-institute/cclsp) and Xcode's SourceKit-LSP:
+
+```sh
+Application/.build/debug/workspace navigation install
+Application/.build/debug/workspace navigation check
+```
+
+`install` clones the public `sourcekit-lsp-adapter` line at the exact revision
+compiled into Workspace, installs dependencies from cclsp's frozen Bun
+lockfile, builds its Node executable, and writes two generated files beneath
+the physical organization hierarchy:
+
+- `.workspace/navigation/cclsp.json` — one SourceKit-LSP server for the
+  Workspace Application and each currently materialized `Workspace.json`
+  repository;
+- `.workspace/navigation/mcp-server.json` — the command, arguments, and
+  environment an MCP client registers.
+
+The command prints the descriptor path. Client applications own their own
+registration format, so Workspace does not rewrite a user's global client
+configuration. The descriptor is the canonical value to translate into that
+format.
+
+SourceKit-LSP is launched through the generated `workspace navigation serve`
+invocation. That typed boundary removes `TOOLCHAINS`, resolves
+`sourcekit-lsp` through `xcrun`, and refuses a binary outside the Xcode selected
+by `xcode-select`. cclsp remains a distinct third-party TypeScript tool: it is
+not a Swift package, is not listed in `Workspace.json`, and is never resolved
+from a personal fork or a fixed machine path.
+
+The current generated configuration is deliberately per-package. A single
+deduplicated Institute-wide index requires a larger IndexStore merge and
+stabilizing acceptance probe; that exact Full-Swift remainder is tracked in
+[issue #25](https://github.com/swift-institute/Workspace/issues/25). Workspace
+does not claim that per-package navigation is equivalent to cross-package
+index coverage.
+
+Any earlier ad hoc merged-index pipeline and any prebuilt index bundle are
+retired, unsupported, and not prerequisites for navigation. A clean machine
+installs from the public cclsp revision and generates its own configuration
+through the Workspace commands above; it does not copy old index artifacts.
 
 ### Build and test packages
 

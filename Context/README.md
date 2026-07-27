@@ -23,3 +23,10 @@ three jobs, rejects arguments that would override coordinator-owned state, and
 provides isolated `--fresh` build and test evidence whose scratch state is
 removed before returning. Agent context points to that typed interface rather
 than to repository-local script collections.
+
+The cclsp/SourceKit-LSP boundary is likewise Workspace-owned through
+`workspace navigation`. It installs a pinned public cclsp revision into derived
+state, generates machine-local MCP and per-package LSP configuration from the
+physical Workspace layout, and launches only the SourceKit-LSP selected by
+Xcode with `TOOLCHAINS` removed. cclsp remains external developer tooling, not a
+`Workspace.json` package.

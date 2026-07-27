@@ -68,6 +68,31 @@ extension Workspace.CLI.Test.Unit {
     }
 
     @Test(arguments: [
+        ("install", Workspace.CLI.Mode.install),
+        ("check", Workspace.CLI.Mode.check),
+        ("serve", Workspace.CLI.Mode.serve),
+    ])
+    func `navigation parses its operation`(
+        argument: Swift.String,
+        expected: Workspace.CLI.Mode
+    ) throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: [
+                "navigation",
+                argument,
+                "--workspace-path",
+                "/tmp/Workspace",
+            ],
+            initial: .init()
+        )
+
+        #expect(command.operation == .navigation)
+        #expect(command.modes == [expected])
+        #expect(command.workspacePath == "/tmp/Workspace")
+    }
+
+    @Test(arguments: [
         ("build", Workspace.CLI.Mode.build),
         ("test", Workspace.CLI.Mode.test),
         ("resolve", Workspace.CLI.Mode.resolve),
@@ -144,6 +169,28 @@ extension Workspace.CLI.Test.`Edge Case` {
             _ = try Command.parse(
                 Workspace.CLI.self,
                 from: ["context", "build"],
+                initial: .init()
+            )
+        }
+    }
+
+    @Test
+    func `navigation requires an operation`() {
+        #expect(throws: Command.Error.self) {
+            _ = try Command.parse(
+                Workspace.CLI.self,
+                from: ["navigation"],
+                initial: .init()
+            )
+        }
+    }
+
+    @Test
+    func `navigation rejects a package operation`() {
+        #expect(throws: Command.Error.self) {
+            _ = try Command.parse(
+                Workspace.CLI.self,
+                from: ["navigation", "build"],
                 initial: .init()
             )
         }

@@ -1,11 +1,12 @@
-public import Command
 internal import Build_Coordinator
+public import Command
 
 extension Workspace.CLI {
     /// The second positional component of a compound Workspace operation.
     public enum Mode: Sendable, Equatable, Argument.Codable {
         case install
         case check
+        case serve
         case build
         case test
         case run
@@ -18,6 +19,7 @@ extension Workspace.CLI {
             switch argument {
             case "install": self = .install
             case "check": self = .check
+            case "serve": self = .serve
             case "build": self = .build
             case "test": self = .test
             case "run": self = .run
@@ -33,6 +35,7 @@ extension Workspace.CLI {
             switch self {
             case .install: "install"
             case .check: "check"
+            case .serve: "serve"
             case .build: "build"
             case .test: "test"
             case .run: "run"
@@ -48,7 +51,7 @@ extension Workspace.CLI {
 extension Workspace.CLI.Mode {
     var buildAction: Build.Action? {
         switch self {
-        case .install, .check: nil
+        case .install, .check, .serve: nil
         case .build: .build
         case .test: .test
         case .run: .run

@@ -63,6 +63,7 @@ let package = Package(
                 .product(name: "Git", package: "swift-git"),
                 .product(name: "JSON", package: "swift-json"),
                 .product(name: "Package Manager", package: "swift-package-manager"),
+                .product(name: "POSIX Kernel Process", package: "swift-posix"),
                 .product(name: "Process", package: "swift-process"),
                 .product(name: "Xcode Workspace", package: "swift-xcode")
             ]

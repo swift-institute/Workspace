@@ -62,6 +62,9 @@ requires them.
 - Run SwiftPM work through `workspace package`; do not invoke raw
   `swift build`, `swift test`, or package-administration commands.
 - Use `workspace package build|test --fresh` when a result is evidence.
+- Install and verify cclsp/SourceKit-LSP integration through
+  `workspace navigation install|check`; cclsp is developer tooling and does
+  not belong in `Workspace.json`.
 - Build coordination is Swift-owned Workspace functionality. Do not add
   automation to a `Scripts` grab-bag or introduce Python or shell tooling.
 - `Package.resolved` is generated state. Do not commit, hand-edit, copy, or

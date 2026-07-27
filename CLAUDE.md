@@ -14,6 +14,8 @@ swift run --package-path Application workspace sync --dry-run   # plan only, cha
 swift run --package-path Application workspace sync             # clone and fast-forward
 swift run --package-path Application workspace doctor           # report checkout facts
 Application/.build/debug/workspace package test --package-path Application --fresh
+Application/.build/debug/workspace navigation install
+Application/.build/debug/workspace navigation check
 
 # local-source composition, for changing a package and its consumer together
 swift run --package-path Application workspace compose --consumer <c> --dependency <d>
@@ -53,6 +55,10 @@ that it did not run — that is not a failure of your checkout.
   resolution. Change `Package.swift` and resolve.
 - **Dependencies are branch-based.** `doctor` warns when a recorded pin lags its branch tip;
   a green over stale pins is not evidence — re-resolve.
+- **cclsp is developer tooling, not an inventory package.** Install and verify it through
+  `workspace navigation`; never add it to `Workspace.json`, resolve it from a personal fork,
+  or put a fixed machine checkout path in durable configuration. `navigation serve` owns the
+  Xcode/`TOOLCHAINS` boundary. The merged cross-package index remainder is Workspace issue #25.
 - **The generated Xcode workspace uses relative references only.** Never emit an absolute path
   into `institute.xcworkspace` or into `Workspace.json` — `Application` remains
   `group:Application`, while materialized packages use `group:../<inventory-derived-reference>`.
