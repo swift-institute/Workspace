@@ -6,6 +6,10 @@
 **Method:** read-only inspection of Institute repositories, pre-existing generated state, and **authoritative SwiftPM source at `swift-6.3.3-RELEASE` (`5f6969f5b`)** — the exact tag of the installed toolchain — plus two coordinator-approved `dump-package` observations. No production source modified. Dirty graph migration preserved byte-for-byte.
 **Path convention:** this repository is public; machine-specific path prefixes are rendered as `<developer-root>` deliberately (redacted 2026-07-26, per ADR-001).
 
+> **Terminology correction (2026-07-27):** Workspace is process/application
+> tooling above the three realised package layers, not part of a realised fourth
+> or fifth package layer. The ownership conclusions in this adjudication are unchanged.
+
 ---
 
 ## Capability
@@ -17,13 +21,13 @@ actually report.
 
 ## Correct semantic owner
 
-| Fact | Layer | Owner | Obtained from |
+| Fact | Layer or role | Owner | Obtained from |
 |---|---|---|---|
 | Declared dependency source | 2 | `swift-spm-standard` | the portable `Package.swift` — **not** reliably from SwiftPM (see Q3/Q4) |
 | SwiftPM-reported dependency location (**evaluated location**) | 2 | `swift-spm-standard` | `dump-package` |
 | Resolved package state | 2 representation / 3 inspection | `swift-spm-standard` / `swift-package-manager` | `workspace-state.json` |
 | Materialized source tree | 3 | `swift-package-manager` | scratch path + `subpath`, or the state's own absolute path |
-| Comparison of all four | 5 | Workspace | composition |
+| Comparison of all four | process/tooling | Workspace | composition |
 
 ## Current implementation or API
 
@@ -321,7 +325,7 @@ names, and naming should follow the slice that implements it.
 
 All four facts are properties of an externally defined tool and its on-disk state.
 Workspace's legitimate interest begins only at the **comparison** — which is
-Layer-5 policy and which it should own exclusively. If Workspace owned the
+process/application policy and which it should own exclusively. If Workspace owned the
 representations, every other consumer of the graph would depend on an application
 to read a toolchain format, and `swift-impact` — which already needs exactly the
 declared/observed distinction — would have to depend upward on Workspace to get
@@ -336,7 +340,7 @@ swift-package-primitives (L1)
   → swift-spm-standard    (L2)   declared source, evaluated location, resolved state
     → swift-package-manager (L3) invocation, failure reporting, state inspection, path derivation
       → swift-package-graph (L3) discovery and graph construction — identity only
-        → Workspace         (L5) comparison and policy
+        → Workspace         (process/tooling) comparison and policy
       → swift-impact        (L3) already consumes graph + manager
 ```
 
@@ -371,7 +375,7 @@ Specified, **not written**.
 | **A** | Extend `Package.Dependency.Source` with local-source-control cases | **Rejected.** The type's documented meaning is *declared* source — the three `Package.swift` forms. A mirror-substituted location is not a declaration and does not appear in any manifest. Adding it makes the type mean "declared, or observed, depending on how it was populated", which is the ambiguity being resolved |
 | **B** | Lossless `dump-package` wire model inside `swift-spm-standard` | **Accepted, in part.** Preserves the local/remote/fileSystem distinction exactly and is a type addition inside the existing owner |
 | **C** | Split declared and observed values | **Accepted, in part.** Declared comes from the portable manifest; observed only from an evaluation. **Either can be absent**: observed is absent when no evaluation ran; declared is absent when only `dump-package` output is available (Q4) — so both must be optional at their boundaries |
-| **D** | One dependency value with identity, requirement, declared source, reported location, and resolved state as separate fields | **Rejected as the primary model.** It mixes lifecycle phases in one value, so every consumer must know which fields are populated. Comprehensiveness is not the test. It may be right for a Workspace-owned *report* row — Layer 5, not Layer 2 |
+| **D** | One dependency value with identity, requirement, declared source, reported location, and resolved state as separate fields | **Rejected as the primary model.** It mixes lifecycle phases in one value, so every consumer must know which fields are populated. Comprehensiveness is not the test. It may be right for a Workspace-owned *report* row — process/tooling, not Layer 2 |
 | **E** | Fabricate a `file://` projection for `location.local` | **Rejected as authoritative.** It invents wire content and erases declared-versus-observed. Narrowly permissible only as an explicitly named, lossy, one-way convenience — never the decode result. Note SwiftPM itself *strips* `file://` on input (`DependencyMapper.swift:113–122`), so round-tripping through it is not even faithful to the tool |
 
 ## Migration impact

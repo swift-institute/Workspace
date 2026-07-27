@@ -6,6 +6,10 @@
 **Method:** read-only source inspection plus coordinator-approved `swift-build package dump-package` observations. No production source was modified. The dirty migration was preserved byte-for-byte (fingerprint verified before and after).
 **Path convention:** this repository is public; machine-specific path prefixes are rendered as `<developer-root>` deliberately (redacted 2026-07-26, per ADR-001).
 
+> **Terminology correction (2026-07-27):** Workspace is process/application
+> tooling above the three realised package layers, not part of a realised fourth
+> or fifth package layer. The ownership conclusions in this adjudication are unchanged.
+
 ---
 
 ## Capability
@@ -256,7 +260,8 @@ Four ordered changes. **None is implemented in this slice.**
 
 ## Why Workspace must not own it
 
-Workspace is a Layer-5 application. `dump-package` output is an **externally
+Workspace is process/application tooling above the three realised package layers.
+`dump-package` output is an **externally
 defined format published by the Swift toolchain**; interpreting it is the defining
 job of a Layer-2 standards package, and `swift-spm-standard` exists for exactly
 that. A Workspace-local decoder would be a fourth implementation of a format
@@ -280,7 +285,7 @@ swift-package-primitives (L1)
   → swift-spm-standard    (L2)   owns representation + decoding
     → swift-package-manager (L3) owns invocation + failure reporting
       → swift-package-graph (L3) owns discovery + graph construction
-        → Workspace         (L5) owns policy
+        → Workspace         (process/tooling) owns policy
 ```
 
 - `swift-package-manager` **already** depends on `swift-spm-standard`

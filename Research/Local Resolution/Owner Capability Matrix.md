@@ -4,6 +4,11 @@
 **Date:** 2026-07-24
 **Governing documents:** `WHY_WORKSPACE_EXISTS.md` (constitution), `WORKSPACE_LOCAL_RESOLUTION_IMPLEMENTATION_PLAN.md` (protocol)
 **Path convention:** this repository is public; machine-specific path prefixes are rendered as `<developer-root>` deliberately (redacted 2026-07-26, per ADR-001).
+
+> **Terminology correction (2026-07-27):** Workspace is process/application
+> tooling above the three realised package layers, not part of a realised fourth
+> or fifth package layer. The ownership conclusions in this matrix are unchanged.
+
 **Method — two distinct passes, do not conflate them:**
 
 | Pass | Date | What was done | What it can support |
@@ -33,9 +38,9 @@ Evidence is cited as `module › file:line › declaration` at the stated revisi
 
 ### 0.1 Owner locations, established by inspection
 
-| Package | Layer | Established location | Revision |
+| Package | Layer or role | Established location | Revision |
 |---|---:|---|---|
-| `Workspace/Application` | 5 | `swift-institute/Workspace/Application` | read at `2c6787d47`+12 uncommitted; **committed mid-audit as `ef0579a8b`**, content verified identical |
+| `Workspace/Application` | process/tooling | `swift-institute/Workspace/Application` | read at `2c6787d47`+12 uncommitted; **committed mid-audit as `ef0579a8b`**, content verified identical |
 | `swift-package-manager` | 3 | `swift-foundations/swift-package-manager` | `d3dd30904` |
 | `swift-package-graph` | 3 | `swift-foundations/swift-package-graph` | `a76186a9b` (dirty) |
 | `swift-xcode` | 3 | `swift-foundations/swift-xcode` | `83b6627d9` |
