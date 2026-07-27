@@ -9,6 +9,14 @@ let package = Package(
     ],
     products: [
         .library(
+            name: "Build Coordinator",
+            targets: ["Build Coordinator"]
+        ),
+        .library(
+            name: "Skill Validation",
+            targets: ["Skill Validation"]
+        ),
+        .library(
             name: "Workspace Application",
             targets: ["Workspace Application"]
         ),
@@ -26,13 +34,27 @@ let package = Package(
         .package(url: "https://github.com/swift-foundations/swift-git.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-json.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-package-manager.git", branch: "main"),
+        .package(url: "https://github.com/swift-foundations/swift-posix.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-process.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-xcode.git", branch: "main")
     ],
     targets: [
         .target(
+            name: "Build Coordinator",
+            dependencies: [
+                .product(name: "File System", package: "swift-file-system"),
+                .product(name: "POSIX Kernel Lock", package: "swift-posix"),
+                .product(name: "Process", package: "swift-process"),
+            ]
+        ),
+        .target(
+            name: "Skill Validation"
+        ),
+        .target(
             name: "Workspace Application",
             dependencies: [
+                "Build Coordinator",
+                "Skill Validation",
                 .product(name: "Command", package: "swift-arguments"),
                 .product(name: "Environment", package: "swift-environment"),
                 .product(name: "File System", package: "swift-file-system"),
@@ -48,13 +70,22 @@ let package = Package(
         .executableTarget(
             name: "Workspace CLI",
             dependencies: [
+                "Build Coordinator",
                 "Workspace Application",
                 .product(name: "Command", package: "swift-arguments")
             ]
         ),
         .testTarget(
+            name: "Skill Validation Tests",
+            dependencies: [
+                "Skill Validation",
+            ],
+            path: "Tests/Skill Validation Tests"
+        ),
+        .testTarget(
             name: "Workspace Application Tests",
             dependencies: [
+                "Skill Validation",
                 "Workspace Application",
                 .product(name: "File System", package: "swift-file-system"),
                 .product(name: "GitHub", package: "swift-github"),

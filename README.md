@@ -14,6 +14,8 @@ and local-source composition for cross-package work (`workspace compose` / `rest
 | `compose` | Point one package's dependency at your local checkout of it, so edits are picked up. |
 | `restore` | Undo a composition, returning the manifest to its declared form byte-for-byte. |
 | `verify` | Report which source a dependency actually compiled from, read from resolved state. |
+| `context install\|check` | Install or verify the checkout-root agent entry point and canonical skill projections. |
+| `package <action>` | Run SwiftPM build, test, resolution, and administration through the Swift coordinator. |
 
 ## What Swift Institute is
 
@@ -113,15 +115,39 @@ The earliest minutes print nothing at all while SwiftPM evaluates manifests, and
 nothing either: no progress bar, no percentage, nothing until the build finishes and `sync`
 prints its plan. Silence there is expected, not a hang.
 
-If you would rather watch it work, run the build as its own step first — `swift build` prints
-per-step progress, so the compile and the sync become two separate, legible steps:
+That first `swift run` is the unavoidable self-hosting bootstrap. Once it has
+produced `Application/.build/debug/workspace`, run all later SwiftPM work
+through the coordinator rather than invoking raw build, test, or
+package-administration commands.
+
+Install the shared agent entry point after cloning the surrounding Coenttb
+checkout:
 
 ```sh
-swift build --package-path Application    # compiles; prints per-step [N/total] progress
-swift run --package-path Application workspace sync
+swift run --package-path Application workspace context install
 ```
 
-Later runs reuse the build and start in seconds.
+This validates every canonical skill before projecting it, writes the generated
+root `AGENTS.md` and `CLAUDE.md`, and fails closed on any path it does not own.
+
+### Build and test packages
+
+The bootstrapped executable owns SwiftPM concurrency, job count, and build
+state:
+
+```sh
+Application/.build/debug/workspace package build --package-path Application
+Application/.build/debug/workspace package test --package-path Application --fresh
+Application/.build/debug/workspace package resolve --package-path Application
+```
+
+Builds are serialized through a machine-wide advisory lock and compile with
+three jobs. `--fresh` is available for build and test evidence: it uses a
+unique scratch directory beside the package and removes it before returning.
+Additional SwiftPM arguments use repeated `--argument` options, for example
+`--argument=--filter --argument=Unit`; coordinator-owned path, state, and job
+options cannot be overridden. The coordinator never edits
+`Package.resolved`.
 
 `sync` prints its complete plan before changing repositories. It clones missing repositories
 into the org hierarchy described above and only fast-forwards an existing repository when it

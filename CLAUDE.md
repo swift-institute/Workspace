@@ -13,7 +13,7 @@ All paths are relative to the repository root.
 swift run --package-path Application workspace sync --dry-run   # plan only, changes nothing
 swift run --package-path Application workspace sync             # clone and fast-forward
 swift run --package-path Application workspace doctor           # report checkout facts
-swift test --package-path Application                           # the application's own tests
+Application/.build/debug/workspace package test --package-path Application --fresh
 
 # local-source composition, for changing a package and its consumer together
 swift run --package-path Application workspace compose --consumer <c> --dependency <d>
@@ -22,8 +22,8 @@ swift run --package-path Application workspace restore --consumer <c> --dependen
 ```
 
 The first `swift run` in a fresh clone compiles the whole dependency graph and is **silent for
-several minutes**. It is not hung. Build first (`swift build --package-path Application`) when
-you want the compile and the command to be separate, legible steps.
+several minutes**. It is not hung. That invocation bootstraps the executable; after it exists,
+run SwiftPM work only through `Application/.build/debug/workspace package`.
 
 `doctor` reports which checks apply to your setup. A check that needs Institute access reports
 that it did not run — that is not a failure of your checkout.
@@ -74,7 +74,7 @@ Open work lives in GitHub issues:
 gh issue list
 ```
 
-Changes are pull requests. Before opening one: `doctor` reports no errors, the package builds
-and tests from its own repository, and new behaviour is covered by a test. New capability comes
-with the acceptance criteria that prove it — a check whose failure mode is a clean-looking pass
-is not finished.
+Changes are pull requests. Before opening one: `doctor` reports no errors, the package passes a
+fresh coordinator test from its own repository, and new behaviour is covered by a test. New
+capability comes with the acceptance criteria that prove it — a check whose failure mode is a
+clean-looking pass is not finished.

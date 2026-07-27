@@ -48,6 +48,71 @@ extension Workspace.CLI.Test.Unit {
         #expect(command.operation == .doctor)
         #expect(!command.dry)
     }
+
+    @Test(arguments: [
+        ("install", Workspace.CLI.Mode.install),
+        ("check", Workspace.CLI.Mode.check),
+    ])
+    func `context parses its operation`(
+        argument: Swift.String,
+        expected: Workspace.CLI.Mode
+    ) throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: ["context", argument],
+            initial: .init()
+        )
+
+        #expect(command.operation == .context)
+        #expect(command.modes == [expected])
+    }
+
+    @Test(arguments: [
+        ("build", Workspace.CLI.Mode.build),
+        ("test", Workspace.CLI.Mode.test),
+        ("resolve", Workspace.CLI.Mode.resolve),
+        ("dump-package", Workspace.CLI.Mode.dumpPackage),
+    ])
+    func `package parses its operation`(
+        argument: Swift.String,
+        expected: Workspace.CLI.Mode
+    ) throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: ["package", argument, "--package-path", "/tmp/example"],
+            initial: .init()
+        )
+
+        #expect(command.operation == .package)
+        #expect(command.modes == [expected])
+        #expect(command.packagePath == "/tmp/example")
+    }
+
+    @Test
+    func `fresh package test parses`() throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: ["package", "test", "--fresh"],
+            initial: .init()
+        )
+
+        #expect(command.fresh)
+    }
+
+    @Test
+    func `package forwards repeated SwiftPM arguments`() throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: [
+                "package", "test",
+                "--argument=--filter",
+                "--argument", "Performance",
+            ],
+            initial: .init()
+        )
+
+        #expect(command.arguments == ["--filter", "Performance"])
+    }
 }
 
 extension Workspace.CLI.Test.`Edge Case` {
@@ -57,6 +122,72 @@ extension Workspace.CLI.Test.`Edge Case` {
             _ = try Command.parse(
                 Workspace.CLI.self,
                 from: ["doctor", "--dry-run"],
+                initial: .init()
+            )
+        }
+    }
+
+    @Test
+    func `context requires an operation`() {
+        #expect(throws: Command.Error.self) {
+            _ = try Command.parse(
+                Workspace.CLI.self,
+                from: ["context"],
+                initial: .init()
+            )
+        }
+    }
+
+    @Test
+    func `context rejects a package operation`() {
+        #expect(throws: Command.Error.self) {
+            _ = try Command.parse(
+                Workspace.CLI.self,
+                from: ["context", "build"],
+                initial: .init()
+            )
+        }
+    }
+
+    @Test
+    func `non-context operation rejects a context operation`() {
+        #expect(throws: Command.Error.self) {
+            _ = try Command.parse(
+                Workspace.CLI.self,
+                from: ["sync", "install"],
+                initial: .init()
+            )
+        }
+    }
+
+    @Test
+    func `package requires an operation`() {
+        #expect(throws: Command.Error.self) {
+            _ = try Command.parse(
+                Workspace.CLI.self,
+                from: ["package"],
+                initial: .init()
+            )
+        }
+    }
+
+    @Test
+    func `package rejects a context operation`() {
+        #expect(throws: Command.Error.self) {
+            _ = try Command.parse(
+                Workspace.CLI.self,
+                from: ["package", "install"],
+                initial: .init()
+            )
+        }
+    }
+
+    @Test
+    func `fresh rejects package resolve`() {
+        #expect(throws: Command.Error.self) {
+            _ = try Command.parse(
+                Workspace.CLI.self,
+                from: ["package", "resolve", "--fresh"],
                 initial: .init()
             )
         }

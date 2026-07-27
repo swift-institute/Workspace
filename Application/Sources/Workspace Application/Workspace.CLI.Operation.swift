@@ -7,6 +7,8 @@ extension Workspace.CLI {
         case compose
         case restore
         case verify
+        case context
+        case package
 
         public init?(argument: Swift.String) {
             switch argument {
@@ -15,6 +17,8 @@ extension Workspace.CLI {
             case "compose": self = .compose
             case "restore": self = .restore
             case "verify": self = .verify
+            case "context": self = .context
+            case "package": self = .package
             default: return nil
             }
         }
@@ -29,6 +33,8 @@ extension Workspace.CLI.Operation {
         case .compose: "compose"
         case .restore: "restore"
         case .verify: "verify"
+        case .context: "context"
+        case .package: "package"
         }
     }
 }
@@ -43,7 +49,7 @@ extension Workspace.CLI.Operation {
     /// on, so it lives here rather than being re-derived at the call site.
     internal var composesADependency: Swift.Bool {
         switch self {
-        case .sync, .doctor: false
+        case .sync, .doctor, .context, .package: false
         case .compose, .restore, .verify: true
         }
     }
