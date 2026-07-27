@@ -17,7 +17,14 @@ extension Workspace.Sync {
         let client: Git.Client
 
         init() throws {
-            base = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+            let temporary =
+                FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+            try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
+            base = URL(
+                fileURLWithPath:
+                    try File.System.Canonical.resolve(File.Path(temporary.path)).description,
+                isDirectory: true
+            )
             root = base.appending(path: "Workspace")
             source = base.appending(path: "source")
             remote = base.appending(path: "remote.git")
@@ -25,7 +32,7 @@ extension Workspace.Sync {
             legacy = root.appending(path: "swift-foundations/swift-example")
             client = .init()
 
-            try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
             try FileManager.default.createDirectory(
                 at: base.appending(path: "swift-foundations"),
                 withIntermediateDirectories: true

@@ -1,5 +1,5 @@
 private import Environment
-public import File_System
+internal import File_System
 public import Git_Foundation
 public import Package_Manager
 private import Process

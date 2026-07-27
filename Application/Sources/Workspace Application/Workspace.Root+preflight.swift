@@ -1,4 +1,4 @@
-public import File_System
+internal import File_System
 
 extension Workspace.Root {
     /// The active sibling-layout location of `repository`.

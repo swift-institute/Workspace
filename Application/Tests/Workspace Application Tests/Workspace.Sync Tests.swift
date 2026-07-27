@@ -44,7 +44,7 @@ extension Workspace.Sync.Test.Integration {
     }
 
     @Test
-    func `Force pushed remote leaves local repository untouched`() throws {
+    func `Force pushed remote leaves local repository untouched while publishing the checkout workspace`() throws {
         let fixture = try Workspace.Sync.Fixture()
         defer { fixture.remove() }
         try fixture.replaceRemote()
@@ -52,7 +52,15 @@ extension Workspace.Sync.Test.Integration {
 
         try fixture.application().run(dry: false)
 
-        #expect(try fixture.state() == before)
+        let after = try fixture.state()
+        #expect(after.head == before.head)
+        #expect(after.origin == before.origin)
+        #expect(after.fetch == before.fetch)
+        #expect(after.status == before.status)
+        #expect(after.canonical == before.canonical)
+        #expect(after.legacy == before.legacy)
+        #expect(after.ledger == before.ledger)
+        #expect(after.workspace != nil)
         #expect(try fixture.residue().isEmpty)
     }
 

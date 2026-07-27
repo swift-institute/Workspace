@@ -1,4 +1,4 @@
-public import File_System
+private import File_System
 public import Git_Foundation
 
 extension Workspace {

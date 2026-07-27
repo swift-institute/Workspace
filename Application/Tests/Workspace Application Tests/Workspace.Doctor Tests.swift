@@ -1,3 +1,5 @@
+import File_System
+import Foundation
 import Tagged_Primitives
 import Testing
 
@@ -187,6 +189,26 @@ extension Workspace.Doctor.Test.Unit {
 // MARK: - Acceptance
 
 extension Workspace.Doctor.Test.Integration {
+    private static func command(
+        _ arguments: [Swift.String],
+        at directory: File.Directory
+    ) throws {
+        let process = Foundation.Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.arguments = arguments
+        process.currentDirectoryURL = URL(
+            fileURLWithPath: directory.description,
+            isDirectory: true
+        )
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            throw CocoaError(.executableNotLoadable)
+        }
+    }
+
     private static func materialization(
         _ report: Workspace.Doctor.Report
     ) throws -> Workspace.Doctor.Outcome {
@@ -204,6 +226,19 @@ extension Workspace.Doctor.Test.Integration {
         let fixture = try Workspace.Doctor.Fixture(repositories: [repository])
         defer { fixture.remove() }
         try fixture.materialize(repository.name)
+        let checkout = try fixture.root.materialization(for: repository)
+        try """
+            // swift-tools-version: 6.3
+            import PackageDescription
+
+            let package = Package(name: "swift-example")
+            """.write(
+                to: URL(fileURLWithPath: checkout.description)
+                    .appending(path: "Package.swift"),
+                atomically: true,
+                encoding: .utf8
+            )
+        try Self.command(["remote", "add", "origin", repository.url], at: checkout)
         try Workspace.Xcode.write([repository], at: fixture.directory)
 
         let report = await fixture.doctor().run()

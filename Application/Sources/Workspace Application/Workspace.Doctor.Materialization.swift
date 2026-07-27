@@ -1,3 +1,6 @@
+private import File_System
+private import Git_Foundation
+
 extension Workspace.Doctor {
     /// One selected repository's presence on disk at its org-layout
     /// location.
@@ -90,7 +93,10 @@ extension Workspace.Doctor {
     private func exists(
         at path: File.Directory
     ) throws(Workspace.Error) -> Bool {
-        try execute { () throws(Git.Client.Error) -> Bool in
+        guard path.stat.exists else {
+            return false
+        }
+        return try execute { () throws(Git.Client.Error) -> Bool in
             try git.repository(at: path.description)
         }
     }

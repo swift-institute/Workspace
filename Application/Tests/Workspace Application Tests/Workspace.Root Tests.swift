@@ -22,9 +22,10 @@ extension Workspace.Root.Test.Unit {
         try FileManager.default.createDirectory(at: checkout, withIntermediateDirectories: true)
 
         let root = try Workspace.Root(checkout: File.Directory(validating: checkout.path))
+        let canonical = try File.System.Canonical.resolve(File.Path(checkout.path))
 
-        #expect(root.checkout.description == checkout.path)
-        #expect(root.hierarchy.description == base.appending(path: "X").path)
+        #expect(root.checkout.path == canonical)
+        #expect(root.hierarchy == File.Directory(canonical).parent)
     }
 
     @Test
@@ -37,10 +38,14 @@ extension Workspace.Root.Test.Unit {
         try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: physical)
 
         let root = try Workspace.Root(checkout: File.Directory(validating: alias.path))
+        let canonical = try File.System.Canonical.resolve(File.Path(physical.path))
 
-        #expect(root.checkout.description == physical.path)
-        #expect(root.hierarchy.description == base.appending(path: "physical/X").path)
-        #expect(root.hierarchy.description != base.path)
+        #expect(root.checkout.path == canonical)
+        #expect(root.hierarchy == File.Directory(canonical).parent)
+        #expect(
+            root.hierarchy
+                != File.Directory(try File.System.Canonical.resolve(File.Path(base.path)))
+        )
     }
 }
 

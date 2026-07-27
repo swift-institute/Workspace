@@ -22,11 +22,23 @@ extension Workspace.Composition.Test {
         let composition: Workspace.Composition
 
         init() throws {
-            base = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
-            root = base.appending(path: "Workspace")
+            let temporary =
+                FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+            let checkout = temporary.appending(path: "Workspace")
+            try FileManager.default.createDirectory(at: checkout, withIntermediateDirectories: true)
+            let workspaceRoot = try Workspace.Root(
+                checkout: File.Directory(validating: checkout.path)
+            )
+            base = URL(
+                fileURLWithPath: workspaceRoot.hierarchy.description,
+                isDirectory: true
+            )
+            root = URL(
+                fileURLWithPath: workspaceRoot.checkout.description,
+                isDirectory: true
+            )
             manifest = base.appending(path: "swift-foundations/example/consumer/Package.swift")
 
-            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
             try FileManager.default.createDirectory(
                 at: base.appending(path: "swift-foundations/example/consumer"),
                 withIntermediateDirectories: true
@@ -44,7 +56,7 @@ extension Workspace.Composition.Test {
             try Self.manifestSource.write(to: manifest, atomically: true, encoding: .utf8)
 
             composition = Workspace.Composition(
-                root: try Workspace.Root(checkout: File.Directory(validating: root.path)),
+                root: workspaceRoot,
                 configuration: .init(
                     version: 1,
                     scope: "example",
@@ -115,7 +127,7 @@ extension Workspace.Composition.Test.Integration {
         let rewritten = try fixture.read()
         #expect(
             rewritten.contains(
-                ".package(path: \"\(fixture.base.path)/swift-standards/example/swift-dep\")"
+                ".package(path: \"\(fixture.composition.root.hierarchy)/swift-standards/example/swift-dep\")"
             )
         )
         #expect(!rewritten.contains("https://github.com/example/swift-dep.git"))

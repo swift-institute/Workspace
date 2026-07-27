@@ -1,4 +1,4 @@
-public import File_System
+private import File_System
 public import Package_Manager
 // `Package.Resolution`, `Package.Manifest`, and `Package.Dependency` are
 // extension members declared in SPM_Standard. Under MemberImportVisibility the

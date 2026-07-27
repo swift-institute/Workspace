@@ -21,12 +21,19 @@ extension Workspace.Doctor {
             repositories: [Workspace.Repository],
             selected: [Workspace.Repository]? = nil
         ) throws {
-            base = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
-            try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
-            let checkout = base.appending(path: "Workspace")
+            let temporary =
+                FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+            let checkout = temporary.appending(path: "Workspace")
             try FileManager.default.createDirectory(at: checkout, withIntermediateDirectories: true)
-            directory = try File.Directory(validating: checkout.path)
-            root = try Workspace.Root(checkout: directory)
+            let workspaceRoot = try Workspace.Root(
+                checkout: File.Directory(validating: checkout.path)
+            )
+            base = URL(
+                fileURLWithPath: workspaceRoot.hierarchy.description,
+                isDirectory: true
+            )
+            directory = workspaceRoot.checkout
+            root = workspaceRoot
             configuration = .init(
                 version: 1,
                 scope: "test",
@@ -86,9 +93,12 @@ extension Workspace.Doctor.Fixture {
         guard let repository = configuration.repositories.first(where: { $0.name == name }) else {
             throw CocoaError(.fileNoSuchFile)
         }
-        let location = base.appending(path: Workspace.Layout.reference(for: repository))
-        try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
-        try Git.Client().initialize(at: location.path, bare: false)
+        let location = try root.materialization(for: repository)
+        try FileManager.default.createDirectory(
+            atPath: location.description,
+            withIntermediateDirectories: true
+        )
+        try Git.Client().initialize(at: location.description, bare: false)
     }
 
     /// Materializes only the retired in-checkout location. This is deliberately
@@ -98,11 +108,12 @@ extension Workspace.Doctor.Fixture {
         guard let repository = configuration.repositories.first(where: { $0.name == name }) else {
             throw CocoaError(.fileNoSuchFile)
         }
-        let location = directory.description
-            + "/"
-            + Workspace.Layout.reference(for: repository)
-        try FileManager.default.createDirectory(atPath: location, withIntermediateDirectories: true)
-        try Git.Client().initialize(at: location, bare: false)
+        let location = try root.legacy(for: repository)
+        try FileManager.default.createDirectory(
+            atPath: location.description,
+            withIntermediateDirectories: true
+        )
+        try Git.Client().initialize(at: location.description, bare: false)
     }
 
     /// Writes `contents` at `relative` under the sibling hierarchy.
