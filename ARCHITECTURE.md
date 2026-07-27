@@ -36,10 +36,10 @@ The `workspace` executable is thin composition over it and owns nothing else. An
 front-end composes the same library rather than reimplementing its policy — the split exists so
 that the choice of front-end stays open.
 
-Architecturally, Workspace remains a thin Layer-5 application that discovers eligible public
-Swift Institute repositories, plans safe synchronization, reports policy violations, and
-composes the Institute packages that own Git, SwiftPM, Xcode, JSON, XML, filesystem, process,
-and GitHub behavior.
+Architecturally, Workspace is process/application tooling outside the three realised package
+layers. It discovers eligible public Swift Institute repositories, plans safe synchronization,
+reports policy violations, and composes the Institute packages that own Git, SwiftPM, Xcode,
+JSON, XML, filesystem, process, and GitHub behavior.
 
 Workspace owns application policy only:
 
@@ -68,7 +68,7 @@ sibling directories without turning the command-line package into the repository
 ```text
 X/                              the directory playing the organization role
 ├── Workspace/                  this repository, cloned into X
-│   ├── Application/            Layer-5 Swift package
+│   ├── Application/            process/application Swift package
 │   │   ├── Sources/
 │   │   │   ├── Workspace Application/
 │   │   │   └── Workspace CLI/
@@ -121,7 +121,7 @@ root — the organization, then the repository name. `swift-primitives/swift-dim
 
 ## Package missions and layers
 
-| Package | Layer | Mission |
+| Package | Layer or role | Mission |
 | --- | ---: | --- |
 | `swift-package-primitives` | 1 | Provide atomic package, product, and target identity types. |
 | `swift-spm-standard` | 2 | Model externally defined SwiftPM manifest and dependency representations. |
@@ -139,7 +139,7 @@ root — the organization, then the repository name. `swift-primitives/swift-dim
 | `swift-package-manager` | 3 | Execute installed SwiftPM operations and return `swift-spm-standard` values. |
 | `swift-package-graph` | 3 | Compose manifest values into package dependency graphs. |
 | `swift-github` | 3 planned | Own authenticated GitHub operations and pagination over `swift-github-standard` values. |
-| `Workspace/Application` | 5 | Apply Institute eligibility, sync-safety, diagnostic, and inventory policy through the lower-layer packages. |
+| `Workspace/Application` | process/tooling | Apply Institute eligibility, sync-safety, diagnostic, and inventory policy through the three realised package layers. |
 
 ## Products and targets
 
@@ -164,7 +164,7 @@ Dependencies flow downward by layer. Acyclic same-layer composition is permitted
 expresses semantic composition and does not manufacture a helper package:
 
 ```text
-Workspace/Application (L5)
+Workspace/Application (process/tooling)
 ├── swift-arguments (L3)
 ├── swift-environment (L3)
 ├── swift-git (L3) ──────────────── swift-git-standard (L2)
