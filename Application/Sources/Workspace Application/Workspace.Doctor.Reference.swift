@@ -1,6 +1,6 @@
 extension Workspace.Doctor {
-    /// The generated workspace document against the rendering
-    /// `Workspace.json` requires.
+    /// The generated workspace document against the rendering required by
+    /// the resolved selection.
     public struct Reference: Equatable, Sendable {
         public let expected: Swift.String
         public let actual: Swift.String?
@@ -13,7 +13,7 @@ extension Workspace.Doctor {
 }
 
 extension Workspace.Doctor {
-    /// `institute.xcworkspace` matches `Workspace.json`.
+    /// `institute.xcworkspace` matches the resolved selection.
     public static let reference = Check<Reference>(
         name: "workspace-reference",
         scope: .contributor,
@@ -29,7 +29,7 @@ extension Workspace.Doctor {
         return [
             .init(
                 severity: .error,
-                message: "institute.xcworkspace does not match Workspace.json"
+                message: "institute.xcworkspace does not match the resolved selection"
             )
         ]
     }
@@ -38,7 +38,7 @@ extension Workspace.Doctor {
         Self.reference.run(
             population: [
                 .init(
-                    expected: Workspace.Xcode.render(configuration.repositories),
+                    expected: Workspace.Xcode.render(selection.repositories),
                     actual: Workspace.Xcode.contents(at: root)
                 )
             ],

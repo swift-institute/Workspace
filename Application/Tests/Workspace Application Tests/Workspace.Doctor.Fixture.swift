@@ -14,8 +14,12 @@ extension Workspace.Doctor {
         let base: URL
         let directory: File.Directory
         let configuration: Workspace.Configuration
+        let selection: Workspace.Selection.Resolved
 
-        init(repositories: [Workspace.Repository]) throws {
+        init(
+            repositories: [Workspace.Repository],
+            selected: [Workspace.Repository]? = nil
+        ) throws {
             base = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
             try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
             directory = try File.Directory(validating: base.path)
@@ -26,6 +30,7 @@ extension Workspace.Doctor {
                 xcode: "26.0",
                 repositories: repositories
             )
+            selection = .init(repositories: selected ?? repositories)
         }
     }
 }
@@ -62,6 +67,7 @@ extension Workspace.Doctor.Fixture {
         .init(
             root: directory,
             configuration: configuration,
+            selection: selection,
             environment: environment,
             tool: tool
         )

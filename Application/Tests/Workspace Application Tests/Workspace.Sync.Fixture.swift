@@ -59,22 +59,15 @@ extension Workspace.Sync.Fixture {
 
     func application() throws -> Workspace.Sync {
         let directory = try File.Directory(validating: root.path)
+        let repository = Workspace.Repository(
+            name: "swift-example",
+            url: remote.path,
+            organization: "swift-foundations",
+            layer: .foundations
+        )
         return Workspace.Sync(
             root: directory,
-            configuration: .init(
-                version: 1,
-                scope: "swift-institute",
-                swift: "6.3",
-                xcode: "26.0",
-                repositories: [
-                    .init(
-                        name: "swift-example",
-                        url: remote.path,
-                        organization: "swift-foundations",
-                        layer: .foundations
-                    )
-                ]
-            ),
+            selection: .init(repositories: [repository]),
             client: client
         )
     }

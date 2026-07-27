@@ -170,7 +170,7 @@ extension Workspace.Doctor {
         }
         return Self.census.run(
             population: population,
-            inventory: configuration.repositories.count
+            inventory: selection.repositories.count
         )
     }
 

@@ -2,8 +2,8 @@ import File_System
 private import Package_Manager
 
 extension Workspace.Doctor {
-    /// One materialized repository's evaluated manifest identity against
-    /// its inventory name.
+    /// One selected, materialized repository's evaluated manifest identity
+    /// against its inventory name.
     public struct Manifest: Equatable, Sendable {
         public let name: Swift.String
         public let identity: Identity
@@ -16,7 +16,7 @@ extension Workspace.Doctor {
 }
 
 extension Workspace.Doctor {
-    /// Every materialized repository's manifest identity is its
+    /// Every selected, materialized repository's manifest identity is its
     /// inventory name.
     public static let manifest = Check<Manifest>(
         name: "manifest-identity",
@@ -51,7 +51,7 @@ extension Workspace.Doctor {
             population: materialized.map { repository, path in
                 .init(name: repository.name, identity: identity(at: path))
             },
-            inventory: configuration.repositories.count
+            inventory: selection.repositories.count
         )
     }
 

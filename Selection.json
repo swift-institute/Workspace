@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "repositories": [
+    "swift-primitives/swift-dimension-primitives",
+    "swift-standards/swift-color-standard",
+    "swift-foundations/swift-color",
+    "swift-foundations/swift-url-routing",
+    "swift-foundations/swift-http-body"
+  ]
+}

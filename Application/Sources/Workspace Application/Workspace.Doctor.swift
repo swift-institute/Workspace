@@ -13,6 +13,7 @@ extension Workspace {
     public struct Doctor: Sendable {
         public let root: File.Directory
         public let configuration: Configuration
+        public let selection: Workspace.Selection.Resolved
         public let git: Git.Client
         public let packages: Package.Manager
         public let environment: @Sendable (_ variable: Swift.String) -> Swift.String?
@@ -25,6 +26,7 @@ extension Workspace {
         public init(
             root: File.Directory,
             configuration: Configuration,
+            selection: Workspace.Selection.Resolved,
             git: Git.Client = .init(),
             packages: Package.Manager = .init(),
             environment: @escaping @Sendable (_ variable: Swift.String) -> Swift.String? =
@@ -37,6 +39,7 @@ extension Workspace {
         ) {
             self.root = root
             self.configuration = configuration
+            self.selection = selection
             self.git = git
             self.packages = packages
             self.environment = environment
@@ -53,7 +56,7 @@ extension Workspace.Doctor {
     /// measurement that has begun can only end in `ok`, `finding`, or
     /// `unmeasured`.
     public func run(access: Access = .contributor) async -> Report {
-        let checkouts = configuration.repositories.compactMap(materialized)
+        let checkouts = selection.repositories.compactMap(materialized)
         var outcomes = [
             toolchain(),
             reference(),

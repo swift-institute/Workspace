@@ -1,5 +1,5 @@
 extension Workspace.Doctor {
-    /// One inventory repository's presence on disk at its org-layout
+    /// One selected repository's presence on disk at its org-layout
     /// location.
     public struct Materialization: Equatable, Sendable {
         public let name: Swift.String
@@ -16,7 +16,7 @@ extension Workspace.Doctor {
 }
 
 extension Workspace.Doctor {
-    /// Every inventory repository is materialized as a Git repository at
+    /// Every selected repository is materialized as a Git repository at
     /// its org-layout location.
     public static let materialization = Check<Materialization>(
         name: "materialization",
@@ -48,14 +48,14 @@ extension Workspace.Doctor {
 
     func materialization() -> Outcome {
         Self.materialization.run(
-            population: configuration.repositories.map { repository in
+            population: selection.repositories.map { repository in
                 let location = Workspace.Layout.reference(for: repository)
                 return switch materialized(repository) {
                 case .some: .init(name: repository.name, location: location, state: .materialized)
                 case .none: .init(name: repository.name, location: location, state: state(of: repository))
                 }
             },
-            inventory: configuration.repositories.count
+            inventory: selection.repositories.count
         )
     }
 

@@ -102,9 +102,15 @@ extension Workspace.CLI {
         let configuration = try Workspace.Configuration.load(at: root)
         switch operation {
         case .sync:
-            try Workspace.Sync(root: root, configuration: configuration).run(dry: dry)
+            let selection = try Workspace.Selection.load(at: root).resolved(in: configuration)
+            try Workspace.Sync(root: root, selection: selection).run(dry: dry)
         case .doctor:
-            let report = await Workspace.Doctor(root: root, configuration: configuration).run()
+            let selection = try Workspace.Selection.load(at: root).resolved(in: configuration)
+            let report = await Workspace.Doctor(
+                root: root,
+                configuration: configuration,
+                selection: selection
+            ).run()
             print(report)
             Process.Exit.normal(report.status)
         case .compose:

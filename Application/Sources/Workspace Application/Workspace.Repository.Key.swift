@@ -1,8 +1,9 @@
 public import GitHub
+public import JSON
 public import Tagged_Primitives
 
 extension Workspace.Repository {
-    public struct Key: Equatable, Hashable, Sendable {
+    public struct Key: Equatable, Hashable, Sendable, JSON.Serializable {
         public let owner: GitHub.Organization.Name
         public let name: GitHub.Repository.Name
 
@@ -37,6 +38,10 @@ extension Workspace.Repository {
 }
 
 extension Workspace.Repository.Key {
+    public var identity: Swift.String {
+        "\(owner.underlying)/\(name.underlying)"
+    }
+
     public var url: Swift.String {
         "https://github.com/\(owner.underlying)/\(name.underlying).git"
     }
@@ -46,5 +51,25 @@ extension Workspace.Repository.Key {
             return lhs.owner.underlying.utf8.lexicographicallyPrecedes(rhs.owner.underlying.utf8)
         }
         return lhs.name.underlying.utf8.lexicographicallyPrecedes(rhs.name.underlying.utf8)
+    }
+
+    public static func serialize(_ value: Self) -> JSON {
+        value.identity.json
+    }
+
+    public static func deserialize(_ json: JSON) throws(JSON.Error) -> Self {
+        let value = try Swift.String(json: json)
+        let components = value.split(separator: "/", omittingEmptySubsequences: false)
+        guard
+            components.count == 2,
+            !components[0].isEmpty,
+            !components[1].isEmpty
+        else {
+            throw .typeMismatch(expected: "repository identity owner/name", got: value)
+        }
+        return .init(
+            owner: .init(Swift.String(components[0])),
+            name: .init(Swift.String(components[1]))
+        )
     }
 }

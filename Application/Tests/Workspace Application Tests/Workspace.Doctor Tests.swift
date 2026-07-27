@@ -188,6 +188,57 @@ extension Workspace.Doctor.Test.Unit {
 
 extension Workspace.Doctor.Test.Integration {
     @Test
+    func `Contributor checks ignore unselected inventory repositories`() async throws {
+        let selected = Workspace.Repository(
+            name: "swift-selected",
+            url: "https://github.com/swift-foundations/swift-selected.git",
+            organization: "swift-foundations",
+            layer: .foundations
+        )
+        let unselected = Workspace.Repository(
+            name: "swift-unselected",
+            url: "https://github.com/swift-foundations/swift-unselected.git",
+            organization: "swift-foundations",
+            layer: .foundations
+        )
+        let fixture = try Workspace.Doctor.Fixture(
+            repositories: [selected, unselected],
+            selected: [selected]
+        )
+        defer { fixture.remove() }
+        try fixture.materialize(unselected.name)
+        try fixture.write(
+            "not resolved-state JSON",
+            to: "swift-foundations/swift-unselected/Package.resolved"
+        )
+        try Workspace.Xcode.write(fixture.selection.repositories, at: fixture.directory)
+
+        let report = await fixture.doctor().run()
+
+        let materialization = report.outcomes.first { $0.check == "materialization" }
+        #expect(materialization?.result == .finding(severity: .error, population: 1))
+        #expect(
+            materialization?.findings.contains {
+                $0.message.contains(unselected.name)
+            } == false
+        )
+        let reference = report.outcomes.first { $0.check == "workspace-reference" }
+        #expect(reference?.result == .ok(population: 1))
+        let census = report.outcomes.first { $0.check == "working-state" }
+        #expect(
+            census?.result
+                == .unmeasured(reason: "empty population against an inventory of 1")
+        )
+        let pins = report.outcomes.first { $0.check == "resolved-pins" }
+        #expect(pins?.result == .ok(population: 0))
+        let manifest = report.outcomes.first { $0.check == "manifest-identity" }
+        #expect(
+            manifest?.result
+                == .unmeasured(reason: "empty population against an inventory of 1")
+        )
+    }
+
+    @Test
     func `an empty Packages population against a non-empty inventory reports unmeasured and exits 2`()
         async throws
     {

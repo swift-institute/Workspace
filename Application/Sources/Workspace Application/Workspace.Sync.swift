@@ -4,16 +4,16 @@ public import Git_Foundation
 extension Workspace {
     public struct Sync: Sendable {
         public let root: File.Directory
-        public let configuration: Configuration
+        public let selection: Workspace.Selection.Resolved
         public let client: Git.Client
 
         public init(
             root: File.Directory,
-            configuration: Configuration,
+            selection: Workspace.Selection.Resolved,
             client: Git.Client = .init()
         ) {
             self.root = root
-            self.configuration = configuration
+            self.selection = selection
             self.client = client
         }
     }
@@ -22,10 +22,10 @@ extension Workspace {
 extension Workspace.Sync {
     public func run(dry: Bool) throws(Workspace.Error) {
         var inspections = [Workspace.Inspection]()
-        for repository in configuration.repositories {
+        for repository in selection.repositories {
             inspections.append(try inspect(repository, dry: dry))
         }
-        let workspace = Workspace.Xcode.current(configuration.repositories, at: root)
+        let workspace = Workspace.Xcode.current(selection.repositories, at: root)
 
         print("Workspace sync plan")
         for inspection in inspections {
@@ -64,7 +64,7 @@ extension Workspace.Sync {
         }
 
         if !workspace {
-            try Workspace.Xcode.write(configuration.repositories, at: root)
+            try Workspace.Xcode.write(selection.repositories, at: root)
         }
         print("Sync complete.")
     }

@@ -1,9 +1,11 @@
 # Swift Institute Workspace
 
-The front door to the Swift Institute: the public package inventory ([Workspace.json](Workspace.json)),
-machine-checked facts about a checkout (`workspace doctor`), an isolated local development
-checkout for Xcode (`workspace sync`), and local-source composition for cross-package work
-(`workspace compose` / `restore` / `verify`).
+The front door to the Swift Institute: the public package inventory
+([Workspace.json](Workspace.json)), the bounded default checkout
+([Selection.json](Selection.json)), machine-checked facts about that checkout
+(`workspace doctor`), an isolated local development checkout for Xcode (`workspace sync`),
+and local-source composition for cross-package work (`workspace compose` / `restore` /
+`verify`).
 
 | Command | What it does |
 | --- | --- |
@@ -42,18 +44,29 @@ packages as independent checkouts materialized in the org hierarchy — one root
 organization (`swift-primitives/`, `swift-standards/`, `swift-foundations/`), with packages
 owned by a specification-authority, vendor, or jurisdiction organization nested one level
 deeper under their layer root (for example `swift-standards/swift-ietf/<package>`) — and
-composes them into a single Xcode workspace. Placement derives from `Workspace.json` alone:
-each entry's `organization` and `layer` fields decide the path. Tools never infer a location
-from a package's name or by scanning the tree, and materialized paths are regenerable state —
-when a repository transfers between organizations, re-running `sync` materializes its new
-location.
+composes them into a single Xcode workspace. `Selection.json` contains only canonical
+`owner/repository` identities and decides which inventory entries participate in the default
+checkout. Placement and ordering derive from `Workspace.json` alone: each selected entry's
+`organization` and `layer` fields decide the path, and inventory order decides synchronization
+and Xcode order. Tools never infer a location from a package's name or by scanning the tree,
+and materialized paths are regenerable state — when a repository transfers between
+organizations, both documents must be updated explicitly before `sync` can proceed.
 
 ## Where facts come from
 
 - **Inventory:** [Workspace.json](Workspace.json) is the public roster of packages this
   workspace manages, intended to grow to every public, non-archived Institute package.
+- **Default checkout:** [Selection.json](Selection.json) is a membership list of canonical
+  `owner/repository` identities. It deliberately does not repeat package metadata, paths, or
+  ordering.
 - **Checkout facts:** `workspace doctor` measures the checkout directly — identities,
   remotes, branches, upstreams, toolchain, and workspace references.
+
+`sync` and `doctor` load both files and fail before repository work if the selection is
+missing, malformed, duplicated, or names an entry absent from the inventory. They never treat
+an invalid selection as permission to operate on the complete inventory. `compose`, `restore`,
+and `verify` resolve their explicitly named operands against the complete inventory instead;
+an operand does not have to remain in the default selection once it is already checked out.
 
 Prefer running `doctor` over trusting any written snapshot: repository-state prose is a
 measurement with a timestamp, and it drifts.
@@ -80,6 +93,10 @@ cd Workspace
 swift run --package-path Application workspace sync
 open institute.xcworkspace
 ```
+
+The committed `Selection.json` bounds that first synchronization. To change the default
+checkout, edit its `repositories` list using the exact `owner/repository` identity from
+`Workspace.json`; selection-file order has no effect.
 
 **The third command is slow the first time, and it is silent while it works.** Before it does
 anything visible, `swift run` resolves and compiles the command-line application and its whole
@@ -124,7 +141,8 @@ the organization role. For a clone at `X/Workspace`:
 
 ```text
 X/
-├── Workspace/              this repository: Application/, Workspace.json, institute.xcworkspace
+├── Workspace/              this repository: Application/, Workspace.json, Selection.json,
+│                            institute.xcworkspace
 ├── swift-primitives/       ┐
 ├── swift-standards/        ├ materialization roots: independent repositories,
 └── swift-foundations/      ┘ none part of this repository
@@ -205,9 +223,11 @@ ok (population 5)` says five repositories were inspected, not that inspection wa
 `ok (population 0)` therefore means something specific: the check ran, its controls fired
 correctly, and there were genuinely **zero subjects in existence** to measure. Above,
 `resolved-pins: ok (population 0)` means no materialized repository has a `Package.resolved`
-yet, so there are no pins to compare against their branch tips. An empty population measured
-against a **non-empty** inventory is reported `unmeasured`, never `ok` — that case is a failure
-to measure, and it is reported as one.
+yet, so there are no pins to compare against their branch tips. For repository-subject checks,
+an empty population measured against a **non-empty selection** is reported `unmeasured`, never
+`ok` — that case is a failure to measure, and it is reported as one. The institute-only
+`inventory-currency` check is the exception: it compares the complete inventory with live
+discovery and reports their union as its measured population.
 
 Each check also carries a known-positive and a known-negative control that run through the same
 evaluation path as the real subjects. If the control that must fire does not, the check aborts
@@ -232,8 +252,9 @@ compile the source you are editing. `restore` puts the manifest back. `verify` r
 source actually compiled, so you never have to trust your own memory of which state you left
 things in.
 
-Both packages must be named in [`Workspace.json`](Workspace.json) and checked out — run `sync`
-first.
+Both packages must be named in [`Workspace.json`](Workspace.json) and checked out. If one is
+not already checked out because it is outside the committed default, add its canonical
+identity to [`Selection.json`](Selection.json), then run `sync` before composing it.
 
 ### The loop, end to end
 
