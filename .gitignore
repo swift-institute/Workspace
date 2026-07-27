@@ -2,7 +2,7 @@
 .build/
 .swiftpm/
 # Materialized org roots — regenerable state written by `workspace sync`.
-# The target layout places these beside the checkout (see ARCHITECTURE.md,
+# The active layout places these beside the checkout (see ARCHITECTURE.md,
 # "Materialization layout"); the entries remain transitionally for
 # checkouts that materialized inside the clone.
 /swift-primitives/

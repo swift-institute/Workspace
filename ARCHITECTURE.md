@@ -90,20 +90,35 @@ application establishes a coherent shared hierarchy.
 `sync` materializes the org hierarchy — the one layout for every checkout, contributors
 included.
 
-**Where the roots live.** The materialization roots are **siblings of the cloned
-repository**. For a checkout cloned into any directory `X` as `X/Workspace`, `sync` populates
-`X/swift-primitives/`, `X/swift-standards/`, `X/swift-foundations/` (and the reserved
-`X/swift-components/`, `X/swift-applications/`): the directory you cloned into plays the
-organization role, and the checkout stays a plain repository beside its org roots. `sync`
-writes only these roots beside the clone, never anywhere else. This supersedes the earlier
-inside-the-checkout materialization; the repository's `.gitignore` keeps the root entries
-transitionally so a checkout that materialized under that earlier layout does not surface
-those trees as untracked noise.
+**Where the roots live.** The active materialization roots are **siblings of the physical
+checkout**. `Workspace.Root` resolves the checkout through symlinks and derives exactly one
+hierarchy root: its parent. For a checkout physically located at `X/Workspace`, `sync`
+populates `X/swift-primitives/`, `X/swift-standards/`, `X/swift-foundations/` (and the
+reserved `X/swift-components/`, `X/swift-applications/`): `X` plays the organization role,
+and the checkout stays a plain repository beside its org roots. No initializer accepts
+checkout and hierarchy independently because that parent-child relation is the invariant.
 
-**Implementation status.** The tools currently resolve both the inventory and the
-materialization roots at the invocation root (the checkout), so a fresh `sync` still
-materializes inside the clone; resolving the roots at the checkout's parent is being landed.
-This section records the target layout.
+Repositories are written only beneath inventory-derived roots in the hierarchy. Clone and
+update validation may create collision-resistant temporary siblings in that same hierarchy;
+the generated `institute.xcworkspace` and composition ledger remain checkout-owned state.
+This active layout supersedes the earlier inside-the-checkout materialization. The
+repository's `.gitignore` keeps the old root entries transitionally so a checkout created
+under that earlier layout does not surface those trees as untracked noise.
+
+**Materialization safety boundary.** Before a materialized path is inspected or mutated,
+Workspace rejects `.` and `..` traversal components. Every existing target prefix below the
+physical hierarchy is inspected without following symbolic links, must be a directory, and
+must canonically resolve within that hierarchy. The preflight is repeated across creation,
+staging, move, and update boundaries. It is nevertheless a snapshot of a mutable namespace,
+not a descriptor-relative object capability: protection against a concurrent hostile
+rename or replacement belongs in filesystem operations that hold and traverse directory
+descriptors. Workspace's guarantee assumes a stable local namespace.
+
+**Legacy state.** Doctor classifies each selected repository as canonical (sibling only),
+legacy (inside the checkout only), both, absent, or invalid. Legacy, both, absent, and invalid
+are errors; when both exist, the sibling is active. Workspace never migrates or deletes the
+legacy checkout, and only an active sibling repository participates in downstream census,
+pin, and manifest checks.
 
 **Where a package materializes.** Its location is a pure function of its `Workspace.json`
 entry: the layer's root organization, then — when the owning organization is not the layer
@@ -234,6 +249,8 @@ Diagnostic prose remains `String`; replacing it would add no semantic informatio
 
 - construct a semantic `Xcode.Workspace` value;
 - serialize through `swift-xml` with deterministic relative references;
+- keep the workspace bundle inside the checkout, with `group:Application` for the application
+  and `group:../<inventory-derived-reference>` for every sibling repository;
 - atomically write `contents.xcworkspacedata` through `swift-file-system`;
 - emit no absolute local paths.
 

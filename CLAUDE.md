@@ -33,9 +33,12 @@ that it did not run — that is not a failure of your checkout.
 - **The materialized org roots (`swift-primitives/`, `swift-standards/`, `swift-foundations/`,
   …) hold independent repositories, not part of this one.** Each has its own history, remote,
   CI, and license. Work on a package inside its own repository and open the pull request there.
-  The target layout places the roots beside the checkout (see ARCHITECTURE.md, "Materialization
-  layout"); the root names remain ignored here transitionally for checkouts that materialized
-  inside the clone, and committing their contents to this repository is always wrong.
+  The active layout resolves the checkout physically and places the roots beside it (see
+  ARCHITECTURE.md, "Materialization layout"); invoking through a symlink does not redirect the
+  hierarchy. The root names remain ignored here transitionally for checkouts that materialized
+  inside the clone, and committing their contents to this repository is always wrong. Doctor
+  reports legacy-only and duplicate legacy-plus-sibling materializations as errors, uses only
+  the sibling for downstream checks, and never migrates or deletes the legacy contents.
 - **`Workspace.json` is the sole name → org → path authority.** A repository's location is
   derived from its inventory entry's `organization` and `layer` fields (authority, vendor, and
   jurisdiction orgs nest under their layer root, e.g. `swift-standards/swift-ietf/<package>`).
@@ -51,7 +54,8 @@ that it did not run — that is not a failure of your checkout.
 - **Dependencies are branch-based.** `doctor` warns when a recorded pin lags its branch tip;
   a green over stale pins is not evidence — re-resolve.
 - **The generated Xcode workspace uses relative references only.** Never emit an absolute path
-  into `institute.xcworkspace` or into `Workspace.json` — a test asserts this.
+  into `institute.xcworkspace` or into `Workspace.json` — `Application` remains
+  `group:Application`, while materialized packages use `group:../<inventory-derived-reference>`.
 - **A composed manifest is uncommittable local state.** `compose` writes a machine-local
   absolute path deliberately: off-machine it must fail loudly at resolution rather than silently
   resolve elsewhere. Never commit one; `restore` before pushing. `restore` returns the declared

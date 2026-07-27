@@ -136,8 +136,10 @@ swift run --package-path Application workspace sync --dry-run
 
 ### Where packages materialize
 
-The org hierarchy materializes **beside** your clone — the directory you cloned into plays
-the organization role. For a clone at `X/Workspace`:
+The org hierarchy materializes **beside** the physical checkout. Workspace resolves the
+checkout through symlinks first, then uses exactly its parent as the organization directory;
+invoking the tool through a symlink does not redirect that hierarchy. For a clone at
+`X/Workspace`:
 
 ```text
 X/
@@ -153,16 +155,19 @@ CI, and license. Committing their contents to this repository is always wrong �
 package inside its own checkout and open the pull request on its own repository.
 
 The roots sit beside the clone rather than inside it so the checkout stays a plain repository
-and the hierarchy reads as the organization itself; `sync` writes only these roots beside the
-directory you cloned, and never anywhere else. Materialized paths are regenerable state — if a
-repository moves between organizations, its inventory entry changes and `sync` materializes
-the new location, so nothing durable should reference one of these paths as though it were
-stable.
+and the hierarchy reads as the organization itself. `sync` creates repositories only beneath
+those inventory-derived roots. Clone and update validation may use collision-resistant
+temporary siblings in the same organization directory, and the generated
+`institute.xcworkspace` remains inside the Workspace checkout. Materialized paths are
+regenerable state — if a repository moves between organizations, its inventory entry changes
+and `sync` materializes the new location, so nothing durable should reference one of these
+paths as though it were stable.
 
-> **Implementation status.** The tools currently resolve the materialization roots at the
-> checkout root, so `sync` today still materializes the hierarchy inside your clone (those
-> directories are gitignored there). Resolving the roots at the checkout's parent is being
-> landed; this section documents the target layout.
+Before inspecting or writing a materialized path, Workspace rejects `.` and `..` traversal,
+symbolic links and non-directories in existing path prefixes, and any prefix that resolves
+outside the physical organization directory. These checks assume a stable local filesystem
+namespace: they are repeated safety snapshots, not a descriptor-relative guarantee against
+another process replacing a directory concurrently.
 
 ## Reading `doctor`
 
@@ -233,6 +238,23 @@ Each check also carries a known-positive and a known-negative control that run t
 evaluation path as the real subjects. If the control that must fire does not, the check aborts
 as `unmeasured` rather than reporting a green it did not earn.
 
+### Materialization states
+
+For each selected repository, `doctor` distinguishes the active sibling location from the
+superseded location inside the Workspace checkout:
+
+| On-disk state | Result |
+| --- | --- |
+| Git repository only at the sibling location | Canonical and `ok`. |
+| Git repository only inside the Workspace checkout | Legacy and an error. |
+| Git repositories at both locations | An error; the sibling is active and the legacy checkout is left untouched. |
+| No Git repository at either location | Absent and an error. |
+| A location cannot be formed or safely inspected | Invalid and an error. |
+
+Workspace never migrates or deletes a legacy checkout. Only the active sibling repository
+enters the downstream working-state, resolved-pin, and manifest-identity checks; a legacy-only
+tree never satisfies them.
+
 ### Severities
 
 Dirty worktrees, untracked files, detached HEADs, feature branches, and stale resolved pins
@@ -270,8 +292,8 @@ swift run --package-path Application workspace compose \
 
 ```text
 Composed swift-color → swift-color-standard (local development source).
-  manifest: <your-clone>/swift-foundations/swift-color/Package.swift
-  now: .package(path: "<your-clone>/swift-standards/swift-color-standard")
+  manifest: <checkout-parent>/swift-foundations/swift-color/Package.swift
+  now: .package(path: "<checkout-parent>/swift-standards/swift-color-standard")
   was: .package(url: "https://github.com/swift-standards/swift-color-standard.git", branch: "main")
 
   ⚠️  This manifest now carries a machine-local absolute path.
@@ -370,8 +392,8 @@ Institute access report that they did not run rather than failing your checkout.
 The current roster contains a three-repository proof chain spanning all three layers —
 `swift-dimension-primitives → swift-color-standard → swift-color` — plus `swift-url-routing`
 and `swift-http-body` for an active migration workspace. The Xcode workspace uses only
-relative org-layout references (`swift-foundations/swift-color`, …); non-selected transitive
-dependencies still resolve from their canonical remote URLs.
+relative sibling-layout references (`../swift-foundations/swift-color`, …); non-selected
+transitive dependencies still resolve from their canonical remote URLs.
 
 ## License
 
