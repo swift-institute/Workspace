@@ -13,6 +13,7 @@ extension Workspace.Doctor {
     struct Fixture {
         let base: URL
         let directory: File.Directory
+        let root: Workspace.Root
         let configuration: Workspace.Configuration
         let selection: Workspace.Selection.Resolved
 
@@ -22,7 +23,10 @@ extension Workspace.Doctor {
         ) throws {
             base = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
             try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
-            directory = try File.Directory(validating: base.path)
+            let checkout = base.appending(path: "Workspace")
+            try FileManager.default.createDirectory(at: checkout, withIntermediateDirectories: true)
+            directory = try File.Directory(validating: checkout.path)
+            root = try Workspace.Root(checkout: directory)
             configuration = .init(
                 version: 1,
                 scope: "test",
@@ -65,7 +69,7 @@ extension Workspace.Doctor.Fixture {
             ) throws(Workspace.Error) -> Swift.String = Self.interrogation
     ) -> Workspace.Doctor {
         .init(
-            root: directory,
+            root: root,
             configuration: configuration,
             selection: selection,
             environment: environment,
@@ -87,7 +91,21 @@ extension Workspace.Doctor.Fixture {
         try Git.Client().initialize(at: location.path, bare: false)
     }
 
-    /// Writes `contents` at `relative` under the checkout root.
+    /// Materializes only the retired in-checkout location. This is deliberately
+    /// separate from ``materialize(_:)`` so doctor tests cannot accidentally
+    /// treat legacy state as canonical state.
+    func materializeLegacy(_ name: Swift.String) throws {
+        guard let repository = configuration.repositories.first(where: { $0.name == name }) else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+        let location = directory.description
+            + "/"
+            + Workspace.Layout.reference(for: repository)
+        try FileManager.default.createDirectory(atPath: location, withIntermediateDirectories: true)
+        try Git.Client().initialize(at: location, bare: false)
+    }
+
+    /// Writes `contents` at `relative` under the sibling hierarchy.
     func write(_ contents: Swift.String, to relative: Swift.String) throws {
         try contents.write(
             to: base.appending(path: relative),

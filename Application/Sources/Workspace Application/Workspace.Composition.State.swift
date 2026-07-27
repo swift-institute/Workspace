@@ -3,7 +3,7 @@ public import JSON
 
 extension Workspace.Composition {
     /// The set of compositions active on this machine, persisted at the
-    /// workspace root under `.workspace/compositions.json`.
+    /// checkout root under `.workspace/compositions.json`.
     ///
     /// This is per-machine, transient state — which local redirections happen
     /// to be applied *here, now* — so it lives in a git-ignored directory and
@@ -25,7 +25,7 @@ extension Workspace.Composition.State {
     /// The schema version written to the ledger. Bumped only on a
     /// breaking shape change; a mismatch is refused during decoding.
     ///
-    /// The ledger lives at `<root>/.workspace/compositions.json`; those
+    /// The ledger lives at `<checkout>/.workspace/compositions.json`; those
     /// two path components are fixed valid names, spelled as literals at
     /// each subscript so they construct `File.Path.Component` directly.
     internal static let version: Swift.Int = 1
@@ -57,10 +57,10 @@ extension Workspace.Composition.State {
 }
 
 extension Workspace.Composition.State {
-    /// Loads the ledger at `root`, returning an empty ledger when the file is
+    /// Loads the ledger at `checkout`, returning an empty ledger when the file is
     /// absent — the ordinary state of a workspace with no active composition.
-    public static func load(at root: File.Directory) throws(Workspace.Error) -> Self {
-        let file = root[directory: ".workspace"][file: "compositions.json"]
+    public static func load(at checkout: File.Directory) throws(Workspace.Error) -> Self {
+        let file = checkout[directory: ".workspace"][file: "compositions.json"]
         guard file.stat.exists else { return .init() }
 
         let bytes: [Byte]
@@ -84,9 +84,9 @@ extension Workspace.Composition.State {
         }
     }
 
-    /// Writes the ledger under `root`, creating `.workspace/` if needed.
-    public func save(at root: File.Directory) throws(Workspace.Error) {
-        let container = root[directory: ".workspace"]
+    /// Writes the ledger under `checkout`, creating `.workspace/` if needed.
+    public func save(at checkout: File.Directory) throws(Workspace.Error) {
+        let container = checkout[directory: ".workspace"]
         do throws(File.System.Create.Directory.Error) {
             try container.create.recursive()
         } catch {

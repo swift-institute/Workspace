@@ -86,11 +86,13 @@ extension Workspace.Layout.Test.Unit {
 }
 
 extension Workspace.Layout.Test.`Edge Case` {
-    @Test
-    func `an invalid layout component is a configuration error, not a silent path`() {
+    @Test(arguments: ["swift/evil", ".", ".."])
+    func `an invalid layout component is a configuration error, not a silent path`(
+        name: Swift.String
+    ) {
         let repository = Workspace.Repository(
-            name: "swift/evil",
-            url: "https://github.com/swift-foundations/swift-evil.git",
+            name: name,
+            url: "https://github.com/swift-foundations/\(name).git",
             organization: "swift-foundations",
             layer: .foundations
         )

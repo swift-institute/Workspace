@@ -18,7 +18,7 @@ extension Workspace.Composition.State.Test.Unit {
         consumer: "swift-color",
         dependency: "swift-color-standard",
         declared: ".package(url: \"https://github.com/swift-standards/swift-color-standard.git\", branch: \"main\")",
-        planned: ".package(path: \"/abs/Packages/swift-color-standard\")"
+        planned: ".package(path: \"/abs/swift-standards/swift-color-standard\")"
     )
 
     @Test
@@ -67,25 +67,28 @@ extension Workspace.Composition.State.Test.Integration {
     }
 
     @Test
-    func `a saved ledger reloads equal`() throws {
+    func `a saved ledger reloads under the checkout rather than its sibling hierarchy`() throws {
         let base = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: base) }
 
-        let root = try File.Directory(validating: base.path)
+        let checkout = base.appending(path: "Workspace")
+        try FileManager.default.createDirectory(at: checkout, withIntermediateDirectories: true)
+        let root = try File.Directory(validating: checkout.path)
         let state = Workspace.Composition.State(records: [
             Workspace.Composition.Record(
                 consumer: "swift-color",
                 dependency: "swift-color-standard",
                 declared: ".package(url: \"https://github.com/swift-standards/swift-color-standard.git\", branch: \"main\")",
-                planned: ".package(path: \"\(base.path)/Packages/swift-color-standard\")"
+                planned: ".package(path: \"\(base.path)/swift-standards/swift-color-standard\")"
             )
         ])
         try state.save(at: root)
         #expect(try Workspace.Composition.State.load(at: root) == state)
 
-        // The ledger lives under the git-ignored .workspace/ directory.
-        let ledger = base.appending(path: ".workspace/compositions.json")
+        // The ledger stays in the git-ignored checkout-local .workspace/ directory.
+        let ledger = checkout.appending(path: ".workspace/compositions.json")
         #expect(FileManager.default.fileExists(atPath: ledger.path))
+        #expect(!FileManager.default.fileExists(atPath: base.appending(path: ".workspace").path))
     }
 }

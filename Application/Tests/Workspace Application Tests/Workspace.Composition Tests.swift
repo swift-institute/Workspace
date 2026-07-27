@@ -24,26 +24,27 @@ extension Workspace.Composition.Test {
         init() throws {
             base = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
             root = base.appending(path: "Workspace")
-            manifest = root.appending(path: "swift-foundations/example/consumer/Package.swift")
+            manifest = base.appending(path: "swift-foundations/example/consumer/Package.swift")
 
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
             try FileManager.default.createDirectory(
-                at: root.appending(path: "swift-foundations/example/consumer"),
+                at: base.appending(path: "swift-foundations/example/consumer"),
                 withIntermediateDirectories: true
             )
             try FileManager.default.createDirectory(
-                at: root.appending(path: "swift-standards/example/swift-dep"),
+                at: base.appending(path: "swift-standards/example/swift-dep"),
                 withIntermediateDirectories: true
             )
             // A workspace repository present on disk but NOT declared by the
             // consumer manifest — the "nothing to compose" case.
             try FileManager.default.createDirectory(
-                at: root.appending(path: "swift-standards/example/swift-other"),
+                at: base.appending(path: "swift-standards/example/swift-other"),
                 withIntermediateDirectories: true
             )
             try Self.manifestSource.write(to: manifest, atomically: true, encoding: .utf8)
 
             composition = Workspace.Composition(
-                root: try File.Directory(validating: root.path),
+                root: try Workspace.Root(checkout: File.Directory(validating: root.path)),
                 configuration: .init(
                     version: 1,
                     scope: "example",
@@ -114,7 +115,7 @@ extension Workspace.Composition.Test.Integration {
         let rewritten = try fixture.read()
         #expect(
             rewritten.contains(
-                ".package(path: \"\(fixture.root.path)/swift-standards/example/swift-dep\")"
+                ".package(path: \"\(fixture.base.path)/swift-standards/example/swift-dep\")"
             )
         )
         #expect(!rewritten.contains("https://github.com/example/swift-dep.git"))

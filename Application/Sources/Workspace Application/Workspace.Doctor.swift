@@ -11,7 +11,7 @@ extension Workspace {
     /// exit status is 0 (measured, no errors), 1 (measured, errors), or
     /// 2 (something could not be measured).
     public struct Doctor: Sendable {
-        public let root: File.Directory
+        public let root: Workspace.Root
         public let configuration: Configuration
         public let selection: Workspace.Selection.Resolved
         public let git: Git.Client
@@ -24,7 +24,7 @@ extension Workspace {
             ) throws(Workspace.Error) -> Swift.String
 
         public init(
-            root: File.Directory,
+            root: Workspace.Root,
             configuration: Configuration,
             selection: Workspace.Selection.Resolved,
             git: Git.Client = .init(),
@@ -95,7 +95,7 @@ extension Workspace.Doctor {
     }
 
     func path(for repository: Workspace.Repository) throws(Workspace.Error) -> File.Directory {
-        try Workspace.Layout.directory(for: repository, at: root)
+        try root.materialization(for: repository)
     }
 
     func execute<Result>(

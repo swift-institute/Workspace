@@ -23,12 +23,28 @@ extension Workspace.Doctor {
         scope: .contributor,
         controls: .init(
             positive: .init(name: "control", location: "control", state: .absent),
-            negative: .init(name: "control", location: "control", state: .materialized)
+            negative: .init(name: "control", location: "control", state: .canonical)
         )
     ) { repository in
         switch repository.state {
-        case .materialized:
+        case .canonical:
             []
+        case .legacy:
+            [
+                .init(
+                    severity: .error,
+                    message: "\(repository.name): present only at the superseded in-checkout "
+                        + "location; expected \(repository.location) — legacy contents were not touched"
+                )
+            ]
+        case .both:
+            [
+                .init(
+                    severity: .error,
+                    message: "\(repository.name): active at \(repository.location), but a superseded "
+                        + "in-checkout materialization also remains and was not touched"
+                )
+            ]
         case .absent:
             [
                 .init(
@@ -49,22 +65,33 @@ extension Workspace.Doctor {
     func materialization() -> Outcome {
         Self.materialization.run(
             population: selection.repositories.map { repository in
-                let location = Workspace.Layout.reference(for: repository)
-                return switch materialized(repository) {
-                case .some: .init(name: repository.name, location: location, state: .materialized)
-                case .none: .init(name: repository.name, location: location, state: state(of: repository))
+                let location = "../\(Workspace.Layout.reference(for: repository))"
+                do throws(Workspace.Error) {
+                    let canonical = try root.materialization(for: repository)
+                    let legacy = try root.legacy(for: repository)
+                    let current = try exists(at: canonical)
+                    let superseded = try exists(at: legacy)
+                    let state: Materialization.State
+                    switch (current, superseded) {
+                    case (true, false): state = .canonical
+                    case (false, true): state = .legacy
+                    case (true, true): state = .both
+                    case (false, false): state = .absent
+                    }
+                    return .init(name: repository.name, location: location, state: state)
+                } catch {
+                    return .init(name: repository.name, location: location, state: .invalid("\(error)"))
                 }
             },
             inventory: selection.repositories.count
         )
     }
 
-    private func state(of repository: Workspace.Repository) -> Materialization.State {
-        do throws(Workspace.Error) {
-            _ = try path(for: repository)
-            return .absent
-        } catch {
-            return .invalid("\(error)")
+    private func exists(
+        at path: File.Directory
+    ) throws(Workspace.Error) -> Bool {
+        try execute { () throws(Git.Client.Error) -> Bool in
+            try git.repository(at: path.description)
         }
     }
 }

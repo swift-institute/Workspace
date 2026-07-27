@@ -1,11 +1,14 @@
 extension Workspace.Doctor.Materialization {
     public enum State: Equatable, Sendable {
-        /// A Git repository exists at the repository's path.
-        case materialized
-        /// Nothing (or something that is not a Git repository) is at
-        /// the repository's path.
+        /// A Git repository exists only at the active sibling location.
+        case canonical
+        /// A Git repository exists only at the superseded in-checkout location.
+        case legacy
+        /// Git repositories exist at both locations; the sibling is active.
+        case both
+        /// Neither location holds a Git repository.
         case absent
-        /// The inventory name cannot form a path component.
+        /// A location could not be formed or safely inspected.
         case invalid(Swift.String)
     }
 }

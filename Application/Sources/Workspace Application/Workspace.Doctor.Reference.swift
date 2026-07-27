@@ -39,7 +39,7 @@ extension Workspace.Doctor {
             population: [
                 .init(
                     expected: Workspace.Xcode.render(selection.repositories),
-                    actual: Workspace.Xcode.contents(at: root)
+                    actual: Workspace.Xcode.contents(at: root.checkout)
                 )
             ],
             inventory: 1

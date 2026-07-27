@@ -3,12 +3,12 @@ public import Git_Foundation
 
 extension Workspace {
     public struct Sync: Sendable {
-        public let root: File.Directory
+        public let root: Workspace.Root
         public let selection: Workspace.Selection.Resolved
         public let client: Git.Client
 
         public init(
-            root: File.Directory,
+            root: Workspace.Root,
             selection: Workspace.Selection.Resolved,
             client: Git.Client = .init()
         ) {
@@ -25,7 +25,7 @@ extension Workspace.Sync {
         for repository in selection.repositories {
             inspections.append(try inspect(repository, dry: dry))
         }
-        let workspace = Workspace.Xcode.current(selection.repositories, at: root)
+        let workspace = Workspace.Xcode.current(selection.repositories, at: root.checkout)
 
         print("Workspace sync plan")
         for inspection in inspections {
@@ -44,17 +44,23 @@ extension Workspace.Sync {
         }
 
         for inspection in inspections {
-            let path = try Workspace.Layout.directory(for: inspection.repository, at: root)
+            let path = try root.materialization(for: inspection.repository)
             switch inspection.action {
             case .clone:
-                let parent = try Workspace.Layout.parent(for: inspection.repository, at: root)
+                let parent = try Workspace.Layout.parent(
+                    for: inspection.repository,
+                    at: root.hierarchy
+                )
+                try root.preflight(parent, under: root.hierarchy)
                 do throws(File.System.Create.Directory.Error) {
                     try parent.create.recursive()
                 } catch {
                     throw .filesystem("cannot create \(parent): \(error)")
                 }
+                try root.preflight(parent, under: root.hierarchy)
                 try clone(inspection.repository, to: path)
             case .update(let remote):
+                try root.preflight(path, under: root.hierarchy)
                 try update(inspection.repository, to: remote, at: path)
             case .current, .skip:
                 break
@@ -64,7 +70,7 @@ extension Workspace.Sync {
         }
 
         if !workspace {
-            try Workspace.Xcode.write(selection.repositories, at: root)
+            try Workspace.Xcode.write(selection.repositories, at: root.checkout)
         }
         print("Sync complete.")
     }
@@ -73,7 +79,7 @@ extension Workspace.Sync {
         _ repository: Workspace.Repository,
         dry: Bool
     ) throws(Workspace.Error) -> Workspace.Inspection {
-        let path = try Workspace.Layout.directory(for: repository, at: root)
+        let path = try root.materialization(for: repository)
         let file = File(path.path)
         let main = try reference("refs/heads/main")
 
@@ -226,6 +232,7 @@ extension Workspace.Sync {
             throw .filesystem("cannot create an inspection path for \(repository.name): \(error)")
         }
         let temporary = File.Directory(temporaryPath)
+        try root.preflight(temporary, under: root.hierarchy)
         // Best-effort cleanup of an inspection clone; a failure to remove
         // it must not mask the inspection's own result. `do/catch` so the
         // discard is local and visible, with the error type named.
@@ -257,6 +264,7 @@ extension Workspace.Sync {
         to remote: Git.Object.ID,
         at path: File.Directory
     ) throws(Workspace.Error) {
+        try root.preflight(path, under: root.hierarchy)
         let main = try reference("refs/heads/main")
         let advertisement = try execute { () throws(Git.Client.Error) -> Git.Ref.Advertisement in
             try client.probe(repository.url, ref: main)
@@ -283,6 +291,7 @@ extension Workspace.Sync {
         _ repository: Workspace.Repository,
         to path: File.Directory
     ) throws(Workspace.Error) {
+        try root.preflight(path, under: root.hierarchy)
         let temporaryPath: File.Path
         do throws(File.Path.Temporary.Error) {
             temporaryPath = try File.Path.Temporary.sibling(
@@ -294,6 +303,7 @@ extension Workspace.Sync {
             throw .filesystem("cannot create a staging path for \(repository.name): \(error)")
         }
         let temporary = File.Directory(temporaryPath)
+        try root.preflight(temporary, under: root.hierarchy)
 
         do throws(Workspace.Error) {
             try execute { () throws(Git.Client.Error) -> Void in
@@ -308,6 +318,8 @@ extension Workspace.Sync {
             throw error
         }
 
+        try root.preflight(temporary, under: root.hierarchy)
+        try root.preflight(path, under: root.hierarchy)
         do throws(File.System.Move.Error) {
             try temporary.move.to(path)
         } catch {
@@ -319,6 +331,7 @@ extension Workspace.Sync {
             throw .filesystem("cannot install \(repository.name): \(error)")
         }
 
+        try root.preflight(path, under: root.hierarchy)
         try execute { () throws(Git.Client.Error) -> Void in
             try client.switch("main", at: path.description)
         }

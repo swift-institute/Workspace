@@ -14,7 +14,7 @@ extension Workspace.Xcode {
                 .init(location: .group("Application"))
             ]
                 + repositories.map {
-                    .init(location: .group(Workspace.Layout.reference(for: $0)))
+                    .init(location: .group("../\(Workspace.Layout.reference(for: $0))"))
                 }
         )
     }

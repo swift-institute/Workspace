@@ -187,6 +187,93 @@ extension Workspace.Doctor.Test.Unit {
 // MARK: - Acceptance
 
 extension Workspace.Doctor.Test.Integration {
+    private static func materialization(
+        _ report: Workspace.Doctor.Report
+    ) throws -> Workspace.Doctor.Outcome {
+        try #require(report.outcomes.first { $0.check == "materialization" })
+    }
+
+    @Test
+    func `a canonical sibling checkout is the only materialized state accepted by doctor`() async throws {
+        let repository = Workspace.Repository(
+            name: "swift-example",
+            url: "https://github.com/swift-foundations/swift-example.git",
+            organization: "swift-foundations",
+            layer: .foundations
+        )
+        let fixture = try Workspace.Doctor.Fixture(repositories: [repository])
+        defer { fixture.remove() }
+        try fixture.materialize(repository.name)
+        try Workspace.Xcode.write([repository], at: fixture.directory)
+
+        let report = await fixture.doctor().run()
+
+        #expect(try Self.materialization(report).result == .ok(population: 1))
+    }
+
+    @Test
+    func `a legacy in checkout repository is not counted as canonical materialization`() async throws {
+        let repository = Workspace.Repository(
+            name: "swift-example",
+            url: "https://github.com/swift-foundations/swift-example.git",
+            organization: "swift-foundations",
+            layer: .foundations
+        )
+        let fixture = try Workspace.Doctor.Fixture(repositories: [repository])
+        defer { fixture.remove() }
+        try fixture.materializeLegacy(repository.name)
+        try Workspace.Xcode.write([repository], at: fixture.directory)
+
+        let report = await fixture.doctor().run()
+
+        #expect(
+            try Self.materialization(report).result
+                == .finding(severity: .error, population: 1)
+        )
+    }
+
+    @Test
+    func `both canonical and legacy repositories are a doctor conflict rather than an ambiguous success`() async throws {
+        let repository = Workspace.Repository(
+            name: "swift-example",
+            url: "https://github.com/swift-foundations/swift-example.git",
+            organization: "swift-foundations",
+            layer: .foundations
+        )
+        let fixture = try Workspace.Doctor.Fixture(repositories: [repository])
+        defer { fixture.remove() }
+        try fixture.materialize(repository.name)
+        try fixture.materializeLegacy(repository.name)
+        try Workspace.Xcode.write([repository], at: fixture.directory)
+
+        let report = await fixture.doctor().run()
+
+        #expect(
+            try Self.materialization(report).result
+                == .finding(severity: .error, population: 1)
+        )
+    }
+
+    @Test
+    func `neither canonical nor legacy repository is reported as materialized`() async throws {
+        let repository = Workspace.Repository(
+            name: "swift-example",
+            url: "https://github.com/swift-foundations/swift-example.git",
+            organization: "swift-foundations",
+            layer: .foundations
+        )
+        let fixture = try Workspace.Doctor.Fixture(repositories: [repository])
+        defer { fixture.remove() }
+        try Workspace.Xcode.write([repository], at: fixture.directory)
+
+        let report = await fixture.doctor().run()
+
+        #expect(
+            try Self.materialization(report).result
+                == .finding(severity: .error, population: 1)
+        )
+    }
+
     @Test
     func `Contributor checks ignore unselected inventory repositories`() async throws {
         let selected = Workspace.Repository(

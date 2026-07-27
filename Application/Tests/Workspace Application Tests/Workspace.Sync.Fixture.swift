@@ -10,7 +10,10 @@ extension Workspace.Sync {
         let root: URL
         let source: URL
         let remote: URL
+        /// The canonical, sibling materialization location.
         let local: URL
+        /// The retired location inside the checkout. It must stay untouched.
+        let legacy: URL
         let client: Git.Client
 
         init() throws {
@@ -18,12 +21,13 @@ extension Workspace.Sync {
             root = base.appending(path: "Workspace")
             source = base.appending(path: "source")
             remote = base.appending(path: "remote.git")
-            local = root.appending(path: "swift-foundations/swift-example")
+            local = base.appending(path: "swift-foundations/swift-example")
+            legacy = root.appending(path: "swift-foundations/swift-example")
             client = .init()
 
             try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
             try FileManager.default.createDirectory(
-                at: root.appending(path: "swift-foundations"),
+                at: base.appending(path: "swift-foundations"),
                 withIntermediateDirectories: true
             )
             try client.initialize(at: source.path, bare: false)
@@ -66,7 +70,7 @@ extension Workspace.Sync.Fixture {
             layer: .foundations
         )
         return Workspace.Sync(
-            root: directory,
+            root: try Workspace.Root(checkout: directory),
             selection: .init(repositories: [repository]),
             client: client
         )
@@ -77,14 +81,25 @@ extension Workspace.Sync.Fixture {
             head: try client.head(at: local.path),
             origin: try client.head("origin/main", at: local.path),
             fetch: try? Data(contentsOf: local.appending(path: ".git/FETCH_HEAD")),
-            status: try client.status(at: local.path)
+            status: try client.status(at: local.path),
+            workspace: try? Data(contentsOf: root.appending(path: "institute.xcworkspace/contents.xcworkspacedata")),
+            ledger: try? Data(contentsOf: root.appending(path: ".workspace/compositions.json")),
+            canonical: try entries(at: base.appending(path: "swift-foundations")),
+            legacy: try entries(at: root.appending(path: "swift-foundations"))
         )
     }
 
     func residue() throws -> [Swift.String] {
         try FileManager.default.contentsOfDirectory(
-            atPath: root.appending(path: "swift-foundations").path
-        ).filter { $0 != "swift-example" }
+            atPath: base.path
+        )
+        .filter { $0.hasPrefix(".workspace-") }
+        .sorted()
+    }
+
+    private func entries(at directory: URL) throws -> [Swift.String] {
+        guard FileManager.default.fileExists(atPath: directory.path) else { return [] }
+        return try FileManager.default.subpathsOfDirectory(atPath: directory.path).sorted()
     }
 
     private func commit(

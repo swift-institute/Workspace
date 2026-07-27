@@ -9,5 +9,9 @@ extension Workspace.Sync.Fixture {
         let origin: Git.Object.ID
         let fetch: Data?
         let status: [Git.Status.Entry]
+        let workspace: Data?
+        let ledger: Data?
+        let canonical: [Swift.String]
+        let legacy: [Swift.String]
     }
 }

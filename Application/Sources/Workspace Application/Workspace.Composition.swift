@@ -28,12 +28,12 @@ extension Workspace {
     /// arbitrary consumers, Xcode, worktrees, and traits are out of scope per
     /// ADR-001's Limits.
     public struct Composition: Swift.Sendable {
-        public let root: File.Directory
+        public let root: Workspace.Root
         public let configuration: Configuration
         public let packages: Package.Manager
 
         public init(
-            root: File.Directory,
+            root: Workspace.Root,
             configuration: Configuration,
             packages: Package.Manager = .init()
         ) {
@@ -58,7 +58,7 @@ extension Workspace.Composition {
         let consumerRepository = try require(consumer)
         let dependencyRepository = try require(dependency)
 
-        let state = try State.load(at: root)
+        let state = try State.load(at: root.checkout)
         guard state.record(consumer: consumer, dependency: dependency) == nil else {
             throw .composition(
                 "\(consumer) already composes \(dependency); restore it before composing again"
@@ -95,7 +95,7 @@ extension Workspace.Composition {
             declared: clause.text,
             planned: planned
         )
-        try state.adding(record).save(at: root)
+        try state.adding(record).save(at: root.checkout)
 
         report(composed: record, manifest: manifest)
     }
@@ -113,7 +113,7 @@ extension Workspace.Composition {
     ) throws(Workspace.Error) {
         let consumerRepository = try require(consumer)
 
-        let state = try State.load(at: root)
+        let state = try State.load(at: root.checkout)
         guard let record = state.record(consumer: consumer, dependency: dependency) else {
             throw .composition(
                 "no active composition for \(consumer) → \(dependency); nothing to restore"
@@ -133,7 +133,7 @@ extension Workspace.Composition {
 
         let restored = clause.replacing(with: record.declared, in: source)
         try write(restored, to: manifest)
-        try state.removing(consumer: consumer, dependency: dependency).save(at: root)
+        try state.removing(consumer: consumer, dependency: dependency).save(at: root.checkout)
 
         guard let url = Clause.declaredURL(in: record.declared) else {
             throw .composition(
@@ -189,7 +189,7 @@ extension Workspace.Composition {
             of: resolved,
             at: consumerDirectory.description
         )
-        let ledger = try State.load(at: root)
+        let ledger = try State.load(at: root.checkout)
         let composed = ledger.record(consumer: consumer, dependency: dependency) != nil
 
         report(
@@ -211,7 +211,7 @@ extension Workspace.Composition {
     private func directory(
         for repository: Workspace.Repository
     ) throws(Workspace.Error) -> File.Directory {
-        try Workspace.Layout.directory(for: repository, at: root)
+        try root.materialization(for: repository)
     }
 
     private func manifestFile(
@@ -276,7 +276,7 @@ extension Workspace.Composition {
         let path: File.Path
         do throws(File.Path.Temporary.Error) {
             path = try File.Path.Temporary.sibling(
-                of: root.path,
+                of: root.checkout.path,
                 prefix: ".workspace-verify-\(consumer)-",
                 suffix: ""
             )
@@ -284,11 +284,13 @@ extension Workspace.Composition {
             throw .composition("cannot allocate an isolated evaluation path: \(error)")
         }
         let isolated = File.Directory(path)
+        try root.preflight(isolated, under: root.hierarchy)
         do throws(File.System.Create.Directory.Error) {
             try isolated.create.recursive()
         } catch {
             throw .composition("cannot create isolated evaluation directory \(isolated): \(error)")
         }
+        try root.preflight(isolated, under: root.hierarchy)
         // The discard is deliberate: this is best-effort cleanup of a
         // temporary directory, and a failure to remove it must not mask
         // the structural check's own result. `do/catch` rather than `try?`

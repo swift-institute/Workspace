@@ -46,7 +46,7 @@ extension Workspace.Layout {
         for repository: Workspace.Repository,
         at root: File.Directory
     ) throws(Workspace.Error) -> File.Directory {
-        try descend(root, through: components(for: repository), name: repository.name)
+        try descend(root, through: validated(repository))
     }
 
     /// The directory the materialized checkout is cloned into — the
@@ -55,27 +55,38 @@ extension Workspace.Layout {
         for repository: Workspace.Repository,
         at root: File.Directory
     ) throws(Workspace.Error) -> File.Directory {
-        try descend(
-            root,
-            through: components(for: repository).dropLast(),
-            name: repository.name
-        )
+        try descend(root, through: validated(repository).dropLast())
+    }
+
+    /// Validated path components for `repository`.
+    static func validated(
+        _ repository: Workspace.Repository
+    ) throws(Workspace.Error) -> [File.Path.Component] {
+        var validated = [File.Path.Component]()
+        for component in components(for: repository) {
+            guard component != ".", component != ".." else {
+                throw .configuration(
+                    "invalid layout component \(component) for \(repository.name): traversal is forbidden"
+                )
+            }
+            do throws(File.Path.Component.Error) {
+                validated.append(try File.Path.Component(component))
+            } catch {
+                throw .configuration(
+                    "invalid layout component \(component) for \(repository.name): \(error)"
+                )
+            }
+        }
+        return validated
     }
 
     private static func descend(
         _ root: File.Directory,
-        through components: some Swift.Sequence<Swift.String>,
-        name: Swift.String
-    ) throws(Workspace.Error) -> File.Directory {
+        through components: some Swift.Sequence<File.Path.Component>
+    ) -> File.Directory {
         var directory = root
         for component in components {
-            do throws(File.Path.Component.Error) {
-                directory = directory[directory: try File.Path.Component(component)]
-            } catch {
-                throw .configuration(
-                    "invalid layout component \(component) for \(name): \(error)"
-                )
-            }
+            directory = directory[directory: component]
         }
         return directory
     }

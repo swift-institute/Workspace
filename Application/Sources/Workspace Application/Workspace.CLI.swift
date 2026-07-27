@@ -92,20 +92,21 @@ extension Workspace.CLI {
             throw .configuration("PWD is not available")
         }
 
-        let root: File.Directory
+        let checkout: File.Directory
         do throws(File.Path.Error) {
-            root = try File.Directory(validating: working)
+            checkout = try File.Directory(validating: working)
         } catch {
             throw .configuration("PWD is not a valid path: \(error)")
         }
+        let root = try Workspace.Root(checkout: checkout)
 
-        let configuration = try Workspace.Configuration.load(at: root)
+        let configuration = try Workspace.Configuration.load(at: root.checkout)
         switch operation {
         case .sync:
-            let selection = try Workspace.Selection.load(at: root).resolved(in: configuration)
+            let selection = try Workspace.Selection.load(at: root.checkout).resolved(in: configuration)
             try Workspace.Sync(root: root, selection: selection).run(dry: dry)
         case .doctor:
-            let selection = try Workspace.Selection.load(at: root).resolved(in: configuration)
+            let selection = try Workspace.Selection.load(at: root.checkout).resolved(in: configuration)
             let report = await Workspace.Doctor(
                 root: root,
                 configuration: configuration,
