@@ -60,8 +60,6 @@ extension Workspace.Inventory.Test.Unit {
                 "swift-intel",
                 "swift-riscv",
                 "swift-foundations",
-                "swift-components",
-                "swift-applications",
             ]
         )
         #expect(
@@ -71,11 +69,17 @@ extension Workspace.Inventory.Test.Unit {
                 .standards, .standards, .standards, .standards, .standards,
                 .standards, .standards, .standards, .standards, .standards,
                 .foundations,
-                .components,
-                .applications,
             ]
         )
         #expect(!policy.organizations.map(\.name.underlying).contains("swift-institute"))
+
+        // Three layers only (principal ruling, 2026-07-28). Asserted as an
+        // absence because the failure mode is silent: discovering into either
+        // org would re-materialize a root above L3.
+        #expect(!policy.organizations.map(\.name.underlying).contains("swift-components"))
+        #expect(!policy.organizations.map(\.name.underlying).contains("swift-applications"))
+        #expect(!policy.organizations.map(\.layer).contains(.components))
+        #expect(!policy.organizations.map(\.layer).contains(.applications))
     }
 
     @Test

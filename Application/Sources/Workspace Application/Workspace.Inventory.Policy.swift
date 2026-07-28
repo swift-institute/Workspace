@@ -30,6 +30,14 @@ extension Workspace.Inventory {
 }
 
 extension Workspace.Inventory.Policy {
+    /// The organizations discovery covers.
+    ///
+    /// **Three layers only.** `swift-components` and `swift-applications` were
+    /// listed here until 2026-07-28, encoding a superseded L4/L5 doctrine. The
+    /// principal ruled that day that there is no layer above L3, and both orgs
+    /// were emptied — so discovering into them would have re-materialized the
+    /// very roots the ruling removed, the moment this ran. They are absent
+    /// deliberately; do not restore them without a new ruling.
     public static func institute() -> Self {
         guard
             let pages = GitHub.Organization.Repositories.Traversal.Limit.Pages(rawValue: 100),
@@ -56,8 +64,6 @@ extension Workspace.Inventory.Policy {
                     .init(name: .init("swift-intel"), layer: .standards),
                     .init(name: .init("swift-riscv"), layer: .standards),
                     .init(name: .init("swift-foundations"), layer: .foundations),
-                    .init(name: .init("swift-components"), layer: .components),
-                    .init(name: .init("swift-applications"), layer: .applications),
                 ],
                 denied: [],
                 limit: .init(pages: pages, items: items)
