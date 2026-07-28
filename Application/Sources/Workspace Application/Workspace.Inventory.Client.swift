@@ -97,6 +97,19 @@ extension Workspace.Inventory.Client {
         return .init(repositories: included, exclusions: excluded)
     }
 
+    /// Why a repository is ineligible for the inventory, or `nil` when it
+    /// is eligible.
+    ///
+    /// A fork is deliberately not a criterion. Institute packages derived
+    /// from an external upstream carry git-level fork heritage, and that
+    /// GitHub fork relationship is required to persist — the badge plus
+    /// the reachable upstream ancestry *is* the heritage record, and
+    /// severing it is a named anti-pattern. Excluding forks would drop
+    /// those packages from the roster for exhibiting a property the
+    /// heritage rules oblige them to exhibit. A repository in an Institute
+    /// organization that genuinely should not be inventoried is excluded
+    /// through `policy.denied`, where the omission is explicit and
+    /// reviewable rather than silently structural.
     private static func reason(
         _ repository: GitHub.Repository.Summary,
         key: Workspace.Repository.Key,
@@ -107,7 +120,6 @@ extension Workspace.Inventory.Client {
         }
         guard !repository.archived else { return .archived }
         guard !repository.disabled else { return .disabled }
-        guard !repository.fork else { return .fork }
         guard !policy.denied.contains(key) else { return .denied }
         return nil
     }

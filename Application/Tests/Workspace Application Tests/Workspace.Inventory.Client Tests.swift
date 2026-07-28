@@ -120,7 +120,7 @@ extension Workspace.Inventory.Test.Unit {
         }
         let content = GitHub.Repository.Content.Client<Never> { request async throws(Never) in
             switch request.repository.underlying {
-            case "swift-file": .init(kind: .file)
+            case "swift-file", "swift-fork": .init(kind: .file)
             case "swift-directory": .init(kind: .directory)
             default: nil
             }
@@ -131,18 +131,90 @@ extension Workspace.Inventory.Test.Unit {
             content: content
         ).discover(policy)
 
-        #expect(discovery.repositories.map(\.key.name.underlying) == ["swift-file"])
+        #expect(discovery.repositories.map(\.key.name.underlying) == ["swift-file", "swift-fork"])
         #expect(
             discovery.exclusions.map(\.reason) == [
                 .archived,
                 .disabled,
-                .fork,
                 .visibility(.private),
                 .denied,
                 .absent,
                 .kind(.directory),
             ]
         )
+    }
+
+    /// A fork carrying a manifest is an ordinary inventory member.
+    ///
+    /// Institute packages seeded from an external upstream keep their
+    /// GitHub fork relationship deliberately: the heritage rules require
+    /// that ancestry to stay reachable. Discovery must therefore treat
+    /// the fork flag as carrying no eligibility signal at all — the
+    /// package is included on the same terms as any other.
+    @Test
+    func `A fork with a manifest is eligible`() async throws {
+        let owner = GitHub.Organization.Name("swift-primitives")
+        let policy = try Workspace.Inventory.Policy(
+            organizations: [.init(name: owner, layer: .primitives)],
+            denied: [],
+            limit: .init(fixture: 1, items: 20)
+        )
+
+        let repositories = GitHub.Organization.Repositories.Client<Never> { _ async throws(Never) in
+            .init(
+                response: .init(repositories: [
+                    .init(fixture: 1, name: "swift-tagged-primitives", fork: true)
+                ]),
+                next: nil
+            )
+        }
+        let content = GitHub.Repository.Content.Client<Never> { _ async throws(Never) in
+            .init(kind: .file)
+        }
+
+        let discovery = try await Workspace.Inventory.Client(
+            repositories: repositories,
+            content: content
+        ).discover(policy)
+
+        #expect(
+            discovery.repositories.map(\.key.name.underlying) == ["swift-tagged-primitives"]
+        )
+        #expect(discovery.repositories.map(\.layer) == [.primitives])
+        #expect(discovery.exclusions.isEmpty)
+    }
+
+    /// A fork that should not be inventoried is excluded explicitly,
+    /// through the deny list, rather than structurally by its fork flag.
+    @Test
+    func `A denied fork is excluded as denied`() async throws {
+        let owner = GitHub.Organization.Name("swift-foundations")
+        let denied = Workspace.Repository.Key(owner: owner, name: .init("swift-contribution"))
+        let policy = try Workspace.Inventory.Policy(
+            organizations: [.init(name: owner, layer: .foundations)],
+            denied: [denied],
+            limit: .init(fixture: 1, items: 20)
+        )
+
+        let repositories = GitHub.Organization.Repositories.Client<Never> { _ async throws(Never) in
+            .init(
+                response: .init(repositories: [
+                    .init(fixture: 1, name: "swift-contribution", fork: true)
+                ]),
+                next: nil
+            )
+        }
+        let content = GitHub.Repository.Content.Client<Never> { _ async throws(Never) in
+            .init(kind: .file)
+        }
+
+        let discovery = try await Workspace.Inventory.Client(
+            repositories: repositories,
+            content: content
+        ).discover(policy)
+
+        #expect(discovery.repositories.isEmpty)
+        #expect(discovery.exclusions.map(\.reason) == [.denied])
     }
 }
 
