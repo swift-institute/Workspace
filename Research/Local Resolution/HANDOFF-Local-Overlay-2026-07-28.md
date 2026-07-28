@@ -35,9 +35,18 @@ The facts in §5 will go stale with the next toolchain. That instinct will not.
 **Design: complete, adjudicated, pushed.** Approved by the Team Lead, with the
 principal's capstone (§4b) adopted as the acceptance criterion.
 
-**Implementation: one increment written, uncommitted at time of writing.**
-`swift-foundations/swift-package-manager` gains `edit`/`unedit` with a lock-aware
-deadline. Nothing else is started.
+**Implementation: one increment landed.** `swift-foundations/swift-package-manager`
+`ce4231b` — `edit`/`unedit` under a deadline, with lock contention named rather
+than guessed. Verified: 5 tests, 1 suite, passed. Nothing else is started.
+
+*Two compile failures preceded that green, both from writing against an assumed
+API surface rather than a checked one:* `Duration` arriving as `internal` through
+`internal import Process` under `InternalImportsByDefault`, so a `public func`
+could not use it — fixed by naming `Swift.Duration`, which is what the parameter
+always meant; and `termination(_:)` being file-private, fixed by widening it to
+`internal` rather than writing a second mapping. Recorded because I had verified
+the two APIs I was *suspicious* of and not the ones I assumed were fine, which is
+the more common shape of this error.
 
 **Withdrawn: the entire batch-write branch.** See §3 — this is the part most
 likely to be re-derived by someone who does not read it.
@@ -45,7 +54,7 @@ likely to be re-derived by someone who does not read it.
 | Layer | State |
 |---|---|
 | `swift-spm-standard` (L2) | **untouched.** Its prohibition on synthesising resolver state stands unamended |
-| `swift-package-manager` (L3) | `Package.Manager+Edit.swift`, two new `Error` cases, classification tests |
+| `swift-package-manager` (L3) | **landed, `ce4231b`** — `Package.Manager+Edit.swift`, `Error.locked` / `Error.timedOut`, classification tests |
 | `Workspace Application` (L5) | **not started.** `workspace resolution plan/apply/status/remove` |
 
 ---
