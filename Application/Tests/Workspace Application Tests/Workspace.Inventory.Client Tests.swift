@@ -159,6 +159,106 @@ extension Workspace.Inventory.Test.Unit {
 }
 
 extension Workspace.Inventory.Test.`Edge Case` {
+    /// A listing that returns nothing must fail the run rather than shorten
+    /// the roster.
+    ///
+    /// This is the failure discovery cannot afford. A refused listing that
+    /// surfaces as a status code already throws; this covers the variant that
+    /// looks like success — an empty page — where the roster would come back
+    /// deterministic, self-consistent, and missing an entire organization.
+    ///
+    /// The second organization is the negative control. It proves the guard
+    /// fires on the empty listing specifically rather than on discovery
+    /// returning nothing overall, which a single-organization fixture could not
+    /// distinguish.
+    @Test
+    func `An organization that lists nothing fails the run`() async throws {
+        let empty = GitHub.Organization.Name("swift-standards")
+        let populated = GitHub.Organization.Name("swift-foundations")
+        let policy = try Workspace.Inventory.Policy(
+            organizations: [
+                .init(name: populated, layer: .foundations),
+                .init(name: empty, layer: .standards),
+            ],
+            denied: [],
+            limit: .init(fixture: 3, items: 20)
+        )
+        let repositories = GitHub.Organization.Repositories.Client<Never> { request async throws(Never) in
+            request.organization == empty
+                ? .init(response: .init(repositories: []), next: nil)
+                : .init(response: .init(repositories: [.init(fixture: 1, name: "swift-file")]), next: nil)
+        }
+        let content = GitHub.Repository.Content.Client<Never> { _ async throws(Never) in
+            .init(kind: .file)
+        }
+
+        do throws(Workspace.Inventory.Error<Never, Never>) {
+            _ = try await Workspace.Inventory.Client(
+                repositories: repositories,
+                content: content
+            ).discover(policy)
+            Issue.record("Expected the empty listing to fail the run")
+        } catch {
+            guard case .empty(empty) = error else {
+                Issue.record("Unexpected error: \(error)")
+                return
+            }
+        }
+    }
+
+    /// The escape hatch works, and is the only thing that silences the guard.
+    ///
+    /// Same fixture as the test above with one field changed, so the pair
+    /// isolates `vacant` as the cause. Without this the permission could stop
+    /// working and every test would still pass — the guard-fires test would go
+    /// on firing for the wrong reason.
+    @Test
+    func `A declared-vacant organization may list nothing`() async throws {
+        let empty = GitHub.Organization.Name("swift-standards")
+        let populated = GitHub.Organization.Name("swift-foundations")
+        let policy = try Workspace.Inventory.Policy(
+            organizations: [
+                .init(name: populated, layer: .foundations),
+                .init(name: empty, layer: .standards),
+            ],
+            denied: [],
+            vacant: [empty],
+            limit: .init(fixture: 3, items: 20)
+        )
+        let repositories = GitHub.Organization.Repositories.Client<Never> { request async throws(Never) in
+            request.organization == empty
+                ? .init(response: .init(repositories: []), next: nil)
+                : .init(response: .init(repositories: [.init(fixture: 1, name: "swift-file")]), next: nil)
+        }
+        let content = GitHub.Repository.Content.Client<Never> { _ async throws(Never) in
+            .init(kind: .file)
+        }
+
+        let discovery = try await Workspace.Inventory.Client(
+            repositories: repositories,
+            content: content
+        ).discover(policy)
+
+        #expect(discovery.repositories.map(\.key.name.underlying) == ["swift-file"])
+    }
+
+    /// A permission for an organization discovery never visits is a typed
+    /// construction failure, not a silently inert entry.
+    @Test
+    func `Vacancy for an organization outside the policy is rejected`() async throws {
+        do throws(Workspace.Inventory.Policy.Error) {
+            _ = try Workspace.Inventory.Policy(
+                organizations: [.init(name: .init("swift-foundations"), layer: .foundations)],
+                denied: [],
+                vacant: [.init("swift-renamed")],
+                limit: .init(fixture: 1, items: 20)
+            )
+            Issue.record("Expected the unknown vacancy to be rejected")
+        } catch {
+            #expect(error == .vacancy(.init("swift-renamed")))
+        }
+    }
+
     @Test
     func `Item bound is a typed repository traversal failure`() async throws {
         let owner = GitHub.Organization.Name("swift-foundations")

@@ -1,15 +1,30 @@
 public import GitHub
-import Tagged_Primitives
+// `vacant` is a Set of GitHub.Organization.Name, a Tagged alias, so the
+// declaration is only well-formed with the module imported publicly.
+public import Tagged_Primitives
 
 extension Workspace.Inventory {
     public struct Policy: Equatable, Sendable {
         public let organizations: [Organization]
         public let denied: Set<Workspace.Repository.Key>
+        /// Organizations known to list no public repositories.
+        ///
+        /// Discovery fails when an organization lists nothing, because a
+        /// silently short roster is worse than no roster. An organization that
+        /// is *genuinely* empty must therefore say so here, and saying so is
+        /// deliberately awkward: the entry is a dated claim about the fleet
+        /// that stops being true the moment the organization publishes
+        /// anything, and it should be removed then.
+        ///
+        /// Empty by default, which is the strict reading — no organization may
+        /// list nothing.
+        public let vacant: Set<GitHub.Organization.Name>
         public let limit: GitHub.Organization.Repositories.Traversal.Limit
 
         public init(
             organizations: [Organization],
             denied: Set<Workspace.Repository.Key>,
+            vacant: Set<GitHub.Organization.Name> = [],
             limit: GitHub.Organization.Repositories.Traversal.Limit
         ) throws(Error) {
             var names = Set<GitHub.Organization.Name>()
@@ -21,9 +36,13 @@ extension Workspace.Inventory {
             for key in denied where !names.contains(key.owner) {
                 throw .deny(key)
             }
+            for name in vacant where !names.contains(name) {
+                throw .vacancy(name)
+            }
 
             self.organizations = organizations
             self.denied = denied
+            self.vacant = vacant
             self.limit = limit
         }
     }
@@ -66,6 +85,18 @@ extension Workspace.Inventory.Policy {
                     .init(name: .init("swift-foundations"), layer: .foundations),
                 ],
                 denied: [],
+                // Measured 2026-07-28 against `orgs/<name>/repos?type=public`,
+                // the same query discovery issues: every policy organization
+                // lists at least one public repository except `swift-nist`,
+                // which holds a single non-public repository and therefore
+                // lists none. Remove this the moment it publishes anything.
+                //
+                // Counted with the wrong filter first. `gh repo list` reports
+                // repositories at every visibility, which said `swift-nist`
+                // held 1 and made an empty public listing look impossible. The
+                // population a control measures has to be the one the code
+                // queries.
+                vacant: [.init("swift-nist")],
                 limit: .init(pages: pages, items: items)
             )
         } catch {

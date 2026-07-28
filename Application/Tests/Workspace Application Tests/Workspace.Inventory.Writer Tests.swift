@@ -211,8 +211,12 @@ extension Workspace.Inventory.Test.Integration {
         let policy = try Workspace.Inventory.Policy(
             organizations: [.init(name: owner, layer: .foundations)],
             denied: [],
-            limit: .init(fixture: 1, items: 1)
+            limit: .init(fixture: 1, items: 20)
         )
+        // The listing must be non-empty: an organization that returns nothing
+        // now fails discovery before the writer is reached, and this test is
+        // about the writer. What it discovers is immaterial — the assertion is
+        // that publication refuses after the file changed underneath it.
         let repositories = GitHub.Organization.Repositories.Client<Workspace.Inventory.Test.Failure> {
             _ async throws(Workspace.Inventory.Test.Failure) in
             do throws(File.System.Write.Atomic.Error) {
@@ -220,10 +224,13 @@ extension Workspace.Inventory.Test.Integration {
             } catch {
                 throw .status
             }
-            return .init(response: .init(repositories: []), next: nil)
+            return .init(
+                response: .init(repositories: [.init(fixture: 1, name: "swift-file")]),
+                next: nil
+            )
         }
         let content = GitHub.Repository.Content.Client<Workspace.Inventory.Test.Failure> {
-            _ async throws(Workspace.Inventory.Test.Failure) in nil
+            _ async throws(Workspace.Inventory.Test.Failure) in .init(kind: .file)
         }
         let application = Workspace.Inventory.Application(
             root: root,

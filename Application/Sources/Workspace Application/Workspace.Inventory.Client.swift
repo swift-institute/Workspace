@@ -53,6 +53,14 @@ extension Workspace.Inventory.Client {
                 throw .repositories(organization.name, error)
             }
 
+            // Each organization is its own positive control: a listing that
+            // returns nothing has not measured an empty organization, it has
+            // failed quietly — unless the policy says that organization is
+            // genuinely vacant. See `Error.empty`.
+            guard !summaries.isEmpty || policy.vacant.contains(organization.name) else {
+                throw .empty(organization.name)
+            }
+
             for summary in summaries {
                 guard !Task<Never, Never>.isCancelled else { throw .cancellation }
                 let key = Workspace.Repository.Key(owner: organization.name, name: summary.name)
