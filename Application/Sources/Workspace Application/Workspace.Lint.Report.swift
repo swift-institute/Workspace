@@ -59,7 +59,7 @@ extension Workspace.Lint.Report {
         measurements.reduce(.zero) { $0 + $1.duration }
     }
 
-    /// The packages that dominated the run, slowest first.
+    /// Every package that took measurable time, slowest first.
     ///
     /// A sweep whose total is driven by a handful of packages is a
     /// different problem from one that is uniformly slow, and an
@@ -68,11 +68,16 @@ extension Workspace.Lint.Report {
     /// exactly a baked bundle is linted by the prebuilt runner, while
     /// one the classifier cannot route compiles its declared rule packs
     /// on the spot — orders of magnitude apart, not percentages.
+    ///
+    /// Unbounded on purpose. The rendering shows a leading slice and
+    /// says how many of how many it is showing, so a reader can see that
+    /// there is more rather than having to suspect it; a report that
+    /// quietly truncated would hide exactly the pathological tail this
+    /// exists to surface.
     public var slowest: [Workspace.Lint.Measurement] {
         measurements
             .sorted { $0.duration > $1.duration }
-            .prefix(while: { $0.duration > .zero })
-            .prefix(5)
+            .prefix { $0.duration > .zero }
             .map { $0 }
     }
 
@@ -117,10 +122,19 @@ extension Workspace.Lint.Report: CustomStringConvertible {
             )
         }
 
-        if !slowest.isEmpty {
+        let ranked = slowest
+        if !ranked.isEmpty {
+            // The slice is a rendering choice, and it is disclosed. A
+            // report that showed a fixed number of rows without saying
+            // so would conceal a long tail behind something that reads
+            // like a complete list.
+            let shown = ranked.prefix(while: { $0.duration >= ranked[0].duration / 10 })
             lines.append("")
-            lines.append("slowest packages:")
-            for measurement in slowest {
+            lines.append(
+                "slowest \(shown.count) of \(ranked.count) packages "
+                    + "(within one order of magnitude of the slowest):"
+            )
+            for measurement in shown {
                 lines.append(
                     "  \(Self.seconds(measurement.duration))  \(measurement.package)"
                 )
