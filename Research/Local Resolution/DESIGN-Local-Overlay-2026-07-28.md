@@ -236,8 +236,15 @@ active overlay, and `status` must name `--fresh` as the way to check remote
 reproducibility. A correct bypass that looks identical to a forgotten overlay is
 the same failure as §4 wearing better clothes.
 
-**Design consequence.** The overlay's state is *two* facts that can disagree, and
-SwiftPM will not reconcile them for you. Workspace must own that reconciliation:
+**Design consequence — and this is the argument for Workspace owning
+reconciliation rather than trusting SwiftPM's state.** The whole-file discard is
+the sharp version: SwiftPM's response to state it cannot parse is to drop *all* of
+it, including entries that were valid, and continue green. Sixty edits vanished
+that way in one command. A capability whose correctness rests on SwiftPM reporting
+its own state faithfully has no recourse when SwiftPM's own answer is *"I have
+discarded the question."* The overlay's state is *two* facts that can disagree,
+SwiftPM will not reconcile them, and under one common failure it silently forgets
+both. Workspace must own that reconciliation:
 
 - `workspace overlay status` compares the symlink set against SwiftPM's own
   `edited` entries and **exits non-zero on any disagreement**, naming each package
@@ -338,8 +345,13 @@ is committable by a routine `git add -A`:
 `swift-sitemap` · `swift-svg-printer`
 
 The other 433 ignore it. `Package.resolved` is ignored and untracked in **all 441**.
-Fixing these eight is a precondition, and it is worth doing regardless of this
-design.
+
+**Adjudicated 2026-07-28: this is a precondition for *shipping*, not for
+*implementing*.** Build against the assumption the eight are fixed; do not ship an
+overlay whose own artifact is committable by `git add -A`. The cohort is owned
+elsewhere — six of the eight also carry standalone `swiftlint.yml` /
+`swift-format.yml` files the `ci-cd` skill forbids in per-package repositories,
+which reads as one missed standardization pass rather than two findings.
 
 **Eight institute-org packages are depended on 86 times but are absent from the
 roster, so the overlay cannot reach them.** Cause, checked against the GitHub API
@@ -354,10 +366,14 @@ rather than guessed:
 
 `swift-tagged-primitives` has **66 dependents** — more than any package on the
 roster. The exclusion is `Workspace.Inventory.Eligibility.Reason.fork` working as
-designed, and the roster is generated, so this is not drift. But it means **"all
-packages" has a documented hole**, and closing it is a principal-level question:
-*should institute-owned forks be materialized?* Until answered, the overlay's
-coverage claim must be stated as *all roster packages*, never *all dependencies*.
+designed, and the roster is generated, so this is not drift.
+
+**Adjudicated 2026-07-28.** The fork question is with the principal and is not
+this design's to settle — it has release-shape implications wider than local
+development. `Eligibility.Reason.fork` is working as designed and **must not be
+worked around**. Binding regardless of how that resolves: **the overlay's coverage
+is stated as *all roster packages*, never *all dependencies*.** Write it that way
+in every user-facing string.
 
 **A third limit, structural rather than incidental: the overlay is root-scoped, and
 it can outlive its reason.** An `edited` entry survives the dependency leaving the
@@ -383,7 +399,13 @@ Also out of scope until measured, stated rather than glossed:
 
 ---
 
-## 8. The alternative I tested and am not recommending
+## 8. The alternative I tested and am rejecting **on a premise that could change**
+
+> **Read this section if Xcode ever stops being a first-class consumer.** The
+> rejection below is not on the mechanism's merits — it wins on two axes — but on
+> a premise: that `institute.xcworkspace` is a committed artifact developers use.
+> Drop that premise and this becomes the better design. The analysis is kept so
+> that conclusion is *found* rather than rediscovered.
 
 Since the objective is phrased as *"as if each `Package.swift` had local path based
 dependencies"*, the literal reading deserved a real test: make the manifests
