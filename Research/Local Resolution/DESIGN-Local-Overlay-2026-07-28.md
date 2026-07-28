@@ -518,20 +518,37 @@ rather than guessed:
 
 | Package | Dependents | Why excluded |
 |---|---|---|
-| `swift-primitives/swift-tagged-primitives` | **66** | `fork: true` |
+| `swift-primitives/swift-tagged-primitives` | **78** | `fork: true` |
 | `swift-foundations/swift-url-routing` | 13 | `fork: true` |
 | `swift-foundations/swift-ip-address` | 2 | not eligible |
 | `swift-webpage`, `swift-structured-queries-postgres`, `swift-domain-name-system`, `swift-email-html`, `swift-entitlement` | 1 each | `swift-entitlement` is `private`; others as above |
 
-`swift-tagged-primitives` has **66 dependents** — more than any package on the
-roster. The exclusion is `Workspace.Inventory.Eligibility.Reason.fork` working as
+**Population and method, because three different counts for this package are in
+circulation.** The 78 is: **465** top-level `Package.swift` files — the 441 roster
+packages plus the on-disk non-roster ones — counting **distinct dependents**, with
+`.build`, `.git` and `checkouts` excluded and nothing nested deeper than two levels
+from the hierarchy root. An earlier figure of **66** in this document counted URL
+occurrences over the **441** roster manifests only; the 441→465 population
+difference is most of the gap. A count of **84** is also in circulation elsewhere
+with its method unstated. **A bare dependent count for this package should not be
+quoted without its population** — and the conclusion is unaffected either way:
+whichever denominator is used, it is the most-depended-on package in the tree by a
+wide margin.
+
+The exclusion is `Workspace.Inventory.Eligibility.Reason.fork` working as
 designed, and the roster is generated, so this is not drift.
 
 **Ruled 2026-07-28, principal:** *"admit institute-owned forks to the roster. All
 swift-institute packages regardless of whether they're forks."* So
 `Eligibility.Reason.fork` stops excluding institute-owned repositories, and
-`swift-tagged-primitives` (66 dependents) and `swift-url-routing` (13) come into
-scope with the rest of the fork-excluded set.
+`swift-tagged-primitives` (78 dependents, population above) and `swift-url-routing`
+(13) come into scope with the rest of the fork-excluded set.
+
+**Two of that set have since left it:** `fork-swift-parsing` and
+`pointfree-url-form-coding` were made private and archived on the principal's
+instruction as vestigial `coenttb` → `swift-foundations` migration leftovers, with
+zero in-tree references verified first. Three load-bearing forks remain public:
+`swift-tagged-primitives`, `swift-url-routing`, `swift-structured-queries-postgres`.
 
 **Read narrowly, and do not write the future state as though it were current.** He
 ruled on **forks**. He did not rule on **private** repositories, and
