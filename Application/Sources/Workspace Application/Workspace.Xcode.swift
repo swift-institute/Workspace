@@ -28,7 +28,7 @@ extension Workspace.Xcode {
     }
 
     public static func contents(at root: File.Directory) -> Swift.String? {
-        do throws(File.System.Read.Full.Error) {
+        do throws(Either<File.System.Read.Full.Error, Never>) {
             return try path(at: root).read.full { bytes in
                 var storage = [Byte]()
                 storage.reserveCapacity(bytes.count)

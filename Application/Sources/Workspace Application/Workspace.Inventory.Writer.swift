@@ -40,7 +40,7 @@ extension Workspace.Inventory.Writer {
     }
 
     private func read(_ file: File) throws(Workspace.Error) -> [Byte] {
-        do throws(File.System.Read.Full.Error) {
+        do throws(Either<File.System.Read.Full.Error, Never>) {
             return try file.read.full { bytes in
                 var storage = [Byte]()
                 storage.reserveCapacity(bytes.count)
