@@ -57,6 +57,21 @@ Consequences that are easy to get wrong:
   move it. A naive 441-package sweep projects to ~57 hours; that is a mutex, not compute.
 - Concurrent `swift-build` processes visible in `ps` are usually **not** coordinator builds. Check
   whether the parent holds the lock before concluding the coordinator allows concurrency.
+
+  This was tested directly rather than assumed. A whole-graph build and a second `swift-build` were
+  observed running at the same time, which appears to contradict the lock being held for the whole
+  run. Resolving the parent of each against the set of lock holders showed otherwise:
+
+  ```
+  lock holders: 61716 only
+    umbrella build        parent=workspace(61716)  COORDINATOR
+    swift-authentication  parent=zsh(70080)        OUTSIDE — holds no lock
+  ```
+
+  The second build had a shell parent and no lock: it **bypassed the coordinator** rather than the
+  lock being released for manifest evaluation. **Observed concurrency is evidence of bypass, not of
+  a permissive lock.** It also means a session building in-tree with a bare `swift build` races
+  every coordinated build on the machine without either party knowing.
 - `--scratch-path`, `--build-path`, `--cache-path`, `--config-path`, `--security-path` and
   `-j`/`--jobs` are **hard-owned** by the coordinator and rejected from passthrough
   (`Build.Action.swift`). The only scratch control exposed is `--fresh`, which allocates an
@@ -277,9 +292,23 @@ unrelated claims.
 
 ### Status, and how to re-run it
 
-**The build was started and did not complete within the session.** It spent more than eighteen
-minutes evaluating manifests without compiling a single module, at zero errors. **No module count
-was obtained, so no whole-graph claim is made here.**
+**The build was started and then stopped by decision, not by failure.** At termination, after about
+26 minutes:
+
+| | |
+|---|---|
+| elapsed | ~26 min |
+| identity warnings | **903**, across 182 of 441 packages |
+| errors | **0** |
+| modules compiled | **0** — still evaluating manifests |
+
+**No module count was obtained, so no whole-graph claim is made here.** Nothing had gone wrong: at
+182 of 441 packages in 26 minutes, manifest evaluation alone extrapolated to roughly two hours
+before the first of ~2,085 modules, and under the serial lock (§2) that is two hours in which no
+session on the machine can build anything. The mechanism was already demonstrated by the half that
+succeeded — resolution, complete path-over-URL override, and the absence of the predicted failure
+modes — so the remaining module count was judged not worth a fleet-wide build freeze on a shared
+developer machine. **Prove it on a runner with no other tenants.**
 
 The method is recorded so this is re-run rather than re-designed:
 
