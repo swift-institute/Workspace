@@ -527,12 +527,36 @@ rather than guessed:
 roster. The exclusion is `Workspace.Inventory.Eligibility.Reason.fork` working as
 designed, and the roster is generated, so this is not drift.
 
-**Adjudicated 2026-07-28.** The fork question is with the principal and is not
-this design's to settle — it has release-shape implications wider than local
-development. `Eligibility.Reason.fork` is working as designed and **must not be
-worked around**. Binding regardless of how that resolves: **the overlay's coverage
-is stated as *all roster packages*, never *all dependencies*.** Write it that way
-in every user-facing string.
+**Ruled 2026-07-28, principal:** *"admit institute-owned forks to the roster. All
+swift-institute packages regardless of whether they're forks."* So
+`Eligibility.Reason.fork` stops excluding institute-owned repositories, and
+`swift-tagged-primitives` (66 dependents) and `swift-url-routing` (13) come into
+scope with the rest of the fork-excluded set.
+
+**Read narrowly, and do not write the future state as though it were current.** He
+ruled on **forks**. He did not rule on **private** repositories, and
+`swift-entitlement` is excluded for being private, not for being a fork. **Until
+the eligibility rule actually ships, the honest coverage statement remains *all
+roster packages*** — with a note that the roster is about to widen by ruling.
+
+Coverage must therefore name **three** sets, not two:
+
+| Set | Status |
+|---|---|
+| **In scope** | roster packages — widening to include institute-owned forks |
+| **Excluded as private** | e.g. `swift-entitlement`. Not ruled on; keep visible |
+| **Excluded for other reasons** | third-party (apple, swiftlang, vapor, pointfreeco) |
+
+Private repositories deserve their own line rather than being folded into
+"excluded", because they are the fleet's blind spot twice over: they run no CI (the
+universal reusable guards on visibility), and they are invisible to tree-local
+search and to unauthenticated GitHub search.
+
+**This enlarges the scale problem rather than easing it.** §6a measures closure
+application as quadratic in graph size; admitting the fork-excluded set makes every
+closure larger, so whatever mechanism ships gets slower. That is a reason the §8a
+comparison mattered more, not less — and it is a number to re-take once the roster
+widens.
 
 **A third limit, structural rather than incidental: the overlay is root-scoped, and
 it can outlive its reason.** An `edited` entry survives the dependency leaving the
@@ -560,11 +584,12 @@ Also out of scope until measured, stated rather than glossed:
 
 ## 8. The alternative I tested and am rejecting **on a premise that could change**
 
-> **Read this section if Xcode ever stops being a first-class consumer.** The
-> rejection below is not on the mechanism's merits — it wins on two axes — but on
-> a premise: that `institute.xcworkspace` is a committed artifact developers use.
-> Drop that premise and this becomes the better design. The analysis is kept so
-> that conclusion is *found* rather than rediscovered.
+> **⚠️ Superseded by §8a, 2026-07-28.** The premise did move — the principal ruled
+> *"SwiftPM is primary concern, with Xcode secondary"* — and §8 was re-argued on
+> the new premise the same day. **It is still rejected, but for a different and
+> better reason**, and two of the three objections below are overstated. **Read
+> §8a, not this section, for the live argument.** This is kept for the costs it
+> prices and the mechanism it describes, both of which remain accurate.
 
 Since the objective is phrased as *"as if each `Package.swift` had local path based
 dependencies"*, the literal reading deserved a real test: make the manifests
@@ -603,6 +628,92 @@ about the mechanism:
 If the fleet later concludes the per-root cost of SPM edit is intolerable at 200+
 pins and Xcode is dropped as a first-class consumer, this becomes the better
 design. It is recorded here so that conclusion does not have to be rediscovered.
+
+---
+
+## 8a. Decision memo — §8 re-argued after "Xcode is secondary", and still rejected
+
+Requested 2026-07-28 after the principal ruled *"SwiftPM is primary concern, with
+Xcode secondary"*, which demoted the premise §8's rejection rested on. Re-argued
+rather than inherited. **The conclusion holds, but almost none of the original
+reasoning survives** — the Xcode objection is now weak, the manifest-edit objection
+is weaker than I claimed, and a new measured objection replaces both.
+
+### The two costs I over-stated
+
+**The manifest edit is small and mechanical, not invasive.** Measured across the
+real corpus rather than estimated:
+
+| Fact | Value |
+|---|---|
+| URL-basename vs roster-name mismatches, all 2,188 edges | **0** |
+| Single-line `.package(url:…)` clauses | **2,167** (99.0%) |
+| Multi-line clauses needing judgement | **21** |
+
+Zero mismatches is the important one: a package's identity under `.package(path:)`
+is its directory basename, which is exactly its roster name, which is exactly its
+URL basename. **So `.product(name:…, package:…)` lines never change** — only the
+`dependencies:` array does. My fixture suggested otherwise, and my fixture was
+wrong: it used `mid-remote.git` for a directory named `mid`, an artefact I
+introduced. The real edit is a per-manifest helper of roughly eight lines plus a
+one-for-one rewrite of dependency clauses, generatable for 99% of them.
+
+**And "Xcode cannot see it" is now a cost, not a disqualifier** — correctly, per
+the principal's ruling.
+
+### The objection that replaces them, and it is measured
+
+I tried to remove the Xcode objection entirely with a trigger Xcode *can* see: a
+generated sentinel file at the hierarchy root, discovered from `#filePath`, no
+environment variable anywhere. It would have cleared the standing constraint as
+generated-not-authored, and it would have worked identically under SwiftPM, Xcode
+and CI.
+
+**It does not work, and it fails silently in the dangerous direction.**
+
+| Trigger | Mode ON | Mode OFF |
+|---|---|---|
+| Environment variable | `fileSystem`, local source compiled | **reverts correctly** — `localSourceControl`, canonical compiled |
+| Generated sentinel file | `fileSystem`, local source compiled | **does not revert** — still `fileSystem`, still compiling local source |
+
+Removing the sentinel, touching the manifest, and running an explicit
+`swift package resolve` all failed to revert it. The cause is SwiftPM's **shared
+manifest cache** (`~/Library/Caches/org.swift.swiftpm/manifests`, 144 MB here):
+it is keyed on manifest *content*, so a manifest whose evaluation depends on
+ambient filesystem state is served from cache and the mode change is invisible.
+`--manifest-cache none` reverts it immediately, which is what identifies the cause.
+
+**Three things follow, and together they decide it.**
+
+1. **§8's headline advantage is false as stated.** "Zero local state, so the §4
+   failure mode cannot occur" — §8 *does* have local state: a 144 MB shared
+   manifest cache. And under the filesystem trigger it produces exactly §4's
+   failure, in its worse direction: the developer turns the overlay **off** and
+   keeps compiling local source, believing they are on canonical.
+2. **The only trigger that is sound is the one Xcode cannot see.** The environment
+   variable reverts correctly because SwiftPM's cache key accounts for it; the
+   filesystem sentinel does not. So "Xcode is secondary" does not rescue §8 —
+   the workaround that would have served Xcode is precisely the broken one.
+3. **§8's correctness would rest on an undocumented cache-key detail.** That is the
+   same class of risk as the batch write's `"version": 7` dependency — but where
+   the batch write's failure is *loud and gated* (§6, four gates), this one is
+   *silent and ungated*, and it governs correctness rather than speed.
+
+### Recommendation
+
+**Stay with the batch `workspace-state.json` write.** Not because §8's costs are
+large — two of the three I originally gave were overstated — but because §8 trades
+a bounded, loud, gated dependency on SwiftPM private state for an unbounded, silent
+one, and buys Xcode nothing.
+
+Stated against my own prior: I went into this re-argument expecting §8 to win on
+the new premise, and built the sentinel variant specifically to make it win. The
+measurement killed it. Recorded because a rejection that survives an honest attempt
+to overturn it is worth more than the original.
+
+**What would reopen it:** a trigger that is both visible to Xcode and part of the
+manifest cache key. If SwiftPM gains an explicit local-override facility, this
+whole section is moot and that facility should be preferred over both mechanisms.
 
 ---
 
@@ -701,6 +812,13 @@ useful part:** that SwiftPM parallelises branch-tip fetches, making the 96 s
 measured fetch total is 106.5 s and the *fetches are not the dominant cost*.
 And that per-edit cost extrapolates from two points — §6 says measure it, and
 §6a does.
+
+**Checked in the §8a re-argument:** that URL basename equals roster name across all
+2,188 edges, so identity is preserved and no target line changes; the single-line
+versus multi-line clause split; and both conditional-manifest triggers in **both
+directions** — the environment variable reverts correctly, the generated sentinel
+file does not, with `--manifest-cache none` identifying the shared manifest cache
+as the cause.
 
 **Checked last, and it is the acceptance criterion:** the principal's capstone —
 a build with no `Package.resolved`, no `.build/checkouts`, and the remotes removed
