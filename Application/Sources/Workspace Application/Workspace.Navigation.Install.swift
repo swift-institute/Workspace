@@ -286,7 +286,7 @@ extension Workspace.Navigation {
             return
         }
         let actual: Swift.String
-        do throws(File.System.Read.Full.Error) {
+        do throws(Either<File.System.Read.Full.Error, Never>) {
             actual = try file.read.full { bytes in
                 var storage = [Byte]()
                 storage.reserveCapacity(bytes.count)

@@ -385,7 +385,7 @@ extension Workspace.Context {
     }
 
     private func read(_ file: File) throws(Workspace.Error) -> Swift.String {
-        do throws(File.System.Read.Full.Error) {
+        do throws(Either<File.System.Read.Full.Error, Never>) {
             return try file.read.full { bytes in
                 var storage = [Byte]()
                 storage.reserveCapacity(bytes.count)

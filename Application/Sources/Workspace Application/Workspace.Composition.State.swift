@@ -64,7 +64,7 @@ extension Workspace.Composition.State {
         guard file.stat.exists else { return .init() }
 
         let bytes: [Byte]
-        do throws(File.System.Read.Full.Error) {
+        do throws(Either<File.System.Read.Full.Error, Never>) {
             bytes = try file.read.full { span in
                 var storage = [Byte]()
                 storage.reserveCapacity(span.count)
