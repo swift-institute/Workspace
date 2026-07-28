@@ -224,6 +224,32 @@ is not a habit you have formed.**
 
 ---
 
+## 6a. Provenance — how to re-verify the load-bearing claims without asking me
+
+Several claims in this handoff and in the Team Lead's own handoff rest on
+measurements I ran rather than on anything a reader can see. Each is
+independently reproducible; the command is given so a successor can check rather
+than trust.
+
+| Claim | How it was established | Re-run it |
+|---|---|---|
+| Closure distribution — median **36**, p90 122, max 250 | **Checked.** Parsed all 441 roster manifests, built the internal dependency graph, computed transitive closures | Walk `Workspace.json`, extract `.package(url:` per manifest, resolve names against the roster, transitively close |
+| **2,188 / 2,188 / 0** — no symbolic dependency declarations | **Checked.** Counted raw `.package(` against `url: "literal"` and `path: "literal"` across all 441 | `grep -c` the three patterns per manifest and compare totals |
+| Four caches must be cleared for any clean/offline claim | **Checked**, each individually, with positive and negative controls — see design §4b and §8a | Fixture in a scratchpad; clear one cache at a time and observe which survives |
+| `swift-spm-standard`'s prohibition text | **Checked.** Read from the file, quoted verbatim | `Sources/SPM Standard/Package.Resolution+Decodable.swift`, header comment |
+| Per-edit cost `0.45 + 0.025N` | **Checked at three sizes** (N=1, 60, 120), **but not back to back** — the N=1 and N=60 points were taken hours apart under different machine load. The within-N=120 series was consecutive | Rebuild fixtures at all three sizes, time consecutively, record concurrent build count |
+| `swift package update` at 200 pins ≈ **2.5–5.5 min** | **Checked, contended.** Two runs disagreed 2.2× under uncontrolled load; the 148 s floor is the more trustworthy end | Copy `Application/Package.swift` + `Package.resolved` to a scratchpad, warm with `resolve`, time `update` |
+| 113 top-level packages covering 441/441 | **Not mine.** Established by the full-tree build session; I relied on it for §6c | Ask that session, or recompute in-degree over the same graph |
+| 241 symbolic products across 42 packages | **Not mine.** Full-tree build session. I verified only that the same hole does **not** exist in dependency declarations | As above |
+
+**Inferred rather than measured, and flagged as such throughout:** that per-edit
+cost extrapolates linearly to 200 pins; that the eight `Packages/`-unignored
+packages are the complete set for that pattern specifically; and every statement
+about Xcode, CI, Linux, or any toolchain other than Swift 6.4 — none of which were
+tested at all.
+
+---
+
 ## 7. Next increment
 
 1. **Commit the `swift-package-manager` work** once its tests are green.
