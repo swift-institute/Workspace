@@ -121,7 +121,7 @@ The property that makes it acceptable: **the developer's local commit was
 preserved.** A restoration that also discarded their work would not be a fix,
 and any implementation must keep this invariant.
 
-### 4. `get-mirror` does not predict what a build will substitute — *routed*
+### 4. `get-mirror` does not predict what a build will substitute — *routed, and closed*
 
 `swift package config get-mirror` reported a mapping for the bare-path spelling
 and **"not found"** for the `file://` spelling, while the resolver required the
@@ -133,6 +133,79 @@ This answers Owner Capability Matrix §9.4 item 2 in the **negative**.
 > the substitution a build would use.** That reliance is documented in its own
 > source. Its blast radius is outside Workspace and it should be reviewed by
 > that package's owner.
+
+> ## ✅ REFERRAL CLOSED — verified 2026-07-28
+>
+> **The reliance no longer exists.** It was removed by `swift-impact`'s own owner
+> on **2026-07-25**, the same day this ADR routed it, and this document was never
+> updated to say so. Verified by reading the package at `origin/main`, not by
+> asking whether anyone had acted.
+>
+> **Where it was.** `swift-foundations/swift-impact` — a **private** repository,
+> absent from `Workspace.json` and not materialized in the checkout, which is why
+> a tree-local search finds nothing. Call site:
+> `Sources/Impact/Impact.Run.MirrorVerification.swift`, invoked from
+> `Impact.Run.swift:90` before any dependent build.
+>
+> **What closed it.** `f2105f99` *"Fix mirror verification: verify substitution by
+> ground truth, not get-mirror"* (2026-07-25 06:26 +0200), refined by `e4a2ec5b`
+> *"Honour a `file://` mirror target as a substitution, not a missing mirror"*
+> (12:48 +0200). Both are on `origin/main`. The commit message cites the same
+> spelling-family evidence recorded here, reached through the
+> workspace-local-resolution handoff §3 finding 3 — so this is the referral being
+> received and acted on, not an unrelated coincidence.
+>
+> **What replaced it.** `get-mirror` prediction is **deleted**, not merely
+> bypassed — `gitOriginURL` and `swiftPackageConfigGetMirror` are gone from the
+> source. The check now reads the substituted location off SwiftPM's own
+> `dump-package` evaluation, which is spelling-agnostic *because it constructs no
+> key at all*. `e4a2ec5b` then fixed a second spelling bug in the replacement: a
+> mirror target spelled `file://` is reported as `location.remote`, not
+> `location.local`, so honouring only `.local` would have false-aborted a
+> correctly mirrored pair — the same class of defect one layer in.
+>
+> **The regression guard is real, and it carries its own positive control.** The
+> test asserts `!log.contains("get-mirror")` against a fake coordinator's
+> invocation log — and asserts `dumpCount == 3` on that *same* log in the same
+> test. An empty log therefore fails the test rather than passing it vacuously.
+>
+> ### Dead code, or broken code? **Neither — and the distinction the brief asked
+> for does not survive contact with the evidence.**
+>
+> The referral's defect is not dead code and not broken code: it is **absent**.
+> Nothing predicts mirror behaviour from `get-mirror` anywhere in the package.
+> The surviving `get-mirror` strings are comments explaining why it is *not* used,
+> plus a deliberate fake-coordinator leaf in the tests that implements
+> `get-mirror`'s exact-match semantics **as a negative control**.
+>
+> The *replacement* is live code on the executed path, and it is correct. But its
+> surrounding premise has been dismantled beneath it, which is a different finding
+> and is recorded here rather than in the referral's name:
+>
+> | Premise `swift-impact` requires | State, measured 2026-07-28 |
+> |---|---|
+> | A configured SwiftPM mirror map | **Gone** — `~/.swiftpm/configuration/` and the legacy `~/Library/org.swift.swiftpm/configuration/` are both empty |
+> | The `Scripts/swift-build` coordinator it spawns | **Gone** — no such path, and no `Scripts/` directory |
+>
+> So `swift-impact` cannot currently execute a run. **It fails closed and loudly**
+> — `.mirrorsNotConfigured`, thrown before any dependent build — which is the
+> correct direction and is exactly what the check was built to do: refuse rather
+> than emit false-negative impact results against canonical sources. The mirror
+> map's removal is the standing *"nothing machine-specific"* constraint working as
+> intended; the coordinator's is a separate change this document does not own.
+> Recorded as a fact about the package's runtime premise, **not** as a defect
+> referred onward — the code behaves correctly given inputs that no longer exist.
+>
+> **Read from source and git history at `e4a2ec5b`; the run itself was not
+> executed**, because the coordinator binary it requires does not exist on this
+> machine. That is a limit of this verification, stated rather than glossed.
+>
+> **One remnant, left with its owner and not fixed here.** `swift-impact`'s own
+> `Research/design.md:103` still asserts the tool *"verifies the premise through
+> the coordinator's machine-readable `package get-mirror` leaf"* — stale since
+> `f2105f99` and contradicted by the source beside it. It is a doc line in a
+> private repository outside this arc; it is named here so the next reader of that
+> package finds it rather than trusting it.
 
 ## Preconditions for mirror-based composition
 

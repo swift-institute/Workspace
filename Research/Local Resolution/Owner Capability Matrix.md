@@ -303,6 +303,17 @@ Owner: **`swift-spm-standard`** (L2), over `swift-package-primitives` (L1).
 
 Evidence: `Impact › Impact.Run.MirrorVerification.swift:16–41` @ `41e95a126`.
 
+> **Note added 2026-07-28.** Both quotations are pinned to `41e95a126` and remain
+> accurate *as of that revision*, but the file has since been rewritten
+> (`f2105f99`, `e4a2ec5b`). The second quotation in particular describes behaviour
+> that no longer exists: sourcing the canonical URL from the upstream's `origin`
+> remote was **removed** along with the `get-mirror` prediction. **The
+> `location.local` observation in the first quotation still stands** — it is the
+> signal the replacement now reads as ground truth — with one refinement measured
+> on 2026-07-25: the mirror *target's* spelling decides the reported shape, so a
+> bare-path target yields `location.local` while a `file://` target yields
+> `location.remote`. Locality cannot be read off the reported kind alone.
+
 **Consequence.** The "DECLARED SOURCE" column of the plan's §3.2 report cannot be
 produced from `dump-package` on this machine. The canonical URL must come from
 the dependency repository's own `origin`, or from a Workspace-owned catalogue.
@@ -331,7 +342,7 @@ Owner: **`swift-package-manager`** (L3).
 | Edit | `swift-package-manager` | — | **absent** | **Retired by machine policy** — see §3.2. | architectural adjudication required | `Scripts/swift-build:1255–1257` |
 | Unedit | `swift-package-manager` | — | **absent** | as above | architectural adjudication required | as above |
 | Command result and failure representation | `swift-package-manager` | `Package.Manager.Error` (`.execution`, `.command(termination:stderr:)`, `.output`, `.manifest`); `Package.Manager.Termination` (`.exited`/`.signaled`/`.stopped`) | implemented without adequate tests | Adequate shape; 1 `@Test` total in the package. | extend existing owner | `Package Manager › Package.Manager.Error.swift`, `Package.Manager.Termination.swift` @ `d3dd30904` |
-| Mirror configuration inspection | `swift-package-manager` | — | **absent** | `package config get-mirror` **is** an allowed coordinator action and `swift-impact` already delegates to it, but through the coordinator process rather than through this library. | extend existing owner | `Scripts/swift-build:533–534,1391`; `Impact › Impact.Run.MirrorVerification.swift:56–70` |
+| Mirror configuration inspection | `swift-package-manager` | — | **absent** | ⚠️ **Corrected 2026-07-28 — the delegation claim below lapsed on 2026-07-25.** `swift-impact` no longer consults `package config get-mirror` at all: `f2105f99` deleted the prediction and replaced it with `dump-package` ground truth (ADR-001 Finding 4, referral closed). *Superseded text: "`package config get-mirror` **is** an allowed coordinator action and `swift-impact` already delegates to it, but through the coordinator process rather than through this library."* The coordinator itself is also gone from this machine (no `Scripts/` directory, measured 2026-07-28), so both cited evidence paths are historical. | **no live consumer — reassess before extending** | `Impact › Impact.Run.MirrorVerification.swift` @ `e4a2ec5b`; superseded citations `Scripts/swift-build:533–534,1391`, `…MirrorVerification.swift:56–70` @ `41e95a126` |
 
 ### 3.1 Ownership conflict: three manifest-loading implementations
 
@@ -673,10 +684,17 @@ implementation plan's §6.9 new-package presumption has direct local precedent.
 Recorded as **investigate in empirical spike**, not asserted:
 
 1. Whether `swift-json`'s `JSON.Options` guarantees deterministic key ordering.
-2. Whether `swift package config get-mirror`, run through the coordinator from a
+2. ~~Whether `swift package config get-mirror`, run through the coordinator from a
    given package directory, reports the substitution a build would actually use
    for an arbitrary dependency (`swift-impact` relies on this; the reliance is
-   documented, the general property is not).
+   documented, the general property is not).~~
+   **ANSWERED — NEGATIVE, and the reliance is gone.** It does not: `get-mirror`
+   is an exact-string key match, so it answers "not found" for every URL spelling
+   but the one the key was written under, while the resolver substitutes under
+   whichever spelling *it* uses. Measured by the §8.5 spike (ADR-001 Finding 4)
+   and independently re-reproduced by `swift-impact`, which **removed** the
+   reliance on 2026-07-25 (`f2105f99`) in favour of `dump-package` ground truth.
+   Referral closed and verified 2026-07-28 — see ADR-001 Finding 4.
 3. Whether `Package.Manager.manifest(at:)` throws or silently yields an empty
    `URI` when `location.remote` is empty — the code path constructs `URI("")`.
 4. The `swift-arguments` exit-code mapping surface.
