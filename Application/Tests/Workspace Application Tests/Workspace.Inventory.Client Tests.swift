@@ -83,7 +83,9 @@ extension Workspace.Inventory.Test.Unit {
     }
 
     @Test
-    func `Discovery traverses pages and records every eligibility reason`() async throws {
+    func `Discovery traverses pages, admits a fork, and records every eligibility reason`()
+        async throws
+    {
         let owner = GitHub.Organization.Name("swift-foundations")
         let denied = Workspace.Repository.Key(
             owner: owner,
@@ -102,6 +104,12 @@ extension Workspace.Inventory.Test.Unit {
                         .init(fixture: 1, name: "swift-file"),
                         .init(fixture: 2, name: "swift-archived", archived: true),
                         .init(fixture: 3, name: "swift-disabled", disabled: true),
+                        // Admitted, not excluded — the principal ruled
+                        // institute-owned forks onto the roster on 2026-07-28.
+                        // It sits among the excluded fixtures deliberately: the
+                        // reason list below is the positive control proving the
+                        // ruling narrowed eligibility by exactly one ground and
+                        // left the other six firing.
                         .init(fixture: 4, name: "swift-fork", fork: true),
                         .init(fixture: 5, name: "swift-private", visibility: .private),
                     ]),
@@ -125,6 +133,7 @@ extension Workspace.Inventory.Test.Unit {
         let content = GitHub.Repository.Content.Client<Never> { request async throws(Never) in
             switch request.repository.underlying {
             case "swift-file": .init(kind: .file)
+            case "swift-fork": .init(kind: .file)
             case "swift-directory": .init(kind: .directory)
             default: nil
             }
@@ -135,12 +144,11 @@ extension Workspace.Inventory.Test.Unit {
             content: content
         ).discover(policy)
 
-        #expect(discovery.repositories.map(\.key.name.underlying) == ["swift-file"])
+        #expect(discovery.repositories.map(\.key.name.underlying) == ["swift-file", "swift-fork"])
         #expect(
             discovery.exclusions.map(\.reason) == [
                 .archived,
                 .disabled,
-                .fork,
                 .visibility(.private),
                 .denied,
                 .absent,

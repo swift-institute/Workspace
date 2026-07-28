@@ -97,6 +97,11 @@ extension Workspace.Inventory.Client {
         return .init(repositories: included, exclusions: excluded)
     }
 
+    /// Why `repository` is ineligible, or `nil` if it is on the roster.
+    ///
+    /// `repository.fork` is deliberately not consulted — the principal ruled
+    /// institute-owned forks onto the roster on 2026-07-28. See
+    /// ``Workspace/Inventory/Eligibility/Reason`` for the ruling and its scope.
     private static func reason(
         _ repository: GitHub.Repository.Summary,
         key: Workspace.Repository.Key,
@@ -107,7 +112,6 @@ extension Workspace.Inventory.Client {
         }
         guard !repository.archived else { return .archived }
         guard !repository.disabled else { return .disabled }
-        guard !repository.fork else { return .fork }
         guard !policy.denied.contains(key) else { return .denied }
         return nil
     }
