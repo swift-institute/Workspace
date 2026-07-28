@@ -66,8 +66,9 @@ they are the substance of this document:
    this tree today (§4).
 2. A **velocity claim that is now measured** — and it holds, but not for the
    reason the framing assumed (§3, §3a).
-3. A **cost at scale that is unmeasured at real graph size** and may force a
-   second, less-supported mechanism (§6).
+3. A **cost at scale that is now measured and forces a second, less-supported
+   mechanism** — applying the overlay is quadratic in graph size, ~18 minutes at
+   200 pins (§6, §6a).
 4. **Eight packages that would let the overlay's own artifact be committed**, and
    **eight more that the overlay structurally cannot reach** (§7).
 
@@ -365,25 +366,66 @@ Census of the real tree, enumerated rather than sampled:
 one global act; it is "every institute package in *this* root's closure", repeated
 per root a developer builds.
 
-Cost of applying it, measured: **0.47 s** per `swift package edit` in a 1-dependency
-graph, **~1.8 s** in a 60-dependency graph. Two points is not a curve, but the
-direction is clear — each invocation reloads the whole workspace, so the total is
-`N × f(N)`, not `N × constant`. Extrapolated to a 200-pin root that is **between 6
-and 20 minutes**, and I will not narrow that range from two points.
+Cost of applying it, measured at three graph sizes — see §6a for the series and
+the fit. Per-edit cost is **linear in graph size**, so applying the overlay across
+a closure of size N is **quadratic**: ~18 minutes at the flagship consumer's 200
+pins.
 
-A third point at N=120 is recorded in §6a; the decision genuinely turns on which
-end of 6–20 minutes it is, because 6 minutes is a slow command and 20 is an
-unusable one.
+### 6a. The third point — it lands at the unusable end
 
-If it lands at the high end, there is a measured alternative: **a single
-well-formed write of `workspace-state.json` is honoured.** Sixty edited entries
+Measured at N=120, seven positions across the graph (`leaf1` … `leaf120`), each a
+separate `swift package edit` invocation:
+
+```
+3.94  4.17  3.27  3.31  3.20  3.42  3.64      median 3.42 s
+```
+
+**Position in the graph does not matter; graph size does.** Editing the first
+dependency costs the same as the hundred-and-twentieth. Three points now:
+
+| Graph size | Per-edit cost |
+|---|---|
+| 1 | 0.47 s |
+| 60 | ~1.80 s |
+| 120 | **3.42 s** |
+
+That is a clean straight line — roughly `0.45 + 0.025 N` seconds — and it fits the
+N=60 point to within 0.13 s. The mechanism is exactly what the shape implies: each
+invocation reloads the whole workspace, so applying the overlay to a graph of size
+N costs `N × f(N)`, quadratic in the graph.
+
+**Extrapolated to the flagship consumer at 200 pins: ~5.4 s per edit, ~18 minutes
+to apply the overlay to the full closure.** The 6–20 minute range I refused to
+narrow from two points resolves to **the top of it**. Eighteen minutes is not a
+slow command; it is a command nobody will run, and a capability nobody runs is not
+a capability.
+
+**So the batch write is required, not a contingency.** Recorded honestly: this
+extrapolates one linear fit two-thirds beyond its largest measured point, and all
+three points carry uncontrolled machine load (four concurrent builds from other
+sessions during the N=120 series). But the conclusion is robust to being generously
+wrong — halve every number and it is still nine minutes.
+
+There is a measured alternative: **a single well-formed write of
+`workspace-state.json` is honoured.** Sixty edited entries
 written in one pass, build green, all sixty local markers in compiled products,
 canonical markers absent from products (present only as dormant `.build/checkouts`
 clones — I checked, rather than assuming the grep hits were compiled output). One
 write replaces N invocations.
 
-I recommend this **only as a measured fallback, not as the default**: it writes
-SwiftPM's private `"version": 7` state, which no compatibility promise covers.
+**§6a promotes this from fallback to the primary path**, and that is a real cost
+of the design rather than a neat result: the supported interface is too slow to
+use at institute scale, so the capability rests on writing SwiftPM's private
+`"version": 7` state, which no compatibility promise covers. `swift package edit`
+remains the mechanism of record for small selections and the reference against
+which the batch write is verified — but "all packages" is the stated objective,
+and at that size only the batch write is viable.
+
+**That dependency must be declared, not buried.** A toolchain bump can change this
+file's shape, and §4 shows the failure mode is a whole-state discard behind a
+warning at exit 0. The design owes a test that fails loudly on toolchain upgrade —
+apply via `swift package edit`, read the state back, and assert the batch writer
+produces the byte-shape SwiftPM itself just produced.
 
 **The gate is not optional, and §4 is the argument for it.** The cost of getting
 that file's shape wrong is not a rejected write — it is a *whole-state discard*
@@ -588,11 +630,16 @@ marker verified in compiled products every round; the full 441-package census, t
 gitignore audit, the requirement-kind census, and the eight off-roster packages'
 GitHub attributes.
 
-**Assumed, and flagged:** that per-edit cost extrapolates from two points (it may
-not — §6 says measure it); that SwiftPM parallelises branch-tip fetches, making the
-96 s figure an upper bound; that the eight `Packages/`-unignored packages are the
+**Assumed, and flagged:** that the eight `Packages/`-unignored packages are the
 complete set for `Packages/` specifically — I did not audit every ignore pattern
 for other overlay artifacts.
+
+**Assumed, then measured, then withdrawn — recorded because the error is the
+useful part:** that SwiftPM parallelises branch-tip fetches, making the 96 s
+`ls-remote` projection an upper bound on `update`. It is not an upper bound; the
+measured fetch total is 106.5 s and the *fetches are not the dominant cost*.
+And that per-edit cost extrapolates from two points — §6 says measure it, and
+§6a does.
 
 **Also checked, after the first draft, because the earlier corpus was measured
 under a different default:** the overlay under `--build-system native` as well as
