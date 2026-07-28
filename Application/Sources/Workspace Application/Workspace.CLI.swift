@@ -1,5 +1,6 @@
 private import Build_Coordinator
 public import Command
+private import GitHub_HTTP
 private import Environment
 private import File_System
 private import Process
@@ -53,7 +54,7 @@ extension Workspace.CLI {
             Command.Positional(
                 \.operation,
                 name: "operation",
-                placeholder: "sync|doctor|compose|restore|verify|context|navigation|package",
+                placeholder: "sync|doctor|inventory|compose|restore|verify|context|navigation|package",
                 help: .init(abstract: "Operation to perform.")
             )
             Command.Positional<Self, Mode>.Many(
@@ -215,8 +216,8 @@ extension Workspace.CLI {
                     reason: "--consumer and --dependency are valid only with compose, restore, or verify."
                 )
             }
-            guard operation == .sync || !dry else {
-                throw .validationFailed(reason: "--dry-run is valid only with sync.")
+            guard operation == .sync || operation == .inventory || !dry else {
+                throw .validationFailed(reason: "--dry-run is valid only with sync or inventory.")
             }
             guard modes.isEmpty else {
                 throw .validationFailed(reason: "install and check are valid only after context.")
@@ -333,6 +334,34 @@ extension Workspace.CLI {
             ).run()
             print(report)
             Process.Exit.normal(report.status)
+        case .inventory:
+            let document = try Workspace.Configuration.Document.load(at: root.checkout)
+            let http = GitHub.HTTP.Client<
+                Workspace.Inventory.Transport.Error,
+                GitHub.HTTP.Pagination.Error
+            >(
+                agent: .init(rawValue: "swift-institute-workspace"),
+                version: .init(rawValue: "2022-11-28"),
+                execute: Workspace.Inventory.Transport.githubCLI()
+            )
+            let application = Workspace.Inventory.Application(
+                root: root.checkout,
+                policy: .institute(),
+                // `gh` supplies the credential; see Workspace.Inventory.Transport.
+                client: Workspace.Inventory.client(http, authentication: .token(.init(rawValue: "")))
+            )
+            let plan: Workspace.Inventory.Writer.Plan
+            do {
+                plan = try await application.run(existing: document, dry: dry)
+            } catch {
+                throw .configuration("inventory: \(error)")
+            }
+            switch plan {
+            case .current:
+                print("inventory: current")
+            case .replace:
+                print(dry ? "inventory: would replace Workspace.json" : "inventory: replaced Workspace.json")
+            }
         case .compose:
             try Workspace.Composition(root: root, configuration: configuration)
                 .compose(consumer: consumer, dependency: dependency)

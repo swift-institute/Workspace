@@ -4,6 +4,7 @@ extension Workspace.CLI {
     public enum Operation: Sendable, Equatable, Argument.Codable {
         case sync
         case doctor
+        case inventory
         case compose
         case restore
         case verify
@@ -15,6 +16,7 @@ extension Workspace.CLI {
             switch argument {
             case "sync": self = .sync
             case "doctor": self = .doctor
+            case "inventory": self = .inventory
             case "compose": self = .compose
             case "restore": self = .restore
             case "verify": self = .verify
@@ -32,6 +34,7 @@ extension Workspace.CLI.Operation {
         switch self {
         case .sync: "sync"
         case .doctor: "doctor"
+        case .inventory: "inventory"
         case .compose: "compose"
         case .restore: "restore"
         case .verify: "verify"
@@ -52,7 +55,7 @@ extension Workspace.CLI.Operation {
     /// on, so it lives here rather than being re-derived at the call site.
     internal var composesADependency: Swift.Bool {
         switch self {
-        case .sync, .doctor, .context, .navigation, .package: false
+        case .sync, .doctor, .inventory, .context, .navigation, .package: false
         case .compose, .restore, .verify: true
         }
     }
