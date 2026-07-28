@@ -30,6 +30,19 @@ extension Workspace.Root {
         _ target: File.Directory,
         under base: File.Directory
     ) throws(Workspace.Error) {
+        try Self.preflight(target, under: base)
+    }
+
+    /// ``preflight(_:under:)`` without a resolved root.
+    ///
+    /// The check reads only its two arguments. Exposing it statically
+    /// lets the lint capability — which is rooted at a hierarchy
+    /// directory rather than at a Workspace checkout — apply the same
+    /// containment discipline instead of a second, weaker copy of it.
+    static func preflight(
+        _ target: File.Directory,
+        under base: File.Directory
+    ) throws(Workspace.Error) {
         let baseComponents = Array(base.path.components)
         let targetComponents = Array(target.path.components)
         guard

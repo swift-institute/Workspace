@@ -11,6 +11,7 @@ extension Workspace.CLI {
         case context
         case navigation
         case package
+        case lint
 
         public init?(argument: Swift.String) {
             switch argument {
@@ -23,6 +24,7 @@ extension Workspace.CLI {
             case "context": self = .context
             case "navigation": self = .navigation
             case "package": self = .package
+            case "lint": self = .lint
             default: return nil
             }
         }
@@ -41,6 +43,7 @@ extension Workspace.CLI.Operation {
         case .context: "context"
         case .navigation: "navigation"
         case .package: "package"
+        case .lint: "lint"
         }
     }
 }
@@ -55,7 +58,7 @@ extension Workspace.CLI.Operation {
     /// on, so it lives here rather than being re-derived at the call site.
     internal var composesADependency: Swift.Bool {
         switch self {
-        case .sync, .doctor, .inventory, .context, .navigation, .package: false
+        case .sync, .doctor, .inventory, .context, .navigation, .package, .lint: false
         case .compose, .restore, .verify: true
         }
     }

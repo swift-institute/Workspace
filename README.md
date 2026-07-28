@@ -17,6 +17,8 @@ and local-source composition for cross-package work (`workspace compose` / `rest
 | `context install\|check` | Install or verify the checkout-root agent entry point and canonical skill projections. |
 | `navigation install\|check` | Install or verify the pinned cclsp/SourceKit-LSP integration for this checkout. |
 | `package <action>` | Run SwiftPM build, test, resolution, and administration through the Swift coordinator. |
+| `package lint` | Lint one package with the same binary, rules, and exit policy CI gates on. |
+| `lint` | Lint the whole ecosystem. `install\|check` manage the pinned linter and its parity with CI. |
 
 ## What Swift Institute is
 
@@ -176,6 +178,53 @@ Any earlier ad hoc merged-index pipeline and any prebuilt index bundle are
 retired, unsupported, and not prerequisites for navigation. A clean machine
 installs from the public cclsp revision and generates its own configuration
 through the Workspace commands above; it does not copy old index artifacts.
+
+### Lint
+
+Workspace runs the same swift-linter CI gates on: the same binaries from the
+same rolling `ci-binaries` release, verified against that release's
+`SHA256SUMS`, invoked as `swift-linter <package-root> --exit-policy strict`
+with the prebuilt standard runner provisioned on the environment. Workspace
+sets that environment variable itself; a developer's shell profile is never
+written, which is what makes the setup identical for everyone.
+
+```sh
+Application/.build/debug/workspace lint install     # fetch, verify, record the build
+Application/.build/debug/workspace lint check       # is it the build CI consumes?
+Application/.build/debug/workspace lint             # the whole ecosystem
+Application/.build/debug/workspace lint --changed   # only packages with local work
+workspace package lint                              # one package, from inside it
+```
+
+`package lint` takes no arguments: standing anywhere inside a package it finds
+the package root and the installed binaries by walking up, reads no inventory,
+and enumerates no organization. The whole-ecosystem sweep enumerates from
+`Workspace.json` and lints packages concurrently. Both modes go through one
+implementation, so a package's verdict cannot depend on which one asked for it.
+
+**A lint run cannot report clean without having measured something.** The
+engine ships rule-pack-agnostic: without a reachable configuration zero rules
+fire, and three invocations exit zero having printed nothing at all — a
+directory holding Swift source but no `Lint.swift`, a *file* path rather than a
+package root, and an empty directory. Exit status attests that a process ran,
+never that it was configured. Every run is adjudicated against the engine's
+always-on summary line, and a missing summary, zero active rules, or zero files
+linted reports `UNMEASURED` — never clean, per package inside the sweep as well
+as on its own. A sweep that enumerates the inventory and materializes nothing
+fails rather than reporting an empty ecosystem clean. Exit status follows
+`doctor`: 0 measured and passing, 1 measured with error-severity findings, 2
+something could not be measured.
+
+A file path is resolved to its enclosing package, which is linted whole and
+whose diagnostics are then narrowed to that file — passing a file to the engine
+is one of the silent-zero invocations and is unreachable through this
+capability.
+
+`lint check` compares the installed build's composite digest against the one CI
+consumes. Because `ci-binaries` is a rolling tag, that establishes *you are
+running what CI would install right now*, not what CI ran on any past run. The
+macOS asset publishes on a slower cadence than Linux, so a transient divergence
+is expected rather than a defect. A lint run itself never contacts the network.
 
 ### Build and test packages
 

@@ -15,6 +15,7 @@ extension Workspace {
         public var packagePath: Swift.String
         public var workspacePath: Swift.String
         public var fresh: Bool
+        public var changed: Bool
         public var arguments: [Swift.String]
 
         public init(
@@ -26,6 +27,7 @@ extension Workspace {
             packagePath: Swift.String = "",
             workspacePath: Swift.String = "",
             fresh: Bool = false,
+            changed: Bool = false,
             arguments: [Swift.String] = []
         ) {
             self.operation = operation
@@ -36,6 +38,7 @@ extension Workspace {
             self.packagePath = packagePath
             self.workspacePath = workspacePath
             self.fresh = fresh
+            self.changed = changed
             self.arguments = arguments
         }
     }
@@ -54,15 +57,17 @@ extension Workspace.CLI {
             Command.Positional(
                 \.operation,
                 name: "operation",
-                placeholder: "sync|doctor|inventory|compose|restore|verify|context|navigation|package",
+                placeholder: "sync|doctor|inventory|compose|restore|verify|context|navigation|package|lint",
                 help: .init(abstract: "Operation to perform.")
             )
             Command.Positional<Self, Mode>.Many(
                 \.modes,
                 name: "mode",
-                placeholder: "install|check|serve|build|test|run|resolve|update|clean|dump-package",
+                placeholder: "install|check|serve|build|test|run|resolve|update|clean|dump-package|lint",
                 arity: .atMost(1),
-                help: .init(abstract: "Required after context, navigation, or package.")
+                help: .init(
+                    abstract: "Required after context, navigation, or package; optional after lint."
+                )
             )
             Command.Flag(
                 \.dry,
@@ -73,6 +78,15 @@ extension Workspace.CLI {
                 \.fresh,
                 name: .long(.literal("fresh")),
                 help: .init(abstract: "Use isolated scratch state for a package build or test.")
+            )
+            Command.Flag(
+                \.changed,
+                name: .long(.literal("changed")),
+                help: .init(
+                    abstract:
+                        "Sweep only packages with local work — an unclean worktree, or commits not "
+                        + "yet in the tracked upstream (lint sweep only)."
+                )
             )
             Command.Option(
                 \.consumer,
@@ -103,7 +117,7 @@ extension Workspace.CLI {
                 name: .long(.literal("workspace-path")),
                 placeholder: "path",
                 help: .init(
-                    abstract: "Workspace checkout used by a generated navigation invocation."
+                    abstract: "Workspace checkout a navigation or lint invocation resolves against."
                 )
             )
             Command.Option<Self, Swift.String>.Many(
@@ -118,6 +132,9 @@ extension Workspace.CLI {
     }
 
     public mutating func validate() throws(Command.Error) {
+        guard operation == .lint || !changed else {
+            throw .validationFailed(reason: "--changed is valid only with the lint sweep.")
+        }
         if operation == .context {
             guard
                 modes.count == 1,
@@ -169,10 +186,46 @@ extension Workspace.CLI {
             guard arguments.isEmpty else {
                 throw .validationFailed(reason: "--argument is valid only with package.")
             }
-        } else if operation == .package {
-            guard modes.count == 1, let action = modes.first?.buildAction else {
+        } else if operation == .lint {
+            guard modes.isEmpty || modes.first == .install || modes.first == .check else {
                 throw .validationFailed(
-                    reason: "package requires build, test, run, resolve, update, clean, or dump-package."
+                    reason: "lint takes install, check, or no mode (the ecosystem sweep)."
+                )
+            }
+            guard modes.isEmpty || !changed else {
+                throw .validationFailed(reason: "--changed is valid only with the lint sweep.")
+            }
+            guard consumer.isEmpty, dependency.isEmpty else {
+                throw .validationFailed(
+                    reason: "--consumer and --dependency are not valid with lint."
+                )
+            }
+            guard !dry else {
+                throw .validationFailed(reason: "--dry-run is valid only with sync.")
+            }
+            guard !fresh else {
+                throw .validationFailed(reason: "--fresh is valid only with package build or test.")
+            }
+            guard packagePath.isEmpty else {
+                throw .validationFailed(
+                    reason: "--package-path is valid only with package; lint sweeps the inventory."
+                )
+            }
+            guard arguments.isEmpty else {
+                throw .validationFailed(reason: "--argument is valid only with package.")
+            }
+        } else if operation == .package {
+            guard modes.count == 1, let mode = modes.first else {
+                throw .validationFailed(
+                    reason:
+                        "package requires build, test, run, resolve, update, clean, dump-package, or lint."
+                )
+            }
+            let action = mode.buildAction
+            guard action != nil || mode == .lint else {
+                throw .validationFailed(
+                    reason:
+                        "package requires build, test, run, resolve, update, clean, dump-package, or lint."
                 )
             }
             guard consumer.isEmpty, dependency.isEmpty else {
@@ -238,6 +291,21 @@ extension Workspace.CLI {
             throw .configuration("PWD is not available")
         }
 
+        if case .package = operation, modes.first == .lint {
+            // The inner-loop path. It reads no inventory, enumerates no
+            // organisation, and constructs no `Workspace.Root`: standing
+            // inside a package, the package root and the installed
+            // binaries are both reachable by walking up. That is what
+            // keeps this mode from paying ecosystem-scale costs.
+            let target = try Workspace.Lint.Target.resolve(
+                packagePath.isEmpty ? working : packagePath
+            )
+            let lint = try Workspace.Lint.resolve(from: target.package.description)
+            let measurement = lint.measure(target, using: try lint.installation())
+            print(measurement)
+            Process.Exit.normal(measurement.verdict.fails ? (measurement.verdict.isUnmeasured ? 2 : 1) : 0)
+        }
+
         if case .package = operation {
             guard let action = modes.first?.buildAction else {
                 throw .configuration("package operation was not provided")
@@ -257,7 +325,7 @@ extension Workspace.CLI {
         }
 
         let checkoutValue =
-            operation == .navigation && !workspacePath.isEmpty
+            (operation == .navigation || operation == .lint) && !workspacePath.isEmpty
             ? workspacePath
             : working
         let checkout: File.Directory
@@ -267,6 +335,35 @@ extension Workspace.CLI {
             throw .configuration("Workspace checkout is not a valid path: \(error)")
         }
         let root = try Workspace.Root(checkout: checkout)
+
+        if case .lint = operation {
+            let lint = Workspace.Lint(root: root)
+            switch modes.first {
+            case .some(.install):
+                try lint.install()
+                let manifest = try lint.installedManifest()
+                print("lint: installed swift-linter \(manifest.digest)")
+                print("lint: \(try lint.executable(for: manifest))")
+            case .some(.check):
+                let diagnostics = try lint.diagnostics()
+                guard diagnostics.isEmpty else {
+                    throw .configuration(diagnostics.joined(separator: "\n"))
+                }
+                print("lint: current — digest \(try lint.installedManifest().digest) matches CI")
+            case nil:
+                let configuration = try Workspace.Configuration.load(at: root.checkout)
+                let report = try await Workspace.Lint.Sweep(
+                    lint: lint,
+                    root: root,
+                    repositories: configuration.repositories
+                ).run(scope: changed ? .changed : .all)
+                print(report)
+                Process.Exit.normal(report.status)
+            default:
+                throw .configuration("lint operation must be install, check, or absent")
+            }
+            return
+        }
 
         if case .navigation = operation {
             switch modes.first {
@@ -376,6 +473,8 @@ extension Workspace.CLI {
         case .navigation:
             return
         case .package:
+            return
+        case .lint:
             return
         }
     }

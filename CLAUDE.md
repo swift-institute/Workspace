@@ -16,6 +16,10 @@ swift run --package-path Application workspace doctor           # report checkou
 Application/.build/debug/workspace package test --package-path Application --fresh
 Application/.build/debug/workspace navigation install
 Application/.build/debug/workspace navigation check
+Application/.build/debug/workspace lint install                 # pinned swift-linter
+Application/.build/debug/workspace lint check                   # parity with CI
+Application/.build/debug/workspace lint                         # sweep the ecosystem
+Application/.build/debug/workspace package lint                 # one package, no arguments
 
 # local-source composition, for changing a package and its consumer together
 swift run --package-path Application workspace compose --consumer <c> --dependency <d>
@@ -55,6 +59,27 @@ that it did not run — that is not a failure of your checkout.
   resolution. Change `Package.swift` and resolve.
 - **Dependencies are branch-based.** `doctor` warns when a recorded pin lags its branch tip;
   a green over stale pins is not evidence — re-resolve.
+- **A lint verdict of "clean" always means something was measured.** swift-linter
+  ships rule-pack-agnostic: without a reachable configuration zero rules fire, and a
+  directory with no `Lint.swift`, a *file* path, or an empty directory each exit zero
+  having printed nothing. Exit status attests that a process ran, never that it was
+  configured. Workspace adjudicates every run against the engine's always-on summary
+  line and reports `UNMEASURED` — never clean — when the line is absent, no rules
+  loaded, or no files were scanned, per package inside the sweep as well as alone.
+  Preserve that in any change: a lint path that can report clean without a summary
+  line is the defect this capability exists to prevent. The sweep likewise fails
+  rather than reporting an empty ecosystem clean when the inventory materializes
+  nothing, which is what a run from the wrong hierarchy root looks like.
+- **swift-linter is developer tooling, not an inventory package.** Install it through
+  `workspace lint install`; never add it to `Workspace.json` and never put a machine
+  path in durable configuration. Workspace sets `SWIFT_LINTER_RUNNER` on the child
+  process itself — never a developer's shell profile, which would be machine-specific
+  by construction. Parity with CI is the point: same rolling `ci-binaries` release,
+  same checksum verification, same `--exit-policy strict`. Do not add a flag that
+  softens the rule set, the severities, or the exit policy — a local capability that
+  can disagree with CI teaches people to trust whichever answer is convenient.
+  `lint check` compares the installed composite digest against the one CI consumes;
+  a lint run never contacts the network.
 - **cclsp is developer tooling, not an inventory package.** Install and verify it through
   `workspace navigation`; never add it to `Workspace.json`, resolve it from a personal fork,
   or put a fixed machine checkout path in durable configuration. `navigation serve` owns the

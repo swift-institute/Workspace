@@ -64,6 +64,7 @@ extension Workspace.Doctor {
             census(checkouts),
             pins(checkouts),
             manifest(checkouts),
+            linter(),
         ]
         switch access {
         case .contributor:
