@@ -1124,6 +1124,12 @@
     },
     {
       "layer": "primitives",
+      "name": "swift-tagged-primitives",
+      "organization": "swift-primitives",
+      "url": "https://github.com/swift-primitives/swift-tagged-primitives.git"
+    },
+    {
+      "layer": "primitives",
       "name": "swift-tensor-primitives",
       "organization": "swift-primitives",
       "url": "https://github.com/swift-primitives/swift-tensor-primitives.git"
@@ -1964,6 +1970,12 @@
     },
     {
       "layer": "foundations",
+      "name": "swift-domain-name-system",
+      "organization": "swift-foundations",
+      "url": "https://github.com/swift-foundations/swift-domain-name-system.git"
+    },
+    {
+      "layer": "foundations",
       "name": "swift-domain-name-system-kernel",
       "organization": "swift-foundations",
       "url": "https://github.com/swift-foundations/swift-domain-name-system-kernel.git"
@@ -1988,9 +2000,21 @@
     },
     {
       "layer": "foundations",
+      "name": "swift-email-html",
+      "organization": "swift-foundations",
+      "url": "https://github.com/swift-foundations/swift-email-html.git"
+    },
+    {
+      "layer": "foundations",
       "name": "swift-emailaddress",
       "organization": "swift-foundations",
       "url": "https://github.com/swift-foundations/swift-emailaddress.git"
+    },
+    {
+      "layer": "foundations",
+      "name": "swift-entitlement",
+      "organization": "swift-foundations",
+      "url": "https://github.com/swift-foundations/swift-entitlement.git"
     },
     {
       "layer": "foundations",
@@ -2144,12 +2168,6 @@
     },
     {
       "layer": "foundations",
-      "name": "swift-image-magick",
-      "organization": "swift-foundations",
-      "url": "https://github.com/swift-foundations/swift-image-magick.git"
-    },
-    {
-      "layer": "foundations",
       "name": "swift-institute-linter-rules",
       "organization": "swift-foundations",
       "url": "https://github.com/swift-foundations/swift-institute-linter-rules.git"
@@ -2159,6 +2177,12 @@
       "name": "swift-io",
       "organization": "swift-foundations",
       "url": "https://github.com/swift-foundations/swift-io.git"
+    },
+    {
+      "layer": "foundations",
+      "name": "swift-ip-address",
+      "organization": "swift-foundations",
+      "url": "https://github.com/swift-foundations/swift-ip-address.git"
     },
     {
       "layer": "foundations",
@@ -2255,12 +2279,6 @@
       "name": "swift-metrics",
       "organization": "swift-foundations",
       "url": "https://github.com/swift-foundations/swift-metrics.git"
-    },
-    {
-      "layer": "foundations",
-      "name": "swift-money",
-      "organization": "swift-foundations",
-      "url": "https://github.com/swift-foundations/swift-money.git"
     },
     {
       "layer": "foundations",
@@ -2390,12 +2408,6 @@
     },
     {
       "layer": "foundations",
-      "name": "swift-server-foundation",
-      "organization": "swift-foundations",
-      "url": "https://github.com/swift-foundations/swift-server-foundation.git"
-    },
-    {
-      "layer": "foundations",
       "name": "swift-server-static",
       "organization": "swift-foundations",
       "url": "https://github.com/swift-foundations/swift-server-static.git"
@@ -2468,15 +2480,15 @@
     },
     {
       "layer": "foundations",
-      "name": "swift-svg",
+      "name": "swift-structured-queries-postgres",
       "organization": "swift-foundations",
-      "url": "https://github.com/swift-foundations/swift-svg.git"
+      "url": "https://github.com/swift-foundations/swift-structured-queries-postgres.git"
     },
     {
       "layer": "foundations",
-      "name": "swift-svg-printer",
+      "name": "swift-svg",
       "organization": "swift-foundations",
-      "url": "https://github.com/swift-foundations/swift-svg-printer.git"
+      "url": "https://github.com/swift-foundations/swift-svg.git"
     },
     {
       "layer": "foundations",
@@ -2588,6 +2600,12 @@
     },
     {
       "layer": "foundations",
+      "name": "swift-url-routing",
+      "organization": "swift-foundations",
+      "url": "https://github.com/swift-foundations/swift-url-routing.git"
+    },
+    {
+      "layer": "foundations",
       "name": "swift-url-routing-authentication",
       "organization": "swift-foundations",
       "url": "https://github.com/swift-foundations/swift-url-routing-authentication.git"
@@ -2621,6 +2639,12 @@
       "name": "swift-uuids",
       "organization": "swift-foundations",
       "url": "https://github.com/swift-foundations/swift-uuids.git"
+    },
+    {
+      "layer": "foundations",
+      "name": "swift-webpage",
+      "organization": "swift-foundations",
+      "url": "https://github.com/swift-foundations/swift-webpage.git"
     },
     {
       "layer": "foundations",
