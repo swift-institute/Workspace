@@ -7,6 +7,29 @@ state a successor picks up.
 
 ---
 
+## 0. The one thing to inherit
+
+**This capability got smaller under adjudication, and every step of that came from
+measuring something we had been asserting.**
+
+No private state is written. No prohibition was overridden. Three of the four
+safety gates dissolved because the thing they were guarding stopped existing. Two
+supported mechanisms replaced one unsupported one. Five source files and a test
+suite were written and then deleted.
+
+None of that came from a better idea. It came from checking numbers that were
+being quoted — an 18-minute apply cost that turned out to be the flagship consumer
+against a median of 36; a per-edit cost extrapolated from two points; a byte-shape
+requirement that no real file met; a prohibition described as an absence until
+someone read its actual wording.
+
+> **The instinct worth inheriting is not any fact about SwiftPM below. It is:
+> withdraw the machinery when the measurement removes its justification.**
+
+The facts in §5 will go stale with the next toolchain. That instinct will not.
+
+---
+
 ## 1. Where it stands
 
 **Design: complete, adjudicated, pushed.** Approved by the Team Lead, with the
