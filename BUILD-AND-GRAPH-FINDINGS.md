@@ -11,9 +11,15 @@ re-break them.
 
 ## 1. Public packages that cannot be built by the public
 
-**Five private Institute packages are dependencies of six public roster packages.**
+**Five private Institute packages are required by five public packages, across six dependency
+edges.**
 
-| Private dependency | Depended on by (all public, non-archived) |
+**State this as edges and distinct packages, never as a row count.** The table below has six rows
+but names **five** distinct dependents — `swift-domain-name-system-kernel` appears twice, taking
+both `swift-domain-name-system` and `swift-ip-address`. Reading the row count as a package count
+produced a "six public packages" error twice, in two separate sessions, before it was caught.
+
+| Private dependency | Required by (all public, non-archived) |
 |---|---|
 | `swift-webpage` | `swift-authentication` |
 | `swift-email-html` | `swift-identities-mailgun` |
@@ -21,16 +27,29 @@ re-break them.
 | `swift-ip-address` | `swift-domain-name-system-kernel`, `swift-sockets-ip-address` |
 | `swift-domain-name-system` | `swift-domain-name-system-kernel` |
 
-All five verified `PRIVATE`, non-archived, non-fork. All six dependents verified `PUBLIC`,
-non-archived. Each private package is declared as a `.package(url:)` dependency inside a public
-manifest, so naming them here discloses nothing that the public manifests do not already.
+**6 edges — 5 distinct private packages, 5 distinct public dependents.**
+
+All five private packages verified `PRIVATE`, non-archived, non-fork. All five dependents verified
+`PUBLIC`, non-archived — that second direction matters, because a private dependency is only a
+defect if the dependent is public. Each private package is declared as a `.package(url:)` dependency
+inside a public manifest, so naming them here discloses nothing that the public manifests do not
+already.
+
+**Population, because a count without one is how this went wrong twice.** The table was derived from
+the **441 roster manifests only**. An independent measurement over a wider population — all **383
+public repositories** across `swift-foundations`, `swift-primitives`, `swift-standards` and
+`swift-institute`, including 286 nested `Experiments/` packages and 19 repositories not checked out
+locally — found the **same six edges**, all library `.target` dependencies rather than test-only,
+with **zero transitive additions**, under a grep carrying a positive control (285 of 286 matched a
+must-exist string, so its zero is a real zero). Two different populations, same answer.
 
 `CLAUDE.md` states that nothing in this repository needs Institute access, and that a step wanting
 a repository you cannot read *"is a defect worth reporting"*. This is that report.
 
 **A resolve performed by an authenticated member succeeds, which is why this was invisible.** Each
-of the six packages resolves fine for anyone with access. Per-package builds never force the whole
-graph to resolve at once; the defect only appeared under a single root spanning all 441 packages.
+of the five dependents resolves fine for anyone with access. Per-package builds never force the
+whole graph to resolve at once; the defect only appeared under a single root spanning all 441
+packages.
 
 It also bounds any "build the whole graph from local source with the remotes gone" goal: five
 required packages are neither in the roster nor on disk. Publishing them, vendoring them, or
