@@ -477,9 +477,26 @@ and at that size only the batch write is viable.
 
 **That dependency must be declared, not buried.** A toolchain bump can change this
 file's shape, and §4 shows the failure mode is a whole-state discard behind a
-warning at exit 0. The design owes a test that fails loudly on toolchain upgrade —
-apply via `swift package edit`, read the state back, and assert the batch writer
-produces the byte-shape SwiftPM itself just produced.
+warning at exit 0. The design owes a canary that fails loudly on toolchain upgrade:
+apply via real `swift package edit`, then assert **(a)** a semantic fixed-point —
+`decode(encode(decode(x))) == decode(x)` over real state files — and **(b)** a live
+read-back through SwiftPM's own view showing every intended package reports
+`edited`.
+
+**Not byte-identity, and that is a measured correction rather than a relaxation.**
+An earlier draft of this section, and the adjudication that approved it, specified
+the canary as reproducing *"the byte-shape SwiftPM itself just produced."* Against
+the 26 `workspace-state.json` files present in the tree — **all 26 at version 7**,
+no other value — **0 of 26** survive a naive re-encode byte-identically: SwiftPM
+writes through Foundation's pretty-printer, with `"object" : {` spaced around the
+colon and empty arrays as `[\n\n    ]`. Matching that means reimplementing a
+formatting quirk and pinning to it.
+
+And byte-identity is not what SwiftPM requires. §6's batch-write evidence is direct:
+the 60 entries SwiftPM honoured were written in a **different** byte shape
+entirely, and all 60 persisted and compiled. A byte-identity canary would fail on
+cosmetic drift, which is how a canary gets disabled. **(b) is the gate that
+actually detects a shape SwiftPM will not accept.**
 
 **The gate is not optional, and §4 is the argument for it.** The cost of getting
 that file's shape wrong is not a rejected write — it is a *whole-state discard*
@@ -762,6 +779,41 @@ supports — and it is enough for *single, multiple, or all*.
 The plan's §4.6 discipline applies unchanged and is why `plan` is a verb here:
 formulate an inspectable plan, support dry-run, identify affected paths, refuse
 unsafe states by default, be idempotent, and verify the postcondition.
+
+### Ownership: this cannot be built in Workspace alone
+
+Established against the lower layers' source before writing any code, because
+founding-plan §4.3 forbids Workspace implementing SwiftPM mechanics itself and
+requires a missing capability to be added to its semantic owner.
+
+| Capability required | Owner | Present today |
+|---|---|---|
+| **Encode** `Package.Resolution` — the batch write | `swift-spm-standard` (L2) | **No.** Deliberately decode-only; no `Encodable` or `JSON.Serializable` in `Sources/` |
+| **Invoke** `swift package edit` / `unedit` — the mandated fallback, and the canary's oracle | `swift-package-manager` (L3) | **No.** Public surface is `resolution`, `manifest`, `evaluation`, `dump`, `materialized` — all read-only |
+
+The decode-only choice is deliberate and argued in that package's own source:
+version 7 is *"a precondition, not a fact worth carrying"*, and unrecognised
+states fail loudly rather than being mis-decoded. Adding a writer is a real Layer-2
+design change, not a mechanical addition — and it is **where the fail-closed
+version gate belongs**, since `Package.Resolution.supportedVersion` already lives
+there rather than in Workspace.
+
+**Consequence for sequencing:** the core of `apply` cannot land until those two
+owners gain their capabilities. Putting either in Workspace would satisfy the
+schedule and violate the invariant.
+
+### The lock hazard the fallback must be built around
+
+`swift-package-manager`'s own source documents it: **SwiftPM takes an exclusive
+lock on the target package's `.build` and waits indefinitely rather than failing.**
+A caller pointed at a package something else is building **hangs**; it does not
+error.
+
+The mandated fallback shells out to `swift package edit` per package, so on a
+machine running a full-tree sweep it would hang rather than degrade loudly — worse
+than the failure it exists to replace. **The fallback needs a lock-aware
+precondition with a timeout**, and the §4b capstone cannot be run against real
+institute packages while any sweep is live.
 
 Satisfaction of the founding plan's §4 invariants, which remain binding: **4.1**
 committed manifests are never touched — measured, byte-identical throughout;
