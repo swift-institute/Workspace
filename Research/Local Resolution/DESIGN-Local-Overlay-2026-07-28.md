@@ -13,6 +13,12 @@ document is written from first principles and does not inherit those decisions.
 Prior *measurements* are treated as evidence rather than authority; every fact
 load-bearing for this design was re-measured today against the pinned toolchain.
 
+**Standing rule this document asserts, at the Team Lead's direction:** *prior
+measurements survive; conclusions built on them lapse.* Discarding evidence and
+discarding conclusions are different acts, and an override does only the second.
+ADR-001's executed spike findings are therefore carried forward as facts even
+though its Decision is superseded.
+
 **Vantage.** Everything below was measured on one macOS 27.0 machine, Swift 6.4
 (`swiftlang-6.4.0.27.1`), Xcode 27.0 at `/Applications/Xcode-beta.app`,
 `~/.swiftpm/configuration/` empty. Mechanism experiments ran on throwaway fixtures
@@ -20,6 +26,23 @@ in a session scratchpad with `file://` remotes; census and latency figures come
 from the real checkout and from `github.com`. **No institute package worktree or
 `.build` directory was written to.** Nothing here is a claim about CI, about Linux,
 or about Xcode — the Xcode gap is called out explicitly as untested.
+
+**Build system and manifest floor, stated because both moved recently.** At Swift
+6.4 `--build-system` **defaults to `swiftbuild`**; `native` and `xcode` are
+deprecated. The whole prior `Research/Local Resolution` corpus was measured on
+Swift 6.3.3 under the *old* default, so none of it is inherited here. The
+load-bearing results below were taken **on both build systems** and at
+**`swift-tools-version: 6.3.3`** — the floor the ecosystem actually sits on, which
+cannot move to 6.4 until a Linux container exists. Where a result is
+build-system-specific or tools-version-specific this document says so; the
+overlay's behaviour was identical on both.
+
+**This document discharges the spike the founding implementation plan owed.**
+`WORKSPACE_LOCAL_RESOLUTION_IMPLEMENTATION_PLAN.md` §7.1 already names
+`swift package edit --path` as *Backend A, the first implementation candidate*,
+and lists nine open questions no production architecture may assume past. Seven are
+answered below; §7 records the two that are not, and §4 records the one whose
+answer contradicts the plan's own required behaviour.
 
 ---
 
@@ -68,6 +91,11 @@ Fixture: consumer declaring a dependency by URL; dependency worktree carrying an
 | Does it bypass version solving? | **No.** `edit` first requires the package to be *placeable*. Against an unsatisfiable requirement it exits **1** with the resolver's own error |
 | Does the edited manifest drive resolution? | **Yes** — a dependency added only in local source is fetched and compiled, and `Package.resolved` gains its pin |
 | Does `unedit` restore? | **Yes, completely** — see §5 |
+| Local checkout declares a different package/target name? | **Fails loudly** — exit **1**, *"target 'Dep' referenced in product 'Elsewhere' could not be found"* |
+| Edited package drops out of the graph entirely? | **Overlay lingers** — build green, `edited` entry retained, `Packages/` residue kept. Stale, not wrong, but `status` must surface it (§7) |
+| Honoured under `--build-system native`? | **Yes** — verified in a clean room, marker in `arm64-apple-macosx/debug/Dep.build/Dep.swift.o` |
+| Honoured at `swift-tools-version: 6.3.3`? | **Yes** — the manifest floor, not just 6.4 |
+| Accepts `--scratch-path`? | **No** — exit **64**. This is consequential; see §4a |
 
 Two consequences worth stating separately.
 
@@ -153,11 +181,60 @@ This explains a finding recorded as *unresolved* in
 records `remoteSourceControl`. That was not a mystery. It is what deleting `.build`
 under an edit leaves behind, and it is sitting in the checkout now.
 
+Reproduced on **both** build systems — `swiftbuild` and `native` — so this is a
+property of workspace state, not of a build engine. It is also not
+tools-version-specific: reproduced at `6.3.3`.
+
 A second, adjacent path: a `workspace-state.json` SwiftPM cannot decode is
 **discarded whole** — including valid entries — with a single
 `warning: unable to restore workspace state: …` and **exit 0**. I hit this by
 writing a malformed file: sixty edits vanished and the build went green against
 canonical. A warning inside a thousand-line build log is not a gate.
+
+### 4a. The scratch-path finding — and why it lands the right way up
+
+The founding plan's Backend A requires, as step 1 of its required behaviour,
+*"assign an isolated context-specific scratch path."* **That is not achievable
+with `swift package edit` at Swift 6.4, and the plan could not have known it.**
+
+`swift package edit` **rejects `--scratch-path`** — exit **64**, usage error; its
+entire option set is `--revision`, `--branch`, `--path`. Editable state can
+therefore only ever be written to the *default* `.build`. But `swift build`,
+`resolve` and friends **do** accept `--scratch-path`. The two halves disagree, and
+the consequence is measured:
+
+| Apply overlay to | Build with | Result |
+|---|---|---|
+| default `.build` | default `.build` | overlay live — local marker compiled |
+| default `.build` | `--scratch-path <ctx>` | **overlay invisible** — canonical compiled, state records `sourceControlCheckout`, **exit 0, no comment**, while `Packages/` still claims the overlay |
+
+That kills two of the founding plan's ambitions outright: **isolated per-context
+scratch paths are not available to this backend**, and **two contexts for one root
+cannot coexist** by that means (plan §7.1 open questions 1 and 6, answered
+negative).
+
+**And then it lands the right way up, which I did not expect.** The Workspace build
+coordinator assigns a scratch path in exactly one case:
+`Build.Coordinator.freshScratch` returns `nil` unless `fresh: true`
+(`Build.Coordinator.swift:158–176`). So:
+
+- **an ordinary coordinator build uses the default `.build` — the overlay is
+  honoured**, which is what the inner loop needs;
+- **a `--fresh` coordinator build or test gets a unique scratch directory — the
+  overlay is bypassed by construction**, which is what a pre-PR gate needs.
+
+`--fresh` is already the institute's documented pre-PR gate (*"the package passes a
+fresh coordinator test from its own repository"*). It therefore **already is** the
+clean-room check that ADR-001 Consequence 2 made mandatory and that the founding
+plan §4.5 demanded alongside local validation — and it is overlay-free without
+anyone remembering to make it so. The mechanism and the discipline compose.
+
+**The one change required is a sentence, not a mechanism.** Today that divergence
+is silent: a developer running `--fresh` under an active overlay gets canonical
+source with nothing said. The coordinator must **state** that it bypassed an
+active overlay, and `status` must name `--fresh` as the way to check remote
+reproducibility. A correct bypass that looks identical to a forgotten overlay is
+the same failure as §4 wearing better clothes.
 
 **Design consequence.** The overlay's state is *two* facts that can disagree, and
 SwiftPM will not reconcile them for you. Workspace must own that reconciliation:
@@ -282,14 +359,27 @@ packages" has a documented hole**, and closing it is a principal-level question:
 *should institute-owned forks be materialized?* Until answered, the overlay's
 coverage claim must be stated as *all roster packages*, never *all dependencies*.
 
+**A third limit, structural rather than incidental: the overlay is root-scoped, and
+it can outlive its reason.** An `edited` entry survives the dependency leaving the
+graph — build green, entry retained, `Packages/` residue kept. Nothing compiles it,
+so it is stale rather than wrong; but if that dependency is later re-added, the
+developer inherits a live overlay they did not apply in this session. `status` must
+report edited entries with no corresponding graph edge, and `remove` must sweep
+them.
+
 Also out of scope until measured, stated rather than glossed:
 
 - **Xcode.** `institute.xcworkspace` is a committed artifact and I did not test the
   overlay under Xcode at all. Xcode does not inherit a shell environment, and it
-  drives SwiftPM through its own workspace machinery. Untested.
+  drives SwiftPM through its own workspace machinery. Untested — and it is the
+  founding plan's §7.1 open question 7, still open.
 - **CI.** Every statement here is about a local checkout. The overlay must be
   provably absent in CI, which is a check to write, not a property to assume.
 - **Linux and any second toolchain.**
+- **Two of the founding plan's nine spike questions are answered negative rather
+  than unanswered** — isolated context scratch paths, and two coexisting contexts
+  for one root (§4a). Any design inheriting that plan's context model must be told
+  so, because it assumed both were available.
 
 ---
 
@@ -339,11 +429,38 @@ design. It is recorded here so that conclusion does not have to be rediscovered.
 
 Full Swift, in `Workspace Application`, no new shell or Python.
 
+**Vocabulary reconciled with the founding plan rather than minted fresh.** Its §12
+already specifies `workspace resolution plan | apply | status | verify | remote`
+and a `workspace context` family. I proposed `workspace overlay …` before reading
+it. **Adopt `workspace resolution`** — it is the adjudicated name for exactly this
+concept, and a second vocabulary for one thing is the confusion this design is
+otherwise trying to remove:
+
 ```sh
-workspace overlay apply    [--package <name>]…    # single, multiple, or all
-workspace overlay status                          # mode, parity, half-applied detection
-workspace overlay remove   [--package <name>]…
+workspace resolution plan   [--package <name>]…   # inspectable, changes nothing
+workspace resolution apply  [--package <name>]…   # single, multiple, or all
+workspace resolution status                       # mode, parity, half-applied, stale entries
+workspace resolution remove [--package <name>]…
 ```
+
+I am **not** adopting the plan's `context` family. Its contexts assume isolated
+per-context scratch paths and multiple coexisting contexts per root; §4a shows
+`swift package edit` provides neither. A persisted context model built on a
+mechanism that cannot isolate would be a name for something that does not exist.
+One overlay per root, discovered rather than named, is what the mechanism actually
+supports — and it is enough for *single, multiple, or all*.
+
+The plan's §4.6 discipline applies unchanged and is why `plan` is a verb here:
+formulate an inspectable plan, support dry-run, identify affected paths, refuse
+unsafe states by default, be idempotent, and verify the postcondition.
+
+Satisfaction of the founding plan's §4 invariants, which remain binding: **4.1**
+committed manifests are never touched — measured, byte-identical throughout;
+**4.2** explicit, inspectable, regenerable, removable, deterministically
+reversible — `unedit` verified complete; **4.3** Workspace decides policy and
+`swift-package-manager` executes the mechanics; **4.4** external consumers see
+URL declarations unchanged, because nothing is committed; **4.5** satisfied by
+`--fresh` (§4a), which is overlay-free by construction; **4.6** the `plan` verb.
 
 - `apply` with no `--package` covers **every roster package in the closure** of the
   root it is run against. With `--package` it covers exactly those and their
@@ -362,7 +479,11 @@ workspace overlay remove   [--package <name>]…
 
 **On the existing `compose` / `verify` / `restore`:** its mechanism — rewriting the
 committed manifest with a machine-local absolute path, per dependency pair — is the
-thing the objective rules out. I recommend retiring `compose` and `restore` once
+thing the objective rules out. It also fails the *"nothing machine-specific"*
+constraint on its own terms, independently of the new objective: a manifest
+carrying an absolute path is machine-specific state in a tracked file, and
+`compose`'s own warning says so. That constraint is ruling 143, standing since
+2026-07-26, so this is not a new judgement being applied retroactively. I recommend retiring `compose` and `restore` once
 `overlay` lands, and **keeping `verify`'s approach**: reading effective source from
 SwiftPM's resolved state rather than from a ledger is right, and it is the honest
 core of `status`. I have not touched that code.
@@ -388,10 +509,31 @@ not — §6 says measure it); that SwiftPM parallelises branch-tip fetches, maki
 complete set for `Packages/` specifically — I did not audit every ignore pattern
 for other overlay artifacts.
 
+**Also checked, after the first draft, because the earlier corpus was measured
+under a different default:** the overlay under `--build-system native` as well as
+the 6.4 default `swiftbuild`, in a clean room with the hit locations disambiguated;
+the overlay at `swift-tools-version: 6.3.3`, the real manifest floor; `edit`'s
+rejection of `--scratch-path`; the divergence between an overlay applied to the
+default `.build` and a build given a custom scratch path; `Build.Coordinator`'s
+scratch policy read from source (`freshScratch` returns `nil` unless `fresh`);
+identity mismatch in the local checkout; and an edited package dropping out of the
+graph.
+
 **Not checked at all, and not to be read as safe:** Xcode under the overlay; CI
 absence of the overlay; Linux; any toolchain other than Swift 6.4; and the real
 `swift package update` cost at 200 pins, which §3 says decides whether this is worth
 building.
+
+**A second zero I refused, in the re-measurement pass.** The first
+`--build-system native` run reported the local marker absent from `.build/debug`
+— which would have been a headline finding: *the overlay does not work on the
+deprecated build system.* It was the instrument. `.build/debug` is a symlink into
+`arm64-apple-macosx/debug`, and neither `find` nor `grep -r` descended it. A
+positive control — *can this probe find any known string in native's output at
+all?* — returned empty too, which is what exposed it. Grepping the real path shows
+the marker present. **The probe that reports "not found" and the probe that reports
+"nothing to search" are the same output**, and one of them was about to become a
+design conclusion.
 
 **One instrument trap hit and corrected, recorded because it nearly entered this
 document:** I first read exit statuses through `… | tail -5`, which reports `tail`'s

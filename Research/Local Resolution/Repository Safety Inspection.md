@@ -156,6 +156,35 @@ contains **zero** entries whose state name is `edited`, and records `swift-git` 
 The symlink and the resolver state therefore **disagree**. Preserved untouched and
 recorded as evidence in Owner Capability Matrix §3.
 
+> **✅ CLOSED 2026-07-28 — explained, not merely observed.**
+>
+> This disagreement is not a mystery and not corruption. It is the deterministic
+> result of **deleting `.build` while a `swift package edit` overlay is active**,
+> reproduced from a clean fixture:
+>
+> ```
+> edit applied    → Packages/dep -> …/dep    state: edited
+> rm -rf .build   → Packages/dep -> …/dep    state: (gone)
+> swift build     → Packages/dep -> …/dep    state: sourceControlCheckout
+>                   exit 0 · canonical source compiled · no warning
+> ```
+>
+> The symlink survives because it lives in the worktree; the `edited` entry does
+> not because it lives in `.build`. The next build resolves canonical, succeeds,
+> and says nothing. `swift package unedit` in that state exits **1** with
+> *"dependency not in edit mode"* — SwiftPM is not confused, but nothing consults
+> it. Reproduced on **both** build systems (`swiftbuild` and `native`), so it is a
+> workspace-state property rather than a build-engine one.
+>
+> Two things follow, and they are why this is worth closing rather than deleting.
+> The state is **two facts that can disagree and that SwiftPM will not
+> reconcile** — which makes half-applied detection a first-class requirement of
+> any edit-based capability, not a nicety. And re-running `edit` over a stale
+> symlink **repairs** it, so the condition is recoverable by command.
+>
+> Full reproduction, controls, and the design response:
+> `DESIGN-Local-Overlay-2026-07-28.md` §4.
+
 ## 5. Conditions that would have required a build
 
 None. Every finding in this Gate-0A slice was established from repository content,

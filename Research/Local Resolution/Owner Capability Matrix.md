@@ -352,6 +352,31 @@ adjudication is narrow and answerable: should `Package.Manager` decode via
 
 ### 3.2 `edit` / `unedit` are retired, and scratch paths are not caller-supplied
 
+> **⛔ The retirement recorded in this section LAPSED, 2026-07-28.** The principal
+> named `swift package edit` as the mechanism for local development across the
+> institute graph; ADR-001's retirement is superseded (see its header).
+>
+> The reason this is a lapse rather than a reversal is recorded in this section's
+> own evidence: the prohibition lived **only** in
+> `<developer-root>/swift-institute/Scripts/swift-build`, the machine-wide Python
+> coordinator quoted below — and that coordinator was dissolved in Workspace
+> commit `9441bcb`. A rule whose sole enforcement mechanism has been dismantled is
+> a residue, not a rule. Nothing here ever argued that `edit` was technically
+> unsuitable; it argued that the guard rejected it.
+>
+> **What survives, and is now load-bearing in the opposite direction:** this
+> section's second observation — that the coordinator, not the caller, assigns
+> scratch paths. `swift package edit` at Swift 6.4 **rejects `--scratch-path`**
+> (exit 64; its options are `--revision`, `--branch`, `--path` only), so editable
+> state can only ever live in the *default* `.build`. A build given a custom
+> scratch path therefore cannot see an overlay, resolves canonical, and exits 0
+> without comment. Measured 2026-07-28; see
+> `DESIGN-Local-Overlay-2026-07-28.md` §4, where this turns out to compose
+> *correctly* with the coordinator's `--fresh` mode rather than against it.
+>
+> §3.3's "residual editable state" is no longer unresolved — it is explained and
+> closed. See `Repository Safety Inspection` §4.3.
+
 `<developer-root>/swift-institute/Scripts/swift-build` is a 1,486-line
 machine-wide coordinator that also installs as a `PreToolUse` guard.
 

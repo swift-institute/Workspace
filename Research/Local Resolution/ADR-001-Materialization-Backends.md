@@ -1,6 +1,42 @@
 # ADR-001 — Materialization Backends
 
-**Status:** Accepted · **Date:** 2026-07-25
+> ## ⛔ SUPERSEDED 2026-07-28 — both halves of the decision
+>
+> **Basis:** a direct principal override, delivered twice and independently
+> confirmed: *"I want this issue researched and approached from first principles
+> … the objective is capability to do local development on single, multiple, or
+> all swift-institute packages as if each `Package.swift` had local path based
+> dependencies instead of URL based ones"*, and *"this also overturns ALL prior
+> research and decisions on this topic."* Adjudicated and ruled superseded by the
+> Team Lead, 2026-07-28.
+>
+> **What lapses:** the Decision section entire — `.package(path:)` generated
+> composition as the production backend, **and** the retirement of editable
+> dependencies. `swift package edit` is now the named mechanism, not a rejected
+> one. The corresponding retirement in `Owner Capability Matrix` §3.2 lapses with
+> it; see the note there.
+>
+> **What survives:** every *measurement* in this document. Findings 1–4 were
+> executed, and executed evidence is not overturned by a decision changing. The
+> mirror path's stickiness, the local-green/remote-impossible state, and
+> `get-mirror`'s failure to predict substitution all still stand as facts about
+> the mirror mechanism. **The rule, which the Team Lead has asked be stated
+> generally: prior measurements survive; conclusions built on them lapse.**
+>
+> Two of this document's Consequences transfer to the successor design intact and
+> are carried there: a clean-room resolution check is a required step rather than
+> a recommendation, and a warm build directory can ignore an overlay — so any
+> experiment must start cold or it will lie.
+>
+> **Successor:** `DESIGN-Local-Overlay-2026-07-28.md`, which is also the
+> generated-composition spike this document's Limits section recorded as owed —
+> discharged against `swift package edit` rather than against `.package(path:)`,
+> because the override changed which backend needed proving.
+>
+> This document is retained, not deleted: two live answers with no way to tell
+> which won is the failure mode the retention exists to prevent.
+
+**Status:** ~~Accepted~~ **Superseded** · **Date:** 2026-07-25
 **Closes:** implementation plan Gate 0 (§8.6), whose stop condition was
 *"do not proceed to broad Workspace integration without this decision."*
 **Evidence base:** the §8.5 spike, executed 2026-07-24/25 as Slice 3.
