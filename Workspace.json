@@ -1,8 +1,8 @@
 {
   "version": 1,
   "scope": "proof",
-  "swift": "6.3.3",
-  "xcode": "26.6",
+  "swift": "6.4",
+  "xcode": "27.0",
   "repositories": [
     {
       "name": "swift-dimension-primitives",
