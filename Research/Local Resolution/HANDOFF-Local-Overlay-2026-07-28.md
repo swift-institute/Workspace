@@ -218,8 +218,8 @@ umbrella and inert for the overlay — do not inherit it as covering both.
 lesson down and pushed it. False exit status, false "not found", and finally a run
 I could not see at all because `tail` buffers until its input closes — a healthy
 long-running process and a hung one produce byte-identical output, which is
-nothing. Full account in `swift-institute/.github`
-`.github/scripts/CONVERGENCE-DISCIPLINE.md` §11, coda. **A rule you have recorded
+nothing. Full account in `swift-institute/Internal`
+`CONVERGENCE-DISCIPLINE.md` §11, coda. **A rule you have recorded
 is not a habit you have formed.**
 
 ---
