@@ -312,6 +312,60 @@ both. Workspace must own that reconciliation:
 
 ---
 
+## 4b. The capstone acceptance test — principal's, and it passes
+
+Adopted from the principal verbatim: *"if the SPM/Workspace session is successful
+in meeting its objective, likely we'll be able to build without needing any local
+`Package.resolved` — perhaps that is a useful capstone test."*
+
+It is a better criterion than anything in §9 because it tests the objective in one
+observable rather than the mechanism piecewise: **if every dependency is
+materialised locally there is nothing left to resolve.** Run strictly — every
+cache cleared, so a pass cannot come from warm state:
+
+| Step | Result |
+|---|---|
+| Apply overlay to the full closure (`mid`, `low`), cold `.build` | applied |
+| Delete `Package.resolved`, delete `.build/checkouts`, **remove the remotes from disk** | — |
+| `swift build` | **rc 0** |
+| Local uncommitted markers in compiled products | `LOW-OVERLAY` **2**, `MID-OVERLAY` **2** |
+| Canonical marker in compiled products | `LOW-CANON` **0** |
+| `Package.resolved` recreated? | **No — there was nothing to resolve** |
+
+**Both negative controls fire**, which is what makes the green evidence:
+
+- **`--fresh`-equivalent** (`--scratch-path`) under the same conditions: **rc 1**,
+  *"repository does not exist"*, zero overlay markers in that scratch. The bypass
+  of §4a is confirmed from the other direction — a `--fresh` build **must not**
+  pass this test, and it does not.
+- **Overlay removed**, cold `.build`, same missing resolved file and remotes:
+  **rc 1**. So the capstone's pass is attributable to the overlay and not to the
+  fixture.
+
+**A weak first control, recorded because the correction is the finding.** My first
+attempt at the second control returned **rc 0** where I expected failure. The cause
+was not the capstone: `swift package unedit` restores working copies from
+`.build/checkouts`, which survives both `unedit` and the removal of the remotes, so
+the build succeeded from a warm canonical cache — compiling `LOW-CANON`, which is
+how I caught it. **`.build/checkouts` is a second cache that can make a build
+succeed offline against canonical source with no overlay at all.** Any claim that a
+green build proves local source was used must clear it, exactly as any claim about
+the overlay must clear `.build`.
+
+### The limit this test exposes: the overlay can be *used* offline but not *applied* offline
+
+Applying the overlay to a cold `.build` with the remotes absent **fails, rc 1** —
+`swift package edit` requires the package to be resolvable before it can redirect
+it (§2). So the capstone claim must be stated with its precondition:
+
+> **Once applied, the overlay needs neither `Package.resolved` nor any remote.
+> Applying it needs a resolvable graph — network, or warm caches.**
+
+That is a genuine constraint on the capability, not a caveat about the test. First
+overlay application on a fresh machine is online; everything after it is not.
+
+---
+
 ## 5. Reversibility and parity
 
 **Off is a command, and it is complete.** `swift package unedit` removes
@@ -604,6 +658,13 @@ URL declarations unchanged, because nothing is committed; **4.5** satisfied by
 - `remove` is `unedit` per package plus a symlink-residue sweep, and it verifies
   the resulting state reports `sourceControlCheckout` before claiming success.
 
+**Acceptance criterion, principal's, and it is the one to build against (§4b):**
+with the overlay applied across the closure, **a build succeeds with no
+`Package.resolved` and no remote reachable**, with local markers in compiled
+products — and the same build **fails** with the overlay removed, and **fails**
+under `--fresh`. All three legs are required; the first alone is passed by a warm
+`.build/checkouts` and proves nothing.
+
 **On the existing `compose` / `verify` / `restore`:** its mechanism — rewriting the
 committed manifest with a machine-local absolute path, per dependency pair — is the
 thing the objective rules out. It also fails the *"nothing machine-specific"*
@@ -640,6 +701,11 @@ useful part:** that SwiftPM parallelises branch-tip fetches, making the 96 s
 measured fetch total is 106.5 s and the *fetches are not the dominant cost*.
 And that per-edit cost extrapolates from two points — §6 says measure it, and
 §6a does.
+
+**Checked last, and it is the acceptance criterion:** the principal's capstone —
+a build with no `Package.resolved`, no `.build/checkouts`, and the remotes removed
+from disk — with both negative controls firing (§4b). Also the limit it exposed:
+the overlay can be used offline but not applied offline.
 
 **Also checked, after the first draft, because the earlier corpus was measured
 under a different default:** the overlay under `--build-system native` as well as
