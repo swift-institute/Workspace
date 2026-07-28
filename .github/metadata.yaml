@@ -1,0 +1,5 @@
+# .github/metadata.yaml
+description: "Public Swift Institute contributor workspace and isolated local package synchronization"
+homepage: "https://swift-institute.org"
+readme:
+  family: C
