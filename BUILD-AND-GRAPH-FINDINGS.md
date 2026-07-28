@@ -9,17 +9,21 @@ re-break them.
 
 ---
 
-## 1. Public packages that cannot be built by the public
+## 1. Private packages required by public ones — RESOLVED 2026-07-28 by publication
 
-**Five private Institute packages are required by five public packages, across six dependency
-edges.**
+**Status: resolved.** All five packages were published the same day the defect was found. Kept here
+because the shape recurs and because one consequence of the fix is still open (below).
 
-**State this as edges and distinct packages, never as a row count.** The table below has six rows
-but names **five** distinct dependents — `swift-domain-name-system-kernel` appears twice, taking
-both `swift-domain-name-system` and `swift-ip-address`. Reading the row count as a package count
-produced a "six public packages" error twice, in two separate sessions, before it was caught.
+**What it was:** five private Institute packages required by five public packages, across **six
+dependency edges**. Six advertised-public packages' worth of consumers could not resolve them
+without Institute access, roughly a month before public release.
 
-| Private dependency | Required by (all public, non-archived) |
+**State this as edges and distinct packages, never as a row count.** The table has six rows but
+names **five** distinct dependents — `swift-domain-name-system-kernel` appears twice, taking both
+`swift-domain-name-system` and `swift-ip-address`. Reading the row count as a package count produced
+a "six public packages" error twice, in two separate sessions, before it was caught.
+
+| Formerly-private dependency | Required by (public, non-archived) |
 |---|---|
 | `swift-webpage` | `swift-authentication` |
 | `swift-email-html` | `swift-identities-mailgun` |
@@ -27,13 +31,29 @@ produced a "six public packages" error twice, in two separate sessions, before i
 | `swift-ip-address` | `swift-domain-name-system-kernel`, `swift-sockets-ip-address` |
 | `swift-domain-name-system` | `swift-domain-name-system-kernel` |
 
-**6 edges — 5 distinct private packages, 5 distinct public dependents.**
+**6 edges — 5 distinct dependencies, 5 distinct public dependents.**
 
-All five private packages verified `PRIVATE`, non-archived, non-fork. All five dependents verified
-`PUBLIC`, non-archived — that second direction matters, because a private dependency is only a
-defect if the dependent is public. Each private package is declared as a `.package(url:)` dependency
-inside a public manifest, so naming them here discloses nothing that the public manifests do not
-already.
+**How it was resolved:** the principal ruled *publish*, and all five were made public on 2026-07-28.
+Each repository's full history was scanned for secrets before publication, with a positive control
+on the scan; all five were clean. Recorded so it is not re-litigated.
+
+**Verification after the fix**, by reading `gh repo view --json visibility` on each rather than by
+exit status: all five report `PUBLIC`, non-archived. A re-measurement across 363 public repositories
+scanned locally found **zero** public packages depending on a private one. Org totals moved 159→154
+private and 383→388 public. The visibility probe was positive-controlled — it still reports
+`PRIVATE` for other repositories, so the `PUBLIC` readings are real rather than a broken instrument.
+
+### Still open: the roster and any local-source cover are short by five
+
+Publication resolved the access defect but not the completeness one. **None of the five is in the
+441-package roster, and none is checked out on disk** — verified directly. So:
+
+- `workspace inventory` should now discover them; until it is re-run, the roster undercounts.
+- Any "build the whole graph from local source" claim is short by five packages, and the 113-package
+  top-level floor (§3) is computed over a roster that does not contain them. **Re-derive the floor
+  after the roster is regenerated** rather than assuming 113 still holds.
+- These five are exactly the packages the umbrella had to fetch from the network (§8), which is how
+  the defect surfaced in the first place.
 
 **Population, because a count without one is how this went wrong twice.** The table was derived from
 the **441 roster manifests only**. An independent measurement over a wider population — all **383
@@ -44,16 +64,14 @@ with **zero transitive additions**, under a grep carrying a positive control (28
 must-exist string, so its zero is a real zero). Two different populations, same answer.
 
 `CLAUDE.md` states that nothing in this repository needs Institute access, and that a step wanting
-a repository you cannot read *"is a defect worth reporting"*. This is that report.
+a repository you cannot read *"is a defect worth reporting"*. This was that report.
 
-**A resolve performed by an authenticated member succeeds, which is why this was invisible.** Each
-of the five dependents resolves fine for anyone with access. Per-package builds never force the
-whole graph to resolve at once; the defect only appeared under a single root spanning all 441
-packages.
-
-It also bounds any "build the whole graph from local source with the remotes gone" goal: five
-required packages are neither in the roster nor on disk. Publishing them, vendoring them, or
-removing the dependencies is a decision, not a defect that tooling can fix.
+**Why it stayed invisible, which is the part worth keeping.** A resolve performed by an
+authenticated member succeeds — each of the five dependents resolved fine for anyone with access.
+Per-package builds never force the whole graph to resolve at once, so nothing surfaced it; it
+appeared only under a single root spanning all 441 packages. **The green result was the defect.** It
+registered as a finding only because the question "would this have succeeded without my
+credentials?" was asked of a passing build.
 
 ## 2. The build coordinator serializes the whole machine
 
@@ -297,8 +315,8 @@ behaviour that presents as breakage is its own kind of defect, and the remedy is
 rather than suppression — suppressing them would also hide a genuine identity collision.
 
 That override is the mechanism a "whole graph from local source" goal depends on, and it is the
-reason §1 surfaced: the seven packages that *were* fetched are the ones not on disk, five of them
-private.
+reason §1 surfaced: the seven packages that *were* fetched are the ones not on disk — five of them
+private at the time, now published, and still absent from the roster and from disk.
 
 **Depending on N packages is not building N packages.** SwiftPM compiles only the products actually
 depended upon, which is why the umbrella must name products rather than packages. Verify a whole-
