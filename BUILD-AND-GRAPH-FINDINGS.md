@@ -239,8 +239,28 @@ mismatches did not block; no platform conflicts arose.
 
 **Path dependencies override URL dependencies by identity, completely: zero of the 441 roster
 packages were fetched from the network.** Only third-party packages and the seven non-roster
-Institute packages were. SwiftPM emits `Conflicting identity` warnings while doing so — the override
-works, but it warns rather than being silently clean.
+Institute packages were.
+
+### Correct behaviour that looks like breakage
+
+The override is not silent. SwiftPM emits a `Conflicting identity` warning for every package where
+a path dependency and a URL dependency resolve to the same identity:
+
+```
+warning: 'swift-xml': Conflicting identity for swift-array-primitives: dependency
+'github.com/swift-primitives/swift-array-primitives' and dependency
+'/…/swift-primitives/swift-array-primitives' both point to the same package identity
+'swift-array-primitives'.
+```
+
+At roster scale this is **hundreds of warnings before a single module compiles** — over 320 observed
+during manifest loading alone, still climbing when this was written. Resolution is correct: nothing
+is broken, and the local path wins every time.
+
+**Anyone using this mechanism must be told to expect them.** The first person to watch a whole-graph
+build emit several hundred warnings will reasonably conclude something is wrong and stop. Correct
+behaviour that presents as breakage is its own kind of defect, and the remedy is documentation
+rather than suppression — suppressing them would also hide a genuine identity collision.
 
 That override is the mechanism a "whole graph from local source" goal depends on, and it is the
 reason §1 surfaced: the seven packages that *were* fetched are the ones not on disk, five of them
@@ -254,3 +274,28 @@ targets — a few hundred means a shortcut wearing a full-graph label.
 **Whatever the umbrella reports, it is not evidence about 6.4** while it builds debug, and it never
 builds the 813 test targets. "One build covers the whole ecosystem" and "6.4 is verified" are
 unrelated claims.
+
+### Status, and how to re-run it
+
+**The build was started and did not complete within the session.** It spent more than eighteen
+minutes evaluating manifests without compiling a single module, at zero errors. **No module count
+was obtained, so no whole-graph claim is made here.**
+
+The method is recorded so this is re-run rather than re-designed:
+
+1. Enumerate roster paths from `Workspace.json` (`organization` + `layer`, authority orgs nesting
+   under their layer root).
+2. Enumerate library products **per package**: `workspace package dump-package` for any manifest
+   declaring products symbolically, literal parsing only where provably complete. Do not grep — see
+   §3.
+3. Generate a root with `.package(path:)` per roster package and one target depending on every
+   library product. Use `.product(name:package:)` throughout so the one duplicate name resolves.
+4. `workspace package resolve` first — it reaches identity and duplicate-product failures in minutes
+   instead of after a long compile.
+5. Build, then count **distinct `-module-name` values** against the 2,085 library targets. Record
+   load at both ends.
+
+Expect: ~7 minutes to resolve, hundreds of identity warnings, and a long manifest-loading phase
+before the first module. Under the coordinator's serial lock (§2) it also blocks every other
+build on the machine for its whole duration, so it needs a deliberate window rather than an
+opportunistic one.
