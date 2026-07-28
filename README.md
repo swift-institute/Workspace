@@ -202,6 +202,19 @@ and enumerates no organization. The whole-ecosystem sweep enumerates from
 `Workspace.json` and lints packages concurrently. Both modes go through one
 implementation, so a package's verdict cannot depend on which one asked for it.
 
+A package carrying no `Lint.swift` has measured nothing, and the sweep will not
+call that clean. [Lint.json](Lint.json) records the packages where that absence
+is deliberate: a listed package is reported and counted but does not fail the
+sweep, and an unlisted one fails. Without that, the sweep would exit non-zero on
+day one and every day after, and a gate that is always red gates nothing.
+
+The list cannot drift away from reality, because `Lint.swift` remains the single
+authority and the allowlist only records its deliberate absence: **an entry for a
+package that does carry a `Lint.swift` is an error**, as is an entry naming a
+package absent from the inventory. Every fault is reported at once rather than
+one per run. `workspace package lint` never reads the file — asked to lint a
+package, "nothing here is configured" is a failure to deliver what was asked.
+
 **A lint run cannot report clean without having measured something.** The
 engine ships rule-pack-agnostic: without a reachable configuration zero rules
 fire, and three invocations exit zero having printed nothing at all — a

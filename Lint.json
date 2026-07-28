@@ -1,0 +1,15 @@
+{
+  "unconfigured": [
+    "swift-foundations/swift-certificate-verification",
+    "swift-foundations/swift-image-magick",
+    "swift-foundations/swift-money",
+    "swift-foundations/swift-resource-pool",
+    "swift-foundations/swift-server-dependencies",
+    "swift-foundations/swift-server-static",
+    "swift-foundations/swift-sitemap",
+    "swift-foundations/swift-splat",
+    "swift-foundations/swift-svg-printer",
+    "swift-primitives/swift-percent-primitives"
+  ],
+  "version": 1
+}

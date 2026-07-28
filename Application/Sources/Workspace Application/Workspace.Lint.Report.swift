@@ -41,6 +41,16 @@ extension Workspace.Lint.Report {
         measurements.filter(\.verdict.isUnmeasured)
     }
 
+    /// Packages with no lint configuration, recorded as deliberate.
+    ///
+    /// Counted apart from `clean` on purpose: nothing was measured in
+    /// these, so folding them into coverage would overstate it. They are
+    /// named in the summary so the list stays visible and shrinking it
+    /// stays the obvious thing to do with it.
+    public var unconfigured: [Workspace.Lint.Measurement] {
+        measurements.filter(\.verdict.isUnconfigured)
+    }
+
     /// Source files the sweep actually visited.
     ///
     /// The other half of the positive control, at sweep scale: a sweep
@@ -114,6 +124,17 @@ extension Workspace.Lint.Report: CustomStringConvertible {
             lines.append("\(measurement.verdict.text)  \(measurement.package)")
         }
 
+        if !unconfigured.isEmpty {
+            lines.append("")
+            lines.append(
+                "recorded as carrying no lint configuration (\(unconfigured.count)) — "
+                    + "nothing was measured in these:"
+            )
+            for measurement in unconfigured.sorted(by: { $0.package < $1.package }) {
+                lines.append("  \(measurement.package)")
+            }
+        }
+
         if !unmaterialized.isEmpty {
             lines.append("")
             lines.append(
@@ -145,6 +166,7 @@ extension Workspace.Lint.Report: CustomStringConvertible {
         lines.append(
             "lint \(scope.text): \(measurements.count) packages linted · \(filesLinted) files · "
                 + "\(clean.count) clean · \(violations.count) with violations · "
+                + "\(unconfigured.count) unconfigured (recorded) · "
                 + "\(unmeasured.count) UNMEASURED"
         )
         lines.append("engine time \(Self.seconds(engineTime)) summed across packages")

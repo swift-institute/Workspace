@@ -62,12 +62,32 @@ extension Workspace.Lint.Measurement {
         /// Nothing was established. Never reported as clean, in either
         /// mode, and never absorbed into a sweep aggregate.
         case unmeasured(reason: Swift.String)
+
+        /// The package carries no lint configuration, and the sweep's
+        /// allowlist records that as deliberate.
+        ///
+        /// Separate from both `clean` and `unmeasured` on purpose. It is
+        /// not clean — nothing was measured — so it is never counted as
+        /// coverage. It is not a failure either, because the gap is
+        /// recorded and tracked rather than unnoticed. Collapsing it
+        /// into `clean` would overstate coverage; collapsing it into
+        /// `unmeasured` would make the sweep permanently red, and a gate
+        /// that is always red gates nothing.
+        ///
+        /// Only ever produced by the sweep. The single-package path does
+        /// not read the allowlist: asked to lint a package, "nothing
+        /// here is configured" is a failure to deliver what was asked.
+        case unconfigured(recorded: Swift.String)
     }
 }
 
 extension Workspace.Lint.Measurement.Verdict {
     public var isUnmeasured: Swift.Bool {
         if case .unmeasured = self { true } else { false }
+    }
+
+    public var isUnconfigured: Swift.Bool {
+        if case .unconfigured = self { true } else { false }
     }
 
     /// Whether this verdict alone should fail the run.
@@ -80,6 +100,7 @@ extension Workspace.Lint.Measurement.Verdict {
         case .clean: false
         case .violations(_, let failing): failing
         case .unmeasured: true
+        case .unconfigured: false
         }
     }
 
@@ -89,6 +110,8 @@ extension Workspace.Lint.Measurement.Verdict {
         case .violations(let count, let failing):
             "\(count) violation\(count == 1 ? "" : "s")\(failing ? " (error severity)" : " (advisory)")"
         case .unmeasured(let reason): "UNMEASURED — \(reason)"
+        case .unconfigured(let recorded):
+            "no lint configuration — recorded in \(recorded); nothing was measured here"
         }
     }
 }

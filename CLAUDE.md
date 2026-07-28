@@ -70,6 +70,13 @@ that it did not run — that is not a failure of your checkout.
   line is the defect this capability exists to prevent. The sweep likewise fails
   rather than reporting an empty ecosystem clean when the inventory materializes
   nothing, which is what a run from the wrong hierarchy root looks like.
+- **`Lint.json` records deliberate lint gaps; `Lint.swift` remains the authority.**
+  A package with no `Lint.swift` measured nothing and is never reported clean. Listing
+  it in `Lint.json` keeps the sweep green without pretending coverage exists — the
+  package is named in the summary and counted separately from `clean`. An entry for a
+  package that *does* carry a `Lint.swift` is an error, so the record cannot outlive
+  the gap it excuses. Removing an entry is the point; adding one is a decision taken
+  in the change that creates the need. `workspace package lint` never reads it.
 - **swift-linter is developer tooling, not an inventory package.** Install it through
   `workspace lint install`; never add it to `Workspace.json` and never put a machine
   path in durable configuration. Workspace sets `SWIFT_LINTER_RUNNER` on the child

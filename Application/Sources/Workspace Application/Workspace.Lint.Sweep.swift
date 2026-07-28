@@ -92,6 +92,7 @@ extension Workspace.Lint.Sweep {
     public func run(scope: Scope = .all) async throws(Workspace.Error) -> Workspace.Lint.Report {
         let installation = try lint.installation()
         let inventory = repositories
+        let allowlist = try Workspace.Lint.Allowlist.load(at: root.checkout)
 
         var targets = [(repository: Workspace.Repository, target: Workspace.Lint.Target)]()
         var absent = [Swift.String]()
@@ -119,6 +120,22 @@ extension Workspace.Lint.Sweep {
             )
         }
 
+        // The allowlist is validated against what is actually on disk,
+        // before any measurement. A stale entry — one whose package has
+        // since gained a Lint.swift — silently excuses a package that no
+        // longer needs excusing, which is exactly the drift that makes a
+        // second source of truth dangerous. Failing here keeps
+        // Lint.swift the authority.
+        let faults = allowlist.diagnostics(
+            against: inventory,
+            configured: { repository in
+                targets.first { $0.repository == repository }?.target.isConfigured ?? false
+            }
+        )
+        guard faults.isEmpty else {
+            throw .configuration(faults.joined(separator: "\n"))
+        }
+
         let selected: [(repository: Workspace.Repository, target: Workspace.Lint.Target)]
         switch scope {
         case .all:
@@ -131,7 +148,16 @@ extension Workspace.Lint.Sweep {
             selected = zip(targets, local).filter(\.1).map(\.0)
         }
 
-        let measurements = await measure(selected.map(\.target), using: installation)
+        let recorded = Workspace.Lint.Allowlist.fileName.string
+        let measurements = await measure(
+            selected.map { entry in
+                (
+                    target: entry.target,
+                    recorded: allowlist.records(entry.repository) ? recorded : nil
+                )
+            },
+            using: installation
+        )
         return .init(
             scope: scope,
             inventory: inventory.count,
@@ -143,12 +169,16 @@ extension Workspace.Lint.Sweep {
 
     /// Measures every target, `jobs` at a time.
     func measure(
-        _ targets: [Workspace.Lint.Target],
+        _ targets: [(target: Workspace.Lint.Target, recorded: Swift.String?)],
         using installation: Workspace.Lint.Installation
     ) async -> [Workspace.Lint.Measurement] {
         let lint = self.lint
-        return await concurrently(targets) { target in
-            lint.measure(target, using: installation)
+        return await concurrently(targets) { entry in
+            lint.measure(
+                entry.target,
+                using: installation,
+                recordedUnconfigured: entry.recorded
+            )
         }
     }
 

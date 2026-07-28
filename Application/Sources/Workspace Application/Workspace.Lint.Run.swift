@@ -74,11 +74,22 @@ extension Workspace.Lint {
     /// names the package rather than reporting `.`.
     public func measure(
         _ target: Target,
-        using installation: Installation
+        using installation: Installation,
+        recordedUnconfigured: Swift.String? = nil
     ) -> Measurement {
         let package = target.package.description
 
         guard target.isConfigured else {
+            if let recordedUnconfigured {
+                return .init(
+                    package: package,
+                    verdict: .unconfigured(recorded: recordedUnconfigured),
+                    summary: nil,
+                    findings: [],
+                    diagnostics: "",
+                    status: 0
+                )
+            }
             return .init(
                 package: package,
                 verdict: .unmeasured(
