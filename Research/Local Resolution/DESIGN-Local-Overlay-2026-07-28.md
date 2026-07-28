@@ -66,9 +66,10 @@ they are the substance of this document:
    this tree today (§4).
 2. A **velocity claim that is now measured** — and it holds, but not for the
    reason the framing assumed (§3, §3a).
-3. A **cost at scale that is now measured and forces a second, less-supported
-   mechanism** — applying the overlay is quadratic in graph size, ~18 minutes at
-   200 pins (§6, §6a).
+3. A **cost at scale that is quadratic in graph size but bounded in practice** —
+   median closure 36, so 49 s to overlay entirely; the ~18-minute figure is the
+   flagship consumer, not the typical one. **No second mechanism is needed**
+   (§6, §6a, §6b).
 4. **Eight packages that would let the overlay's own artifact be committed**, and
    **eight more that the overlay structurally cannot reach** (§7).
 
@@ -425,7 +426,11 @@ the fit. Per-edit cost is **linear in graph size**, so applying the overlay acro
 a closure of size N is **quadratic**: ~18 minutes at the flagship consumer's 200
 pins.
 
-### 6a. The third point — it lands at the unusable end
+### 6a. The third point — and the distribution that reframes it
+
+**Read §6b before acting on this section.** The per-edit cost below is correct;
+the conclusion originally drawn from it was not, because it generalised from the
+flagship consumer without measuring the distribution.
 
 Measured at N=120, seven positions across the graph (`leaf1` … `leaf120`), each a
 separate `swift package edit` invocation:
@@ -467,21 +472,15 @@ canonical markers absent from products (present only as dormant `.build/checkout
 clones — I checked, rather than assuming the grep hits were compiled output). One
 write replaces N invocations.
 
-**§6a promotes this from fallback to the primary path**, and that is a real cost
-of the design rather than a neat result: the supported interface is too slow to
-use at institute scale, so the capability rests on writing SwiftPM's private
-`"version": 7` state, which no compatibility promise covers. `swift package edit`
-remains the mechanism of record for small selections and the reference against
-which the batch write is verified — but "all packages" is the stated objective,
-and at that size only the batch write is viable.
+**That alternative is recorded but NOT adopted — see §6b.** An earlier revision of
+this section promoted it to the primary path. That was wrong, and the correction
+is §6b's.
 
-**That dependency must be declared, not buried.** A toolchain bump can change this
-file's shape, and §4 shows the failure mode is a whole-state discard behind a
-warning at exit 0. The design owes a canary that fails loudly on toolchain upgrade:
-apply via real `swift package edit`, then assert **(a)** a semantic fixed-point —
-`decode(encode(decode(x))) == decode(x)` over real state files — and **(b)** a live
-read-back through SwiftPM's own view showing every intended package reports
-`edited`.
+**Had it been adopted, that dependency would have had to be declared rather than
+buried**, with a canary asserting a semantic fixed-point plus a live read-back —
+not byte-identity, for the reason below. That machinery is moot under §6b, and the
+paragraph is kept only so a future reader reaching for the batch write knows what
+it would cost.
 
 **Not byte-identity, and that is a measured correction rather than a relaxation.**
 An earlier draft of this section, and the adjudication that approved it, specified
@@ -506,8 +505,91 @@ exactly the failure this design exists to prevent, one layer down. So: **write,
 then read the state back through SwiftPM's own view, and confirm every intended
 package reports `edited` before reporting success.** Never trust the write.
 
-**Decide this with a measurement, not with this document.** Time one
-`swift package edit` on `Workspace/Application` at 200 pins.
+### 6b. The distribution — and why the batch write is withdrawn
+
+§6a's per-edit cost is correct. The conclusion drawn from it was not, because it
+generalised from `Workspace/Application`'s 200 pins without measuring what a
+*typical* consumer's closure looks like. Measured across all 441 roster packages'
+manifests:
+
+| | closure | whole-closure apply at `0.45 + 0.025N` |
+|---|---|---|
+| min | 0 | — |
+| **median** | **36** | **49 s** |
+| mean | 53 | ~2 min |
+| p90 | 122 | 7.1 min |
+| max — `swift-identities-mailgun` | 250 | 27.9 min |
+
+Distribution: **37** packages have no institute dependencies, **46** have 1–9,
+**167** have 10–49, **118** have 50–99, **69** have 100–199, **4** have 200+.
+
+**250 of 441 packages have closures under 50** — under ninety seconds to overlay
+entirely. The eighteen-minute figure was the flagship consumer, not the typical
+one, and §6a presented a worst case as the operating case.
+
+**But the distribution is not the main argument. This is:** *overlaying a whole
+closure inside a consumer is not what a developer wants.* The inner loop is
+"change package X, test the consumers of X" — **one** edit per consumer, not two
+hundred. A developer changing `swift-byte-primitives` and testing `swift-stripe`
+needs that one package local and everything else canonical, which is exactly the
+parity property §5 exists to preserve. Wanting *everything* local is a different
+job, and §6c gives it to a different mechanism.
+
+The one genuine closure-scale case is **running a package's own tests against an
+entirely local graph** — `swift build` never compiles member test targets, umbrella
+or not. That case is rare, largely covered by the umbrella proving the graph
+compiles, and tolerable when it happens: 49 s at the median, 7 min at p90, ~28 min
+only for the four packages above 200.
+
+**So the batch `workspace-state.json` write is withdrawn**, and with it the
+`swift-spm-standard` encoder that would have carried it. That package's decoder
+holds an explicit prohibition — *"SwiftPM owns that file exclusively; nothing in
+this ecosystem may synthesise it, and offering an encoder would invite exactly the
+hand-editing of resolver state that is forbidden"* — whose stated reason is the
+precise hazard this mechanism creates. **It stands unoverridden.** The capability
+rests entirely on the supported interface.
+
+Three of the four gates lapse with it: fail-closed-on-version at write, read-back
+verification, and the loud fallback all exist only to make a write safe. The
+decoder already fail-closes on version, which is where that belonged. The toolchain
+canary lapses too, there being no encoder to canary. **What survives is the
+lock-aware precondition**, which is needed wherever `swift package edit` is invoked
+at all.
+
+Caveat on the figures: closures count only roster-resolvable dependencies, so they
+**understate** by excluding the eight off-roster packages. They are a floor, not an
+estimate.
+
+### 6c. The widened purpose — "all" serves whole-graph builds
+
+Ruled 2026-07-28: the principal intends **both** *"build the whole graph with
+`Package.resolved` deleted and the remotes gone"* **and** fast local development.
+So "all packages" mode is not a convenience for large selections — **it is how the
+ecosystem gets built.**
+
+Applying the overlay across every dependency of one root means that root's build
+compiles the whole graph into **one** `.build`, each module once, instead of 113
+separate builds each recompiling the shared primitives and standards layers. §4b's
+capstone is therefore not only an acceptance test; it is the shape of the build.
+
+**Nothing today depends on all 441.** The roster has 113 top-level packages —
+packages nothing depends on — and since a package nothing depends on cannot be
+reached transitively, every possible cover must contain all 113. That is a hard
+floor, and it is why the sweep is 113 builds. **A synthetic umbrella root has no
+such constraint**: one generated manifest naming those 113 by path yields a single
+graph over the whole ecosystem.
+
+**And that is where generated `.package(path:)` composition earns its place back —
+which §9's disposition failed to distinguish.** Retiring `compose`/`restore` was
+about rewriting a **committed** manifest with a machine-local absolute path, and
+that rejection stands entirely. Generating a **synthetic root nobody commits** is a
+different act: nothing tracked is modified, no consumer is affected, and the
+machine-local paths live in a file that exists only to be thrown away. *"Composition
+retired"* must not be read as covering it.
+
+The umbrella is not built here, and at time of writing the full-tree session is
+testing whether a shared `--scratch-path` achieves module reuse across roots with
+no new machinery at all — which, if it works, may make the umbrella unnecessary too.
 
 ---
 
