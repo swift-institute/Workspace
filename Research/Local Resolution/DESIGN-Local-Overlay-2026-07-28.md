@@ -556,9 +556,31 @@ canary lapses too, there being no encoder to canary. **What survives is the
 lock-aware precondition**, which is needed wherever `swift package edit` is invoked
 at all.
 
-Caveat on the figures: closures count only roster-resolvable dependencies, so they
-**understate** by excluding the eight off-roster packages. They are a floor, not an
-estimate.
+**These figures are a floor, not an estimate, and the floor is about to rise.**
+Closures count only roster-resolvable dependencies, so they exclude the eight
+off-roster packages — and the principal has since ruled institute-owned forks
+*into* the roster, which admits `swift-tagged-primitives` (78 dependents) among
+others. Every closure grows slightly when that lands. The conclusion is not
+sensitive to it: a median of 36 would have to grow several-fold before
+whole-closure apply became the operating problem, and §6b's decisive argument is
+not the number anyway.
+
+**The instrument behind these figures was checked, because a sibling measurement
+was caught by exactly this.** The full-tree session found **241 library products
+across 42 packages declared with symbolic constants rather than string literals**
+— 1,609 raw `.library(` occurrences against 1,368 parseable — invisible to any
+manifest grep. I re-ran my own extraction against that failure mode: of **2,188**
+raw `.package(` occurrences across the 441 manifests, **2,188** are
+`url: "literal"` and **zero** are unaccounted for, in zero packages. **The
+symbolic-declaration hole affects product declarations, not dependency
+declarations**, so the closure figures stand.
+
+That distinction also bounds where the warning applies. **The overlay never
+enumerates products**: `swift package edit` takes a package *identity*, the
+identities come from the generated roster and from SwiftPM's own resolved state,
+and neither is parsed out of a manifest. The 241-product trap is decisive for the
+umbrella — which must depend on products to compile anything — and inert for the
+overlay. A future reader should not inherit the warning as applying to both.
 
 ### 6c. The widened purpose — "all" serves whole-graph builds
 
@@ -590,6 +612,40 @@ retired"* must not be read as covering it.
 The umbrella is not built here, and at time of writing the full-tree session is
 testing whether a shared `--scratch-path` achieves module reuse across roots with
 no new machinery at all — which, if it works, may make the umbrella unnecessary too.
+
+**Three constraints any umbrella must clear**, measured by that session and
+recorded here so this document does not read as endorsing something unqualified:
+
+1. **Depending on N packages is not building N packages.** SwiftPM compiles only
+   the products actually depended upon, so a root naming 113 packages but
+   importing a handful of umbrella products compiles a fraction of the tree and
+   *looks* like a whole-graph build. Genuine coverage needs all **1,609**
+   products. Verify by counting distinct `-module-name` values in the build log
+   against the roster's **2,916** declared targets (2,085 library, 813 test, 9
+   executable, 9 macro); ~2,100 non-test modules means it is real, a few hundred
+   means it is a shortcut wearing the label.
+2. **241 of those products cannot be found by reading manifests** (above). An
+   umbrella built by grepping omits 42 packages' surface and reports success.
+   Evaluate with `dump-package`.
+3. **28% of the tree is out of reach either way.** `swift build` never compiles
+   test targets — 813 of 2,916 — umbrella or overlay. That is permanent, and it is
+   why §6b keeps per-consumer `edit` for the test workflow rather than folding
+   everything into one graph.
+
+### The architecture, stated as two jobs with two answers
+
+The design ends with **two mechanisms, both on supported interfaces**, and a
+future reader should see that rather than one mechanism that lost:
+
+| Job | Mechanism | Scale |
+|---|---|---|
+| **Developer inner loop** — change a package, test its consumers | `swift package edit --path`, per consumer | small N: one edit, or a working set |
+| **Whole graph** — build everything from local source | a synthetic umbrella root nobody commits, plain `.package(path:)` | one root, 113 members |
+
+Neither writes SwiftPM's private state. Neither modifies a committed manifest.
+`compose`/`restore` are retired for rewriting a **committed** manifest with a
+machine-local path — a rejection that stands, and that says nothing about a
+synthetic root.
 
 ---
 
