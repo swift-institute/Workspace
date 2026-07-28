@@ -64,8 +64,8 @@ they are the substance of this document:
 
 1. A **quiet-degradation path** that is real, reproducible, and already present in
    this tree today (§4).
-2. A **velocity claim that my measurements do not yet support at the size the
-   fleet assumes** (§3).
+2. A **velocity claim that is now measured** — and it holds, but not for the
+   reason the framing assumed (§3, §3a).
 3. A **cost at scale that is unmeasured at real graph size** and may force a
    second, less-supported mechanism (§6).
 4. **Eight packages that would let the overlay's own artifact be committed**, and
@@ -113,7 +113,7 @@ is a measurement and not an absence.
 
 ---
 
-## 3. Baseline first — and the number is smaller than the framing assumes
+## 3. Baseline first — the rebuild saving is small; the re-resolution saving is not
 
 The brief is right to demand this, and the honest answer is uncomfortable.
 
@@ -146,11 +146,65 @@ re-resolution from the inner loop entirely, and with them a term that scales wit
 the number of branch-pinned remotes in the closure.** It does not make an
 individual rebuild meaningfully faster.
 
-> **Recommendation before implementation:** measure one real `swift package update`
-> on `Workspace/Application` at 200 pins, warm cache, wall clock. That single number
-> decides whether this capability is worth its complexity. I did not run it because
-> it writes into a `.build` directory another session is using. It is one command
-> and it should be taken before the first line of implementation.
+### 3a. The deciding measurement — taken, and it is the whole case
+
+The gate on implementation was one number: a real warm `swift package update` at
+`Workspace/Application`'s 200 pins. Taken 2026-07-28, from a copy of that
+package's `Package.swift` and `Package.resolved` in a scratchpad — no institute
+`.build` touched — against a warm shared repository cache (321 entries), warmed
+further by a full `resolve` first (**73.9 s**, 200 pins).
+
+> ## **`swift package update`, warm, 200 pins: 148 s and 329 s.**
+
+**Two runs of one command, and they disagree by 2.2×.** That spread is the first
+thing to report, because the single number I first wrote down was the higher one,
+and quoting it alone would have put a measured-looking constant into the record
+that the very next run refutes.
+
+**The cause is contention, and it was mine to control and I did not.** Enumerating
+live build processes afterwards found four `swift-frontend`/`swift-build`
+processes belonging to other sessions on this machine throughout, and run 1
+additionally began immediately after my own 200-pin `resolve`. The script that took
+the measurement even labelled the machine "otherwise quiet" while it demonstrably
+was not — an assertion in a comment is not a measurement of the thing it asserts.
+
+**What survives, stated at the precision the evidence supports:**
+
+| Claim | Status |
+|---|---|
+| `update` at 200 warm pins costs **~2.5–5.5 minutes**, contended | defensible |
+| The **148 s floor** is the more trustworthy end — less contention, not more | defensible |
+| A specific figure such as "329 s" | **not defensible** — do not quote it |
+
+**The decomposition is unaffected, because it is not a wall clock.** It sums the
+per-repository timings the tool prints itself, so contention inflates the parts
+and the whole together and the *ratio* survives:
+
+| Phase | Cost | Against projection |
+|---|---|---|
+| 200 remote fetches | **106.5 s**, median **0.52 s** each | projected 96 s from `ls-remote` — **accurate to 11%** |
+| version solving over the branch-pinned graph | the majority of the remainder | **not modelled at all** |
+
+So the `ls-remote` projection was right about the component it modelled and wrong
+about which component dominates: **the tax is mostly the resolver, not the
+network.** I had told the fleet the opposite. Worth recording rather than quietly
+replacing, because the conclusion strengthened while the reasoning behind it did
+not survive.
+
+**The gate still clears, and comfortably.** The question was whether this comes
+back at a few seconds. It does not: the floor is ~150 s. Every cross-package change
+under the current scheme pays **at least two and a half minutes** of re-resolution
+before a consumer sees it, on top of commit, push, review and CI — per *change*,
+not per session. The ~1.9 s per-round figure above remains the honest statement
+about rebuild speed, and both are true: **the overlay is not a faster compiler; it
+is the removal of a multi-minute round trip from every cross-package edit.**
+
+Vantage: one machine, warm cache (321 shared repository-cache entries), under
+uncontrolled concurrent load from other sessions. A cold cache would be worse, not
+better. Version-solving cost is a property of this pin set and would differ for a
+smaller consumer. **Any re-measurement should record the concurrent build-process
+count beside each timing** — contention here is a variable to record, not one that
+can be assumed away on a shared machine.
 
 ---
 
@@ -317,6 +371,10 @@ direction is clear — each invocation reloads the whole workspace, so the total
 `N × f(N)`, not `N × constant`. Extrapolated to a 200-pin root that is **between 6
 and 20 minutes**, and I will not narrow that range from two points.
 
+A third point at N=120 is recorded in §6a; the decision genuinely turns on which
+end of 6–20 minutes it is, because 6 minutes is a slow command and 20 is an
+unusable one.
+
 If it lands at the high end, there is a measured alternative: **a single
 well-formed write of `workspace-state.json` is honoured.** Sixty edited entries
 written in one pass, build green, all sixty local markers in compiled products,
@@ -325,10 +383,15 @@ clones — I checked, rather than assuming the grep hits were compiled output). 
 write replaces N invocations.
 
 I recommend this **only as a measured fallback, not as the default**: it writes
-SwiftPM's private `"version": 7` state, which no compatibility promise covers, and
-§4 shows the cost of getting its shape wrong is a whole-state discard behind a
-warning. If it is needed, it must be gated by reading the state back through
-SwiftPM's own view and confirming every intended package reports `edited`.
+SwiftPM's private `"version": 7` state, which no compatibility promise covers.
+
+**The gate is not optional, and §4 is the argument for it.** The cost of getting
+that file's shape wrong is not a rejected write — it is a *whole-state discard*
+behind one warning, at exit 0, with the `Packages/` symlinks left in place
+implying an overlay that is no longer there. A writer that trusts its own write is
+exactly the failure this design exists to prevent, one layer down. So: **write,
+then read the state back through SwiftPM's own view, and confirm every intended
+package reports `edited` before reporting success.** Never trust the write.
 
 **Decide this with a measurement, not with this document.** Time one
 `swift package edit` on `Workspace/Application` at 200 pins.
