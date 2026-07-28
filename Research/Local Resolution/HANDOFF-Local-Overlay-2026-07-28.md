@@ -248,6 +248,54 @@ packages are the complete set for that pattern specifically; and every statement
 about Xcode, CI, Linux, or any toolchain other than Swift 6.4 — none of which were
 tested at all.
 
+### Every count here is dated to a 441-package roster, and the roster changes
+
+I raised this and then nearly left it as "about to widen", which is not a fact
+anyone can act on. **Measured 2026-07-28**, enumerating rather than searching, with
+the rate limit read before and after so an empty result could not be a spent quota
+(4635 → 4589 remaining):
+
+| | |
+|---|---|
+| Repositories across the 15 roster-bearing orgs, unfiltered | **639** |
+| On the roster | **441** |
+| **Off-roster forks, public and non-archived — admitted by the ruling** | **3** |
+| Off-roster forks excluded as private or archived | **0** |
+| Off-roster non-forks — *not* admitted by this ruling | 195 (173 private, 6 archived, 16 other) |
+
+The three: `swift-primitives/swift-tagged-primitives`,
+`swift-foundations/swift-url-routing`,
+`swift-foundations/swift-structured-queries-postgres`.
+
+> **So the fork ruling takes the roster from 441 to 444** — a 0.7% change, and it
+> is the whole of that ruling's effect.
+
+**A second reason the counts are dated, which is larger in principle and nil in
+practice.** `Workspace.json` declares `"scope": "proof"`, and `Workspace.Layer`
+models **five** layers while the roster covers three — `components` and
+`applications` are layers 4 and 5, outside the current inventory by design. I
+checked what admitting them would cost: **both organizations hold zero
+repositories**, total, at any visibility. The positive control returns 251 through
+the same call path, so that is a real zero rather than a failed query. The proof
+scope is currently hiding nothing.
+
+**What to recompute when the roster widens, and in which direction:**
+
+- **Closure distribution** — will grow slightly. The three admitted packages are
+  depended upon (78, 13, and 1 in-tree dependents), so many closures gain one to
+  three members. A median of 36 is unlikely to move materially, but recompute
+  rather than adjust by estimate.
+- **The 113 top-level floor and the cover set** — the three are depended upon, so
+  none of them becomes top-level; the floor should hold. Their *own* dependencies
+  could in principle pull in further off-roster packages, which I have not
+  traced. **Treat the 113 as unverified against the widened roster** until it is
+  recomputed.
+- **The eight `Packages/`-unignored packages** — re-audit across 444, not 441.
+
+None of this changes any conclusion in this handoff. It changes which numbers may
+be quoted as current, and the answer is: none of them, once the eligibility rule
+ships. **They are dated, not wrong.**
+
 ---
 
 ## 7. Next increment
