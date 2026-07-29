@@ -1,11 +1,11 @@
 extension Workspace.Dependency {
     /// One repository tree at an exact source revision.
-    public struct Source: Equatable, Sendable {
-        public let reference: Swift.String
-        public let revision: Swift.String
-        public let manifests: [Blob]
+    struct Source: Equatable, Sendable {
+        let reference: Swift.String
+        let revision: Swift.String
+        let manifests: [Blob]
 
-        public init(
+        init(
             reference: Swift.String,
             revision: Swift.String,
             manifests: [Blob]

@@ -1,6 +1,6 @@
 extension Workspace.Dependency {
     /// One remote read, preserving every failure class the audit reports.
-    public enum Fetch<Value: Sendable>: Sendable {
+    enum Fetch<Value: Sendable>: Sendable {
         case available(Value)
         case unavailable(Swift.String)
         case rateLimited(Swift.String)
