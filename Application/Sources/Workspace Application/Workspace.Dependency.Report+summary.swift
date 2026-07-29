@@ -44,6 +44,27 @@ extension Workspace.Dependency.Report: CustomStringConvertible {
                     + (manifest.reason.map { " — \($0)" } ?? "")
             )
         }
+        for edge in edges where edge.state != .measured {
+            lines.append(
+                "  \(edge.state.rawValue) edge: "
+                    + "\(edge.repository.identity)/\(edge.manifest):\(edge.line) "
+                    + "-> \(edge.declaredURL) (identity \(edge.identity))"
+                    + " — \(edge.reason ?? "no reason recorded")"
+            )
+        }
+        for identity in identities where identity.state != .measured {
+            lines.append(
+                "  \(identity.state.rawValue) identity: \(identity.identity)"
+                    + " — \(identity.reason ?? "no reason recorded")"
+            )
+        }
+        for exclusion in exclusions {
+            lines.append(
+                "  excluded \(exclusion.kind.rawValue): "
+                    + "\(exclusion.repository.identity)/\(exclusion.manifest):\(exclusion.line)"
+                    + " — \(exclusion.reason)"
+            )
+        }
         lines.append(
             status == 0
                 ? "dependency audit: passed"

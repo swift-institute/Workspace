@@ -1,6 +1,14 @@
+private import GitHub
+
 extension Workspace.Dependency.Audit {
-    public func run() async -> Workspace.Dependency.Report {
-        let controls = controls()
+    func run() async -> Workspace.Dependency.Report {
+        let controls = await controls()
+        return await run(controls: controls)
+    }
+
+    func run(
+        controls: Workspace.Dependency.Controls
+    ) async -> Workspace.Dependency.Report {
         let keys = repositories.compactMap(Workspace.Repository.Key.init(repository:))
         guard controls.passed, keys.count == repositories.count else {
             return .init(
@@ -296,7 +304,7 @@ extension Workspace.Dependency.Audit {
         _ expected: Workspace.Repository.Key,
         metadata: Workspace.Dependency.Metadata
     ) -> Swift.String? {
-        guard metadata.visibility == "public" else {
+        guard metadata.visibility == .public else {
             return "repository is not public"
         }
         guard metadata.key == expected else {

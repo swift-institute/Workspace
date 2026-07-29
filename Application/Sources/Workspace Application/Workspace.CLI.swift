@@ -717,7 +717,7 @@ extension Workspace.CLI {
             let report = await Workspace.Dependency.Audit(
                 repositories: configuration.repositories,
                 policy: .institute(),
-                client: Workspace.Dependency.GitHub.client(),
+                client: Workspace.Dependency.Remote.client(),
                 sanctioned: exceptions,
                 inventoryReference: "HEAD",
                 inventoryRevision: head.rawValue

@@ -1,6 +1,7 @@
 public import GitHub
 public import JSON
 public import Tagged_Primitives
+private import RFC_3986
 
 extension Workspace.Repository {
     public struct Key: Equatable, Hashable, Sendable, JSON.Serializable {
@@ -16,8 +17,8 @@ extension Workspace.Repository {
             let components = identity.split(separator: "/", omittingEmptySubsequences: false)
             guard
                 components.count == 2,
-                !components[0].isEmpty,
-                !components[1].isEmpty
+                Self.valid(components[0]),
+                Self.valid(components[1])
             else { return nil }
             self.init(
                 owner: .init(Swift.String(components[0])),
@@ -26,15 +27,34 @@ extension Workspace.Repository {
         }
 
         public init?(url: Swift.String) {
-            let prefix = "https://github.com/"
-            let suffix = ".git"
-            guard url.hasPrefix(prefix), url.hasSuffix(suffix) else {
+            let uri: RFC_3986.URI
+            do throws(RFC_3986.Error) {
+                uri = try .init(url)
+            } catch {
                 return nil
             }
+            guard
+                uri.scheme?.value == "https",
+                uri.userinfo == nil,
+                uri.host == .registeredName("github.com"),
+                uri.port == nil,
+                uri.query == nil,
+                uri.fragment == nil,
+                let path = uri.path,
+                path.isAbsolute,
+                path.segments.count == 2,
+                !path.segments.contains(where: { $0.contains("%") }),
+                path.segments[1].hasSuffix(".git")
+            else { return nil }
 
-            let start = url.index(url.startIndex, offsetBy: prefix.count)
-            let end = url.index(url.endIndex, offsetBy: -suffix.count)
-            self.init(identity: Swift.String(url[start..<end]))
+            let repository = path.segments[1].dropLast(".git".count)
+            guard
+                let key = Self(
+                    identity: "\(path.segments[0])/\(repository)"
+                ),
+                key.url == url
+            else { return nil }
+            self = key
         }
 
         public init?(repository: Workspace.Repository) {
@@ -47,6 +67,20 @@ extension Workspace.Repository {
 }
 
 extension Workspace.Repository.Key {
+    private static func valid(_ component: some Swift.StringProtocol) -> Swift.Bool {
+        guard !component.isEmpty, component != ".", component != ".." else {
+            return false
+        }
+        return component.utf8.allSatisfy { byte in
+            switch byte {
+            case 0x30...0x39, 0x41...0x5A, 0x61...0x7A, 0x2D, 0x2E, 0x5F:
+                true
+            default:
+                false
+            }
+        }
+    }
+
     public var identity: Swift.String {
         "\(owner.underlying)/\(name.underlying)"
     }

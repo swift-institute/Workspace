@@ -10,7 +10,7 @@ extension Workspace.Dependency.Report {
             || manifests.contains(where: { incompleteStates.contains($0.state) })
             || edges.contains(where: { incompleteStates.contains($0.state) })
             || identities.contains(where: { incompleteStates.contains($0.state) })
-            || exclusions.contains(where: { $0.kind == .malformed })
+            || !exclusions.isEmpty
         {
             return 2
         }

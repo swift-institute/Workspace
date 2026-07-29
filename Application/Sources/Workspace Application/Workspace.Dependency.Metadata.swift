@@ -1,17 +1,19 @@
+internal import GitHub
+
 extension Workspace.Dependency {
     /// Live repository metadata needed to establish eligibility and ownership.
-    public struct Metadata: Equatable, Sendable {
-        public let key: Workspace.Repository.Key
-        public let ownerIsUser: Swift.Bool
-        public let visibility: Swift.String
-        public let archived: Swift.Bool
-        public let disabled: Swift.Bool
-        public let defaultBranch: Swift.String
+    struct Metadata: Equatable, Sendable {
+        let key: Workspace.Repository.Key
+        let ownerIsUser: Swift.Bool
+        let visibility: GitHub.Repository.Visibility
+        let archived: Swift.Bool
+        let disabled: Swift.Bool
+        let defaultBranch: Swift.String
 
-        public init(
+        init(
             key: Workspace.Repository.Key,
             ownerIsUser: Swift.Bool,
-            visibility: Swift.String,
+            visibility: GitHub.Repository.Visibility,
             archived: Swift.Bool,
             disabled: Swift.Bool,
             defaultBranch: Swift.String

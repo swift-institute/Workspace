@@ -1,3 +1,4 @@
+private import GitHub
 private import GitHub_HTTP
 private import HTTP_Standard
 private import JSON
@@ -6,46 +7,16 @@ private import RFC_4648
 
 extension Workspace.Dependency {
     /// GitHub-backed source for the read-only audit.
-    enum GitHub: Sendable {}
+    enum Remote: Sendable {}
 }
 
-extension Workspace.Dependency.GitHub {
+extension Workspace.Dependency.Remote {
     static func client() -> Workspace.Dependency.Client {
         .init(
-            repository: { key in await repository(key) },
+            repository: { key in await repositoryMetadata(key) },
             source: { metadata in await source(metadata) },
             content: { key, blob in await content(key, blob: blob) }
         )
-    }
-
-    private static func repository(
-        _ key: Workspace.Repository.Key
-    ) async -> Workspace.Dependency.Fetch<Workspace.Dependency.Metadata> {
-        let fetched = await json("repos/\(key.identity)")
-        guard case .available(let document) = fetched else {
-            return fetched.retyping()
-        }
-        do throws(JSON.Error) {
-            let fullName = try Swift.String.deserialize(document["full_name"])
-            guard let canonical = Workspace.Repository.Key(identity: fullName) else {
-                return .malformed(
-                    "\(key.identity): GitHub returned an invalid repository identity"
-                )
-            }
-            let owner = try Swift.String.deserialize(document["owner"]["type"])
-            return .available(
-                .init(
-                    key: canonical,
-                    ownerIsUser: owner == "User",
-                    visibility: try Swift.String.deserialize(document["visibility"]),
-                    archived: try Swift.Bool.deserialize(document["archived"]),
-                    disabled: try Swift.Bool.deserialize(document["disabled"]),
-                    defaultBranch: try Swift.String.deserialize(document["default_branch"])
-                )
-            )
-        } catch {
-            return .malformed("\(key.identity): malformed repository metadata: \(error)")
-        }
     }
 
     private static func source(
@@ -165,6 +136,106 @@ extension Workspace.Dependency.GitHub {
         default:
             return .unmeasured("GitHub returned HTTP \(response.status.code) for \(endpoint)")
         }
+    }
+}
+
+private func repositoryMetadata(
+    _ key: Workspace.Repository.Key
+) async -> Workspace.Dependency.Fetch<Workspace.Dependency.Metadata> {
+    let http = GitHub.HTTP.Client<
+        Workspace.Inventory.Transport.Error,
+        Never
+    >(
+        agent: .init(rawValue: "swift-institute-workspace"),
+        version: .init(rawValue: "2022-11-28"),
+        execute: Workspace.Inventory.Transport.githubCLI(),
+        pagination: .none
+    )
+    let response: GitHub.Repository.Get.Response
+    do throws(GitHub.HTTP.Error<Workspace.Inventory.Transport.Error, Never>) {
+        response = try await http.repository(
+            // `gh` supplies the credential; see Workspace.Inventory.Transport.
+            authentication: .token(.init(rawValue: ""))
+        ).get(
+            .init(
+                owner: .init(key.owner.underlying),
+                repository: key.name
+            )
+        )
+    } catch {
+        return repositoryFailure(error, key: key)
+    }
+
+    let metadata = response.repository
+    guard let canonical = Workspace.Repository.Key(identity: metadata.fullName) else {
+        return .malformed(
+            "\(key.identity): GitHub returned an invalid repository identity"
+        )
+    }
+    return .available(
+        .init(
+            key: canonical,
+            ownerIsUser: metadata.owner.type == "User",
+            visibility: metadata.visibility,
+            archived: metadata.isArchived,
+            disabled: metadata.isDisabled,
+            defaultBranch: metadata.defaultBranch
+        )
+    )
+}
+
+private func repositoryFailure(
+    _ error: GitHub.HTTP.Error<Workspace.Inventory.Transport.Error, Never>,
+    key: Workspace.Repository.Key
+) -> Workspace.Dependency.Fetch<Workspace.Dependency.Metadata> {
+    switch error {
+    case .execute(let failure):
+        return .unmeasured(
+            "GitHub transport failed for repos/\(key.identity): \(failure)"
+        )
+    case .json(let failure):
+        return .malformed(
+            "\(key.identity): malformed repository metadata: \(failure)"
+        )
+    case .status(let status):
+        switch status.code {
+        case 403, 429:
+            return .rateLimited(
+                "GitHub rate-limited repos/\(key.identity) (HTTP \(status.code))"
+            )
+        case 401, 404:
+            return .unavailable(
+                "GitHub cannot provide repos/\(key.identity) (HTTP \(status.code))"
+            )
+        default:
+            return .unmeasured(
+                "GitHub returned HTTP \(status.code) for repos/\(key.identity)"
+            )
+        }
+    case .header(let failure):
+        return .malformed(
+            "invalid GitHub repository request for \(key.identity): \(failure)"
+        )
+    case .path(let failure):
+        return .malformed(
+            "invalid GitHub repository path for \(key.identity): \(failure)"
+        )
+    case .query(let failure):
+        return .malformed(
+            "invalid GitHub repository query for \(key.identity): \(failure)"
+        )
+    case .scheme(let failure):
+        return .malformed(
+            "invalid GitHub repository scheme for \(key.identity): \(failure)"
+        )
+    case .pagination:
+        return .unmeasured(
+            "GitHub repository lookup unexpectedly attempted pagination for \(key.identity)"
+        )
+    @unknown default:
+        return .unmeasured(
+            "GitHub repository lookup failed for \(key.identity)"
+        )
     }
 }
 

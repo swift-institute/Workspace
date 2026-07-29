@@ -1,17 +1,17 @@
 extension Workspace.Dependency {
     /// Reproducible, read-only measurement of direct manifest dependency
     /// origins over the Workspace inventory.
-    public struct Audit: Sendable {
-        public let repositories: [Workspace.Repository]
-        public let policy: Workspace.Inventory.Policy
-        public let client: Client
-        public let sanctioned: Set<Workspace.Repository.Key>
-        public let inventoryReference: Swift.String
-        public let inventoryRevision: Swift.String
-        public let parser: Parser
-        public let fanout: Workspace.Fanout
+    struct Audit: Sendable {
+        let repositories: [Workspace.Repository]
+        let policy: Workspace.Inventory.Policy
+        let client: Client
+        let sanctioned: Set<Workspace.Repository.Key>
+        let inventoryReference: Swift.String
+        let inventoryRevision: Swift.String
+        let parser: Parser
+        let fanout: Workspace.Fanout
 
-        public init(
+        init(
             repositories: [Workspace.Repository],
             policy: Workspace.Inventory.Policy,
             client: Client,

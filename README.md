@@ -116,7 +116,14 @@ the inventory population, source references and revisions, per-manifest and per-
 provenance, ownership classifications, excluded path or registry declarations, and every
 unavailable, rate-limited, malformed, or otherwise unmeasured input. Sanctioned exceptions are
 explicit inputs from the governing policy rather than a second policy list in Workspace, and
-the report records them. A redirect is resolved before ownership is classified.
+the report records them. A redirect is resolved before ownership is classified. Runtime controls
+drive a finding and a clean input through that same redirect, classification, report, and exit-status
+pipeline before the inventory is measured.
+
+Any excluded declaration — including a path dependency, registry dependency, or malformed
+repository URL — makes the report incomplete and exits `2`. A sanctioned exception applies only
+to its canonical repository identity; it cannot sanction a declaration whose identity was not
+measured.
 
 The command is read-only. It does not inspect or change local package manifests,
 `Package.resolved`, the inventory, or a materialized checkout. Exit `0` means complete evidence

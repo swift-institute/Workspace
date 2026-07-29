@@ -1,3 +1,5 @@
+private import GitHub
+
 extension Workspace.Dependency.Audit {
     func resolve(
         _ resolutions: [Workspace.Dependency.Resolution]
@@ -30,7 +32,7 @@ extension Workspace.Dependency.Audit {
             let declaredURL = resolution.declared.url
             switch resolution.fetch {
             case .available(let metadata):
-                guard metadata.visibility == "public" else {
+                guard metadata.visibility == .public else {
                     append(
                         resolution.declared,
                         state: .unavailable,
