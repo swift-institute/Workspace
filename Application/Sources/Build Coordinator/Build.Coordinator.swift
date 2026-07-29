@@ -1,14 +1,33 @@
 private import File_System
+private import Kernel_System
+private import Kernel_Thread
 private import POSIX_Kernel_Lock
 private import Process
 
 extension Build {
     /// Runs SwiftPM operations with one owned interface and isolated evidence builds.
     public struct Coordinator: Sendable {
+        /// How many compile jobs SwiftPM is given.
+        ///
+        /// Defaults to the machine's online processor count. Nothing else is
+        /// competing for it: ``run(_:at:fresh:arguments:)`` holds a
+        /// machine-wide exclusive lock across the whole compilation, so a
+        /// coordinated build is the only coordinated build running. A cap
+        /// below the core count therefore does not protect a second builder —
+        /// there isn't one — it just leaves cores idle for the duration.
         public let jobs: Swift.Int
 
-        public init(jobs: Swift.Int = 3) {
-            self.jobs = jobs
+        /// The online processor count.
+        ///
+        /// Read from the machine rather than fixed, so a coordinated build
+        /// neither under-uses a large host nor oversubscribes a small one.
+        /// Same derivation as ``Workspace/Lint/Sweep/processors``.
+        public static var processors: Swift.Int {
+            Swift.Int(Kernel.Thread.Count(System.Processor.count))
+        }
+
+        public init(jobs: Swift.Int? = nil) {
+            self.jobs = Swift.max(1, jobs ?? Self.processors)
         }
     }
 }
@@ -38,9 +57,6 @@ extension Build.Coordinator {
             package = File.Directory(try File.System.Canonical.resolve(candidate.path))
         } catch {
             throw .filesystem("cannot resolve package path \(candidate): \(error)")
-        }
-        guard jobs > 0 else {
-            throw .configuration("jobs must be greater than zero")
         }
         guard !fresh || action.acceptsFreshScratch else {
             throw .configuration("--fresh is valid only with package build or test")
