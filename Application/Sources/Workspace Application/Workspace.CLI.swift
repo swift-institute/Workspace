@@ -319,7 +319,18 @@ extension Workspace.CLI {
                 packagePath.isEmpty ? working : packagePath
             )
             let lint = try Workspace.Lint.resolve(from: target.package.description)
-            let measurement = lint.measure(target, using: try lint.installation())
+            // The default bundle comes from where the package sits under
+            // the hierarchy the installation was found in — the same
+            // ascent, no extra reads. It is used only when the package
+            // carries no `Lint.swift`.
+            let measurement = lint.measure(
+                target,
+                using: try lint.installation(),
+                default: Workspace.Lint.Bundle.resolve(
+                    target.package,
+                    under: lint.hierarchy
+                )
+            )
             print(measurement)
             Process.Exit.normal(measurement.verdict.fails ? (measurement.verdict.isUnmeasured ? 2 : 1) : 0)
         }

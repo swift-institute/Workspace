@@ -1,7 +1,7 @@
 public import JSON
 
 extension Workspace {
-    public enum Layer: Swift.String, Sendable, JSON.Serializable {
+    public enum Layer: Swift.String, Swift.CaseIterable, Sendable, JSON.Serializable {
         case primitives
         case standards
         case foundations

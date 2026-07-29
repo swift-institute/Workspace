@@ -67,45 +67,74 @@ extension Workspace.Lint {
     /// from, so a package's verdict cannot depend on which entry point
     /// asked for it.
     ///
-    /// The invocation is what CI runs, argument for argument:
-    /// `swift-linter <package-root> --exit-policy strict`, with the
-    /// prebuilt standard runner provisioned on the environment. The
-    /// package root is passed absolute so the engine's summary line
-    /// names the package rather than reporting `.`.
+    /// A package carrying a `Lint.swift` is run through what CI runs,
+    /// argument for argument: `swift-linter <package-root> --exit-policy
+    /// strict`, with the prebuilt standard runner provisioned on the
+    /// environment. The package root is passed absolute so the engine's
+    /// summary line names the package rather than reporting `.`.
+    ///
+    /// ## The unconfigured package
+    ///
+    /// A package with no `Lint.swift` cannot go through the dispatcher
+    /// at all: the dispatcher's whole job is to classify a consumer
+    /// manifest, and with none present it falls through to a zero-rules
+    /// configuration and exits clean having loaded nothing. So it is
+    /// handed straight to the prebuilt standard runner, which bakes
+    /// every published bundle and selects one from
+    /// ``Workspace/Lint/Bundle/variable``. The runner takes lint targets
+    /// and nothing else on its argument vector — a `--exit-policy` flag
+    /// there would be read as a path — so the policy rides its own
+    /// environment channel, which is the same terminal the dispatched
+    /// executable reads.
+    ///
+    /// This path has no CI counterpart, because CI's activation signal
+    /// is the presence of `Lint.swift` and these packages have none. It
+    /// is Workspace's own measurement. The adjudicator does not know the
+    /// difference and does not need to: a runner that loaded no rules,
+    /// or found no files, is `unmeasured` here exactly as it would be
+    /// there.
+    ///
+    /// - Parameter default: The bundle to lint an unconfigured package
+    ///   with. `nil` means the caller could not determine one, and the
+    ///   package is reported unmeasured rather than linted against a
+    ///   guess.
     public func measure(
         _ target: Target,
         using installation: Installation,
-        recordedUnconfigured: Swift.String? = nil
+        default bundle: Bundle?
     ) -> Measurement {
         let package = target.package.description
 
-        guard target.isConfigured else {
-            if let recordedUnconfigured {
+        var environment = Environment.Snapshot.current()
+        let executable: Swift.String
+        let arguments: [Swift.String]
+        if target.isConfigured {
+            environment[Self.runnerVariable] = installation.runner.description
+            executable = installation.executable.description
+            arguments = [package, "--exit-policy", Self.exitPolicy]
+        } else {
+            guard let bundle else {
                 return .init(
                     package: package,
-                    verdict: .unconfigured(recorded: recordedUnconfigured),
+                    verdict: .unmeasured(
+                        reason:
+                            "no Lint.swift at \(package), and no default rule bundle could be "
+                            + "resolved for it: the package does not sit under a layer root in "
+                            + "\(hierarchy), so which rule set its peers use is not established. "
+                            + "Linting it against a guessed bundle would publish a number nobody "
+                            + "can interpret"
+                    ),
                     summary: nil,
                     findings: [],
                     diagnostics: "",
                     status: 0
                 )
             }
-            return .init(
-                package: package,
-                verdict: .unmeasured(
-                    reason:
-                        "no Lint.swift at \(package); the engine's activation signal is absent, so "
-                        + "a run here would load zero rules and exit clean having measured nothing"
-                ),
-                summary: nil,
-                findings: [],
-                diagnostics: "",
-                status: 0
-            )
+            environment[Bundle.variable] = bundle.token
+            environment[Self.policyVariable] = Self.exitPolicy
+            executable = installation.runner.description
+            arguments = [package]
         }
-
-        var environment = Environment.Snapshot.current()
-        environment[Self.runnerVariable] = installation.runner.description
 
         let clock = ContinuousClock()
         let started = clock.now
@@ -113,8 +142,8 @@ extension Workspace.Lint {
         do throws(Process.Error) {
             output = try Process.Spawn.run(
                 .init(
-                    executable: installation.executable.description,
-                    arguments: [package, "--exit-policy", Self.exitPolicy],
+                    executable: executable,
+                    arguments: arguments,
                     environment: environment.values,
                     stdout: .pipe,
                     stderr: .pipe,

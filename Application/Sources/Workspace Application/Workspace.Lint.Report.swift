@@ -5,6 +5,12 @@ extension Workspace.Lint {
     /// "packages" and "violations" would have nowhere to put a package
     /// it failed to measure, and anything without a place to go gets
     /// absorbed into the clean count.
+    ///
+    /// There was a fourth — packages recorded as deliberately carrying
+    /// no lint configuration — and it is gone with the allowlist that
+    /// fed it. Every materialized package is now measured, so the only
+    /// reason a package is missing from the coverage count is that
+    /// measuring it failed.
     public struct Report: Sendable {
         public let scope: Sweep.Scope
 
@@ -39,16 +45,6 @@ extension Workspace.Lint.Report {
 
     public var unmeasured: [Workspace.Lint.Measurement] {
         measurements.filter(\.verdict.isUnmeasured)
-    }
-
-    /// Packages with no lint configuration, recorded as deliberate.
-    ///
-    /// Counted apart from `clean` on purpose: nothing was measured in
-    /// these, so folding them into coverage would overstate it. They are
-    /// named in the summary so the list stays visible and shrinking it
-    /// stays the obvious thing to do with it.
-    public var unconfigured: [Workspace.Lint.Measurement] {
-        measurements.filter(\.verdict.isUnconfigured)
     }
 
     /// Source files the sweep actually visited.
@@ -124,17 +120,6 @@ extension Workspace.Lint.Report: CustomStringConvertible {
             lines.append("\(measurement.verdict.text)  \(measurement.package)")
         }
 
-        if !unconfigured.isEmpty {
-            lines.append("")
-            lines.append(
-                "recorded as carrying no lint configuration (\(unconfigured.count)) — "
-                    + "nothing was measured in these:"
-            )
-            for measurement in unconfigured.sorted(by: { $0.package < $1.package }) {
-                lines.append("  \(measurement.package)")
-            }
-        }
-
         if !unmaterialized.isEmpty {
             lines.append("")
             lines.append(
@@ -166,7 +151,6 @@ extension Workspace.Lint.Report: CustomStringConvertible {
         lines.append(
             "lint \(scope.text): \(measurements.count) packages linted · \(filesLinted) files · "
                 + "\(clean.count) clean · \(violations.count) with violations · "
-                + "\(unconfigured.count) unconfigured (recorded) · "
                 + "\(unmeasured.count) UNMEASURED"
         )
         lines.append("engine time \(Self.seconds(engineTime)) summed across packages")

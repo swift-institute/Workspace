@@ -3,9 +3,9 @@ public import File_System
 extension Workspace.Lint {
     /// One package's lint result, adjudicated.
     ///
-    /// Constructed only by ``Workspace/Lint/measure(_:using:)``, so
-    /// there is no path by which a caller can assemble a clean verdict
-    /// out of an unconfigured run.
+    /// Constructed only by ``Workspace/Lint/measure(_:using:default:)``,
+    /// so there is no path by which a caller can assemble a clean
+    /// verdict out of a run that loaded no rules.
     public struct Measurement: Equatable, Sendable {
         /// The package root that was linted, as an absolute path.
         public let package: Swift.String
@@ -49,6 +49,13 @@ extension Workspace.Lint.Measurement {
     /// reported "no violations found" for a run that loaded no rules
     /// would be the exact defect this type exists to make
     /// unrepresentable.
+    ///
+    /// There was a fourth, `unconfigured`, for packages carrying no
+    /// `Lint.swift`: not clean, not a failure, excused by a checked-in
+    /// allowlist. It is gone. Such a package is now linted against the
+    /// default ``Workspace/Lint/Bundle`` for its layer and lands in one
+    /// of the three states below like any other, so there is no longer a
+    /// state that means "we agreed not to look".
     public enum Verdict: Equatable, Sendable {
         /// Rules ran over files and found nothing.
         case clean
@@ -62,32 +69,12 @@ extension Workspace.Lint.Measurement {
         /// Nothing was established. Never reported as clean, in either
         /// mode, and never absorbed into a sweep aggregate.
         case unmeasured(reason: Swift.String)
-
-        /// The package carries no lint configuration, and the sweep's
-        /// allowlist records that as deliberate.
-        ///
-        /// Separate from both `clean` and `unmeasured` on purpose. It is
-        /// not clean — nothing was measured — so it is never counted as
-        /// coverage. It is not a failure either, because the gap is
-        /// recorded and tracked rather than unnoticed. Collapsing it
-        /// into `clean` would overstate coverage; collapsing it into
-        /// `unmeasured` would make the sweep permanently red, and a gate
-        /// that is always red gates nothing.
-        ///
-        /// Only ever produced by the sweep. The single-package path does
-        /// not read the allowlist: asked to lint a package, "nothing
-        /// here is configured" is a failure to deliver what was asked.
-        case unconfigured(recorded: Swift.String)
     }
 }
 
 extension Workspace.Lint.Measurement.Verdict {
     public var isUnmeasured: Swift.Bool {
         if case .unmeasured = self { true } else { false }
-    }
-
-    public var isUnconfigured: Swift.Bool {
-        if case .unconfigured = self { true } else { false }
     }
 
     /// Whether this verdict alone should fail the run.
@@ -100,7 +87,6 @@ extension Workspace.Lint.Measurement.Verdict {
         case .clean: false
         case .violations(_, let failing): failing
         case .unmeasured: true
-        case .unconfigured: false
         }
     }
 
@@ -110,8 +96,6 @@ extension Workspace.Lint.Measurement.Verdict {
         case .violations(let count, let failing):
             "\(count) violation\(count == 1 ? "" : "s")\(failing ? " (error severity)" : " (advisory)")"
         case .unmeasured(let reason): "UNMEASURED — \(reason)"
-        case .unconfigured(let recorded):
-            "no lint configuration — recorded in \(recorded); nothing was measured here"
         }
     }
 }
@@ -124,9 +108,10 @@ extension Workspace.Lint {
     /// established nothing:
     ///
     /// - **No summary line.** The engine emitted no run summary, so it
-    ///   was never configured. This covers the file-path invocation, the
-    ///   missing-`Lint.swift` invocation, and the empty directory — all
-    ///   three of which otherwise exit zero in total silence.
+    ///   was never configured. This covers the file-path invocation and
+    ///   the empty directory, both of which otherwise exit zero in total
+    ///   silence — and it is the guard that would catch a default-bundle
+    ///   run whose channel the runner ignored.
     /// - **Zero active rules.** A configuration resolved but loaded no
     ///   rules. Nothing could have been found.
     /// - **Zero files linted.** Rules loaded but matched no source. A

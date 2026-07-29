@@ -27,11 +27,18 @@ extension Workspace {
     /// ## Why a run can never report clean without measuring
     ///
     /// The engine ships rule-pack-agnostic: without a reachable
-    /// configuration, zero rules fire. Three invocations produce exit
-    /// zero with no output whatsoever — a directory holding Swift
-    /// source but no `Lint.swift`, a *file* path rather than a package
-    /// root, and an empty directory. Exit status therefore attests that
-    /// a process ran, never that it was configured.
+    /// configuration, zero rules fire. Three invocations of the
+    /// dispatcher produce exit zero with no output whatsoever — a
+    /// directory holding Swift source but no `Lint.swift`, a *file* path
+    /// rather than a package root, and an empty directory. Exit status
+    /// therefore attests that a process ran, never that it was
+    /// configured.
+    ///
+    /// The first of those three is why a package with no `Lint.swift` is
+    /// not sent to the dispatcher at all but to the prebuilt runner with
+    /// an explicit ``Workspace/Lint/Bundle`` — see
+    /// ``Workspace/Lint/measure(_:using:default:)``. The other two remain
+    /// silent zeros, and remain caught below.
     ///
     /// The engine's own always-on summary line is the positive control,
     /// and it is the only one available. Every run through this type is
@@ -157,6 +164,17 @@ extension Workspace.Lint {
     /// policy would be a machine for producing local-versus-CI
     /// disagreements.
     static let exitPolicy = "strict"
+
+    /// The environment channel carrying the exit policy to a dispatched
+    /// executable.
+    ///
+    /// The dispatcher exports this itself from its `--exit-policy` flag,
+    /// so the configured path never sets it here. The unconfigured path
+    /// has no dispatcher in front of it — it spawns the prebuilt runner
+    /// directly — and the runner reads only this channel, so Workspace
+    /// exports it. Both land at the same terminal inside the engine,
+    /// which is what keeps the two paths' exit semantics identical.
+    static let policyVariable = "SWIFT_LINTER_EXIT_POLICY"
 }
 
 extension Workspace.Lint {

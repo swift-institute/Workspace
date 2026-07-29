@@ -109,13 +109,18 @@ authenticated `gh` never changes what a plain `doctor` does.
   line is the defect this capability exists to prevent. The sweep likewise fails
   rather than reporting an empty ecosystem clean when the inventory materializes
   nothing, which is what a run from the wrong hierarchy root looks like.
-- **`Lint.json` records deliberate lint gaps; `Lint.swift` remains the authority.**
-  A package with no `Lint.swift` measured nothing and is never reported clean. Listing
-  it in `Lint.json` keeps the sweep green without pretending coverage exists — the
-  package is named in the summary and counted separately from `clean`. An entry for a
-  package that *does* carry a `Lint.swift` is an error, so the record cannot outlive
-  the gap it excuses. Removing an entry is the point; adding one is a decision taken
-  in the change that creates the need. `workspace package lint` never reads it.
+- **There is no way for a package to opt out of being linted.** A package with no
+  `Lint.swift` is linted against the default bundle for its layer — `primitives`,
+  `standards`, or `institute` — spawned through the prebuilt runner directly, because
+  the dispatcher needs a consumer manifest to classify and without one loads zero
+  rules. The default is what that layer's configured packages already activate, so
+  adopting a `Lint.swift` later cannot change the verdict. Do not reintroduce an
+  allowlist, a skip list, or any other record that excuses a package from
+  measurement: the `Lint.json` allowlist and the `unconfigured` verdict were deleted
+  on 2026-07-29 for exactly that reason. A package outside every layer root is
+  `UNMEASURED`, never defaulted to a guessed bundle. This one path has no CI
+  counterpart — CI activates on `Lint.swift` and runs nothing for these packages —
+  so it is Workspace's own measurement and is documented as one.
 - **swift-linter is developer tooling, not an inventory package.** Install it through
   `workspace lint install`; never add it to `Workspace.json` and never put a machine
   path in durable configuration. Workspace sets `SWIFT_LINTER_RUNNER` on the child

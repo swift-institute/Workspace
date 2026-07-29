@@ -13,9 +13,12 @@ extension Workspace.Lint {
     ///
     /// The sweep is not a second implementation of linting. It resolves
     /// the installation once and then calls the same
-    /// ``Workspace/Lint/measure(_:using:)`` the single-package mode
-    /// calls, so a package's verdict cannot depend on which entry point
-    /// asked for it.
+    /// ``Workspace/Lint/measure(_:using:default:)`` the single-package
+    /// mode calls, so a package's verdict cannot depend on which entry
+    /// point asked for it. That extends to the default rule set: the two
+    /// modes reach the same ``Workspace/Lint/Bundle`` by different
+    /// routes — the inventory's layer here, the materialized path there
+    /// — and ``Workspace/Layout`` makes those routes agree.
     public struct Sweep: Sendable {
         public let lint: Workspace.Lint
 
@@ -92,7 +95,6 @@ extension Workspace.Lint.Sweep {
     public func run(scope: Scope = .all) async throws(Workspace.Error) -> Workspace.Lint.Report {
         let installation = try lint.installation()
         let inventory = repositories
-        let allowlist = try Workspace.Lint.Allowlist.load(at: root.checkout)
 
         var targets = [(repository: Workspace.Repository, target: Workspace.Lint.Target)]()
         var absent = [Swift.String]()
@@ -120,22 +122,6 @@ extension Workspace.Lint.Sweep {
             )
         }
 
-        // The allowlist is validated against what is actually on disk,
-        // before any measurement. A stale entry — one whose package has
-        // since gained a Lint.swift — silently excuses a package that no
-        // longer needs excusing, which is exactly the drift that makes a
-        // second source of truth dangerous. Failing here keeps
-        // Lint.swift the authority.
-        let faults = allowlist.diagnostics(
-            against: inventory,
-            configured: { repository in
-                targets.first { $0.repository == repository }?.target.isConfigured ?? false
-            }
-        )
-        guard faults.isEmpty else {
-            throw .configuration(faults.joined(separator: "\n"))
-        }
-
         let selected: [(repository: Workspace.Repository, target: Workspace.Lint.Target)]
         switch scope {
         case .all:
@@ -148,12 +134,17 @@ extension Workspace.Lint.Sweep {
             selected = zip(targets, local).filter(\.1).map(\.0)
         }
 
-        let recorded = Workspace.Lint.Allowlist.fileName.string
+        // The bundle comes from the inventory entry's layer, which is
+        // authoritative — the sweep never has to derive it from where a
+        // package happens to sit on disk. It is passed for every package,
+        // configured or not; `measure` uses it only for the ones with no
+        // `Lint.swift`, and a configured package's own manifest always
+        // wins.
         let measurements = await measure(
             selected.map { entry in
                 (
                     target: entry.target,
-                    recorded: allowlist.records(entry.repository) ? recorded : nil
+                    bundle: Workspace.Lint.Bundle(entry.repository.layer)
                 )
             },
             using: installation
@@ -169,7 +160,7 @@ extension Workspace.Lint.Sweep {
 
     /// Measures every target, `jobs` at a time.
     func measure(
-        _ targets: [(target: Workspace.Lint.Target, recorded: Swift.String?)],
+        _ targets: [(target: Workspace.Lint.Target, bundle: Workspace.Lint.Bundle)],
         using installation: Workspace.Lint.Installation
     ) async -> [Workspace.Lint.Measurement] {
         let lint = self.lint
@@ -177,7 +168,7 @@ extension Workspace.Lint.Sweep {
             lint.measure(
                 entry.target,
                 using: installation,
-                recordedUnconfigured: entry.recorded
+                default: entry.bundle
             )
         }
     }

@@ -251,25 +251,37 @@ and enumerates no organization. The whole-ecosystem sweep enumerates from
 `Workspace.json` and lints packages concurrently. Both modes go through one
 implementation, so a package's verdict cannot depend on which one asked for it.
 
-A package carrying no `Lint.swift` has measured nothing, and the sweep will not
-call that clean. [Lint.json](Lint.json) records the packages where that absence
-is deliberate: a listed package is reported and counted but does not fail the
-sweep, and an unlisted one fails. Without that, the sweep would exit non-zero on
-day one and every day after, and a gate that is always red gates nothing.
+**Every package is linted, whether or not it carries a `Lint.swift`.** A package
+with one is dispatched exactly as CI dispatches it. A package without one cannot
+go through the dispatcher at all — with no consumer manifest to classify, the
+dispatcher falls through to a zero-rules configuration and exits clean having
+loaded nothing — so it is handed straight to the prebuilt standard runner with an
+explicit bundle selection on `SWIFT_LINTER_BUNDLE` and the exit policy on
+`SWIFT_LINTER_EXIT_POLICY`, which is the same terminal the dispatched executable
+reads.
 
-The list cannot drift away from reality, because `Lint.swift` remains the single
-authority and the allowlist only records its deliberate absence: **an entry for a
-package that does carry a `Lint.swift` is an error**, as is an entry naming a
-package absent from the inventory. Every fault is reported at once rather than
-one per run. `workspace package lint` never reads the file — asked to lint a
-package, "nothing here is configured" is a failure to deliver what was asked.
+The default bundle is the one the package's own layer already uses:
+`primitives` for the primitives layer, `standards` for the standards layer,
+`institute` for everything above them. That is not a second standard — it is
+byte-for-byte what the package's configured peers activate, so writing the
+`Lint.swift` its layer's convention calls for changes nothing about the verdict.
+Picking each layer's own bundle rather than one global choice is what stops a
+primitives-layer package from being measured against a *weaker* set than its
+peers, which would reward staying unconfigured. A package that sits under no
+layer root has no peers to inherit from and is reported `UNMEASURED` rather than
+linted against a guess.
+
+This one path has no CI counterpart: CI's activation signal *is* the presence of
+`Lint.swift`, so for these packages CI runs nothing. The default-bundle run is
+Workspace's own measurement. Nothing here changes what the gating CI legs
+require.
 
 **A lint run cannot report clean without having measured something.** The
 engine ships rule-pack-agnostic: without a reachable configuration zero rules
-fire, and three invocations exit zero having printed nothing at all — a
-directory holding Swift source but no `Lint.swift`, a *file* path rather than a
-package root, and an empty directory. Exit status attests that a process ran,
-never that it was configured. Every run is adjudicated against the engine's
+fire, and three invocations of the dispatcher exit zero having printed nothing at
+all — a directory holding Swift source but no `Lint.swift`, a *file* path rather
+than a package root, and an empty directory. Exit status attests that a process
+ran, never that it was configured. Every run is adjudicated against the engine's
 always-on summary line, and a missing summary, zero active rules, or zero files
 linted reports `UNMEASURED` — never clean, per package inside the sweep as well
 as on its own. A sweep that enumerates the inventory and materializes nothing
