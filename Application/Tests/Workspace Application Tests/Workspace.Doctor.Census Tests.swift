@@ -35,15 +35,22 @@ extension Workspace.Doctor.Test.Unit {
         #expect(outcome.result == .ok(population: 1))
     }
 
+    /// Deliberately a warning. `doctor` does not fetch, so this compares
+    /// against a remote-tracking ref of unknown age; erroring on it blocks a
+    /// checkout on a divergence that a `git fetch` may show does not exist.
     @Test
-    func `divergence from the resolved upstream is an error`() {
+    func `divergence from the resolved upstream is a warning naming the staleness`() {
         let outcome = Workspace.Doctor.census.run(
             population: [Self.census(ahead: 1, behind: 2)],
             inventory: 1
         )
 
-        #expect(outcome.result == .finding(severity: .error, population: 1))
-        #expect(outcome.findings.contains { $0.message.contains("not synchronized") })
+        #expect(outcome.result == .finding(severity: .warning, population: 1))
+        #expect(outcome.findings.contains { $0.message.contains("diverges") })
+        // The reader has to be told the measurement is against a cache, or
+        // they cannot tell a phantom from a real one.
+        #expect(outcome.findings.contains { $0.message.contains("may be stale") })
+        #expect(outcome.findings.allSatisfy { $0.severity != .error })
     }
 
     @Test

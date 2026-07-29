@@ -137,11 +137,26 @@ extension Workspace.Doctor {
             )
         }
         if repository.upstream == "origin/main", repository.ahead > 0 || repository.behind > 0 {
+            // A warning, not an error, because this is the one observation in
+            // this check that is not certain. `doctor` never fetches — it is
+            // offline and credential-free by design, and fetching would cost a
+            // network round trip per repository across the whole roster — so
+            // the comparison is against a remote-tracking ref of unknown age,
+            // not against the remote. A checkout that has not fetched recently
+            // reports commits as unpushed that are already on origin, and it
+            // did: two of the three divergences reported on this roster on
+            // 2026-07-29 evaporated on `git fetch`, and one nearly became a
+            // redundant push. Erroring on that blocks people on a phantom,
+            // which is worse than the divergence it is warning about — and the
+            // certain local-work signals beside it, dirty and untracked, are
+            // already warnings.
             findings.append(
                 .init(
-                    severity: .error,
-                    message: "\(repository.name): local main is not synchronized with the last "
-                        + "fetched origin/main (ahead \(repository.ahead), behind \(repository.behind))"
+                    severity: .warning,
+                    message: "\(repository.name): local main diverges from the last fetched "
+                        + "origin/main (ahead \(repository.ahead), behind \(repository.behind)) "
+                        + "— the tracking ref may be stale; `git fetch` in that repository to "
+                        + "tell a real divergence from a cached one"
                 )
             )
         }
@@ -157,14 +172,40 @@ extension Workspace.Doctor {
         return findings
     }
 
-    func census(_ materialized: [(Workspace.Repository, File.Directory)]) -> Outcome {
-        var population = [Census]()
-        for (repository, path) in materialized {
+    /// Up to six `git` interrogations per materialized repository,
+    /// gathered concurrently.
+    ///
+    /// Each repository is an independent checkout and the gather reads it
+    /// without writing, so nothing here depends on the order the gathers
+    /// complete in. The short-circuit does depend on order, and keeps it:
+    /// results come back in selection order and the *first* unreadable
+    /// repository in that order names the reason, exactly as the serial
+    /// gather did. Concurrency costs only work already begun on repositories
+    /// after it — never a different verdict.
+    func census(_ materialized: [(Workspace.Repository, File.Directory)]) async -> Outcome {
+        let observed = await fanout.map(
+            materialized,
+            completed: progress.steps("working-state: gathered", of: materialized.count)
+        ) { entry in
+            let (repository, path) = entry
             do throws(Workspace.Error) {
-                population.append(try observe(repository, at: path))
+                return Swift.Result<Census, Workspace.Error>.success(
+                    try self.observe(repository, at: path)
+                )
             } catch {
+                return .failure(error)
+            }
+        }
+
+        var population = [Census]()
+        population.reserveCapacity(observed.count)
+        for (offset, result) in observed.enumerated() {
+            switch result {
+            case .success(let census):
+                population.append(census)
+            case .failure(let error):
                 return Self.census.unmeasured(
-                    reason: "\(repository.name): cannot read its working state: \(error)"
+                    reason: "\(materialized[offset].0.name): cannot read its working state: \(error)"
                 )
             }
         }
