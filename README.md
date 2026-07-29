@@ -91,7 +91,10 @@ alone, against public repositories, with no credentials and no internal tooling.
 needs anything you cannot get, that is a defect — please open an issue.
 
 Requires macOS 26, Xcode 26.6, Swift 6.3.3, and Git. The optional navigation
-setup additionally requires Node 18 or newer and Bun.
+setup additionally requires Node 18 or newer and Bun. If you keep more than one Swift toolchain
+installed, [TOOLCHAINS.md](TOOLCHAINS.md) covers how to select one explicitly and how to
+determine which one actually produced a result — machine-local configuration, not committed
+state.
 
 ```sh
 git clone https://github.com/swift-institute/Workspace.git
