@@ -14,6 +14,18 @@ extension Workspace.CLI {
 
 extension Workspace.CLI.Test.Unit {
     @Test
+    func `install selects the command bootstrap`() throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: ["install"],
+            initial: .init()
+        )
+
+        #expect(command.operation == .install)
+        #expect(command.modes.isEmpty)
+    }
+
+    @Test
     func `sync selects mutating execution`() throws {
         let command = try Command.parse(
             Workspace.CLI.self,
@@ -193,6 +205,28 @@ extension Workspace.CLI.Test.Unit {
 }
 
 extension Workspace.CLI.Test.`Edge Case` {
+    @Test
+    func `install takes no mode`() {
+        #expect(throws: Command.Error.self) {
+            _ = try Command.parse(
+                Workspace.CLI.self,
+                from: ["install", "check"],
+                initial: .init()
+            )
+        }
+    }
+
+    @Test
+    func `install rejects package arguments`() {
+        #expect(throws: Command.Error.self) {
+            _ = try Command.parse(
+                Workspace.CLI.self,
+                from: ["install", "--package-path", "Application"],
+                initial: .init()
+            )
+        }
+    }
+
     @Test
     func `doctor rejects dry run`() {
         #expect(throws: Command.Error.self) {

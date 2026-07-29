@@ -60,7 +60,8 @@ extension Workspace.CLI {
             Command.Positional(
                 \.operation,
                 name: "operation",
-                placeholder: "sync|build|doctor|inventory|compose|restore|verify|context|navigation|package|lint",
+                placeholder:
+                    "install|sync|build|doctor|inventory|compose|restore|verify|context|navigation|package|lint",
                 help: .init(abstract: "Operation to perform.")
             )
             Command.Positional<Self, Mode>.Many(
@@ -166,7 +167,35 @@ extension Workspace.CLI {
         guard operation == .doctor || !institute else {
             throw .validationFailed(reason: "--institute is valid only with doctor.")
         }
-        if operation == .context {
+        if operation == .install {
+            guard modes.isEmpty else {
+                throw .validationFailed(reason: "install takes no mode.")
+            }
+            guard consumer.isEmpty, dependency.isEmpty else {
+                throw .validationFailed(
+                    reason: "--consumer and --dependency are not valid with install."
+                )
+            }
+            guard !dry else {
+                throw .validationFailed(
+                    reason: "--dry-run is valid only with sync or inventory regenerate."
+                )
+            }
+            guard !fresh else {
+                throw .validationFailed(reason: "--fresh is valid only with package build or test.")
+            }
+            guard packagePath.isEmpty else {
+                throw .validationFailed(reason: "--package-path is valid only with package.")
+            }
+            guard workspacePath.isEmpty else {
+                throw .validationFailed(
+                    reason: "--workspace-path is valid only with navigation or lint."
+                )
+            }
+            guard arguments.isEmpty else {
+                throw .validationFailed(reason: "--argument is valid only with package.")
+            }
+        } else if operation == .context {
             guard
                 modes.count == 1,
                 modes.first == .install || modes.first == .check
@@ -380,6 +409,15 @@ extension Workspace.CLI {
     }
 
     public mutating func run() async throws(Workspace.Error) {
+        if case .install = operation {
+            let installation = try Workspace.Installation()
+            try installation.install()
+            print("workspace: installed and verified")
+            print("workspace command: \(installation.command)")
+            print("workspace executable: \(installation.executable)")
+            return
+        }
+
         guard let working = Environment.read("PWD") else {
             throw .configuration("PWD is not available")
         }
@@ -522,6 +560,8 @@ extension Workspace.CLI {
 
         let configuration = try Workspace.Configuration.load(at: root.checkout)
         switch operation {
+        case .install:
+            return
         case .sync:
             let selection = try Workspace.Selection.effective(at: root.checkout, in: configuration)
             try Workspace.Sync(root: root, selection: selection).run(dry: dry)
