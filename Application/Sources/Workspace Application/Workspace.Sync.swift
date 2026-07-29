@@ -27,6 +27,7 @@ extension Workspace.Sync {
         }
         let workspace = Workspace.Xcode.current(selection.repositories, at: root.checkout)
 
+        print(selection.origin)
         print("Workspace sync plan")
         for inspection in inspections {
             print(

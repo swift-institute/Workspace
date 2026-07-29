@@ -25,7 +25,7 @@ extension Workspace.Sync.Test.Integration {
         )
         return Workspace.Sync(
             root: try Workspace.Root(checkout: File.Directory(validating: fixture.root.path)),
-            selection: .init(repositories: [repository]),
+            selection: .init(repositories: [repository], origin: .committed(count: 1)),
             client: fixture.client
         )
     }
@@ -131,7 +131,7 @@ extension Workspace.Sync.Test.Integration {
         let root = try File.Directory(validating: fixture.root.path)
         let sync = Workspace.Sync(
             root: try Workspace.Root(checkout: root),
-            selection: .init(repositories: [selected]),
+            selection: .init(repositories: [selected], origin: .committed(count: 1)),
             client: fixture.client
         )
 

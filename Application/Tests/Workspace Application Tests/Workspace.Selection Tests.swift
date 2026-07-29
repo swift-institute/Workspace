@@ -76,7 +76,10 @@ extension Workspace.Selection.Test.Unit {
             ]
         )
 
-        let resolved = try selection.resolved(in: Workspace.Selection.Test.inventory)
+        let resolved = try selection.resolved(
+            in: Workspace.Selection.Test.inventory,
+            origin: .committed(count: selection.repositories.count)
+        )
 
         #expect(
             resolved.repositories.map(\.name)
@@ -132,7 +135,10 @@ extension Workspace.Selection.Test.`Edge Case` {
         )
 
         #expect(throws: Workspace.Error.self) {
-            _ = try selection.resolved(in: Workspace.Selection.Test.inventory)
+            _ = try selection.resolved(
+                in: Workspace.Selection.Test.inventory,
+                origin: .committed(count: selection.repositories.count)
+            )
         }
     }
 
@@ -191,6 +197,321 @@ extension Workspace.Selection.Test.Integration {
         )
         #expect(throws: Workspace.Error.self) {
             _ = try Workspace.Selection.load(at: root)
+        }
+    }
+}
+
+// MARK: - Local override
+
+extension Workspace.Selection.Test {
+    static var color: Workspace.Repository.Key {
+        key(owner: "swift-foundations", name: "swift-color")
+    }
+
+    static var dimension: Workspace.Repository.Key {
+        key(owner: "swift-primitives", name: "swift-dimension-primitives")
+    }
+
+    static var unselected: Workspace.Repository.Key {
+        key(owner: "swift-foundations", name: "swift-unselected")
+    }
+
+    /// The committed policy the override tests depart from.
+    static var committed: Workspace.Selection {
+        .init(version: 1, repositories: [color])
+    }
+
+    static func override(
+        version: Swift.Int = 1,
+        add: [Workspace.Repository.Key] = [],
+        remove: [Workspace.Repository.Key] = []
+    ) -> Workspace.Selection.Override {
+        .init(version: version, add: add, remove: remove)
+    }
+
+    /// A disposable checkout carrying the given documents verbatim.
+    static func checkout(
+        selection: Swift.String?,
+        override: Swift.String? = nil
+    ) throws -> (root: File.Directory, remove: () -> Void) {
+        let location = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
+        if let selection {
+            try Data(selection.utf8).write(
+                to: location.appending(path: "Selection.json"),
+                options: .atomic
+            )
+        }
+        if let override {
+            try Data(override.utf8).write(
+                to: location.appending(path: "Selection.local.json"),
+                options: .atomic
+            )
+        }
+        return (
+            try File.Directory(validating: location.path),
+            { try? FileManager.default.removeItem(at: location) }
+        )
+    }
+
+    static let committedDocument = """
+        {
+          "version": 1,
+          "repositories": ["swift-foundations/swift-color"]
+        }
+        """
+}
+
+extension Workspace.Selection.Test.Unit {
+    @Test
+    func `An override adds to and removes from the committed selection`() throws {
+        let merged = try Workspace.Selection.Test.override(
+            add: [Workspace.Selection.Test.dimension, Workspace.Selection.Test.unselected],
+            remove: [Workspace.Selection.Test.color]
+        )
+        .applied(to: Workspace.Selection.Test.committed)
+
+        #expect(
+            merged.repositories == [
+                Workspace.Selection.Test.dimension,
+                Workspace.Selection.Test.unselected,
+            ]
+        )
+    }
+
+    @Test
+    func `An origin without an override names the committed document alone`() {
+        let origin = Workspace.Selection.Origin.committed(count: 5)
+
+        #expect(origin.description == "selection: Selection.json — 5 selected; no local override")
+        #expect(origin.effective == 5)
+        #expect(origin.added.isEmpty)
+        #expect(origin.removed.isEmpty)
+    }
+
+    @Test
+    func `An overridden origin states both documents and names every withheld package`() {
+        let origin = Workspace.Selection.Origin.overridden(
+            committed: 5,
+            added: [Workspace.Selection.Test.dimension],
+            removed: [Workspace.Selection.Test.color]
+        )
+
+        #expect(origin.effective == 5)
+        #expect(origin.description.contains("Selection.json — 5 selected"))
+        #expect(origin.description.contains("Selection.local.json — 1 added, 1 removed"))
+        #expect(origin.description.contains("5 in effect"))
+        #expect(
+            origin.description.contains(
+                "Selection.local.json withholds: swift-foundations/swift-color"
+            )
+        )
+    }
+}
+
+extension Workspace.Selection.Test.`Edge Case` {
+    @Test
+    func `Unsupported version empty duplicate and self-contradicting overrides fail closed`() {
+        #expect(throws: Workspace.Error.self) {
+            _ = try Workspace.Selection.Test.override(
+                version: 2,
+                add: [Workspace.Selection.Test.dimension]
+            ).validated()
+        }
+        #expect(throws: Workspace.Error.self) {
+            _ = try Workspace.Selection.Test.override().validated()
+        }
+        #expect(throws: Workspace.Error.self) {
+            _ = try Workspace.Selection.Test.override(
+                add: [Workspace.Selection.Test.dimension, Workspace.Selection.Test.dimension]
+            ).validated()
+        }
+        #expect(throws: Workspace.Error.self) {
+            _ = try Workspace.Selection.Test.override(
+                remove: [Workspace.Selection.Test.color, Workspace.Selection.Test.color]
+            ).validated()
+        }
+        #expect(throws: Workspace.Error.self) {
+            _ = try Workspace.Selection.Test.override(
+                add: [Workspace.Selection.Test.color],
+                remove: [Workspace.Selection.Test.color]
+            ).validated()
+        }
+    }
+
+    @Test
+    func `A stale override fails rather than degrading to a no-op`() {
+        #expect(throws: Workspace.Error.self) {
+            _ = try Workspace.Selection.Test.override(add: [Workspace.Selection.Test.color])
+                .applied(to: Workspace.Selection.Test.committed)
+        }
+        #expect(throws: Workspace.Error.self) {
+            _ = try Workspace.Selection.Test.override(remove: [Workspace.Selection.Test.dimension])
+                .applied(to: Workspace.Selection.Test.committed)
+        }
+    }
+
+    @Test
+    func `An override that empties the selection fails, as the committed document would`() {
+        #expect(throws: Workspace.Error.self) {
+            _ = try Workspace.Selection.Test.override(remove: [Workspace.Selection.Test.color])
+                .applied(to: Workspace.Selection.Test.committed)
+        }
+    }
+
+    @Test
+    func `A repository the override adds but the inventory lacks is attributed to the override`()
+        throws
+    {
+        let unknown = Workspace.Selection.Test.key(
+            owner: "swift-foundations",
+            name: "swift-unknown"
+        )
+        let merged = try Workspace.Selection.Test.override(add: [unknown])
+            .applied(to: Workspace.Selection.Test.committed)
+
+        let error = #expect(throws: Workspace.Error.self) {
+            _ = try merged.resolved(
+                in: Workspace.Selection.Test.inventory,
+                origin: .overridden(committed: 1, added: [unknown], removed: [])
+            )
+        }
+
+        let message = Swift.String(describing: try #require(error))
+        #expect(message.contains("Selection.local.json adds repository not present"))
+        #expect(!message.contains("Selection.json contains repository not present"))
+    }
+
+    @Test
+    func `Malformed overrides fail decoding rather than loading as partial deltas`() {
+        #expect(throws: JSON.Error.self) {
+            _ = try Workspace.Selection.Override(
+                jsonString: """
+                    {
+                      "version": 1,
+                      "add": ["swift-primitives/swift-dimension-primitives"]
+                    }
+                    """
+            )
+        }
+        #expect(throws: JSON.Error.self) {
+            _ = try Workspace.Selection.Override(
+                jsonString: """
+                    {
+                      "version": 1,
+                      "add": [],
+                      "remove": [],
+                      "repositories": ["swift-foundations/swift-color"]
+                    }
+                    """
+            )
+        }
+        #expect(throws: JSON.Error.self) {
+            _ = try Workspace.Selection.Override(
+                jsonString: """
+                    {
+                      "version": 1,
+                      "add": ["swift-foundations/swift-color"],
+                      "add": ["swift-primitives/swift-dimension-primitives"],
+                      "remove": []
+                    }
+                    """
+            )
+        }
+    }
+}
+
+extension Workspace.Selection.Test.Integration {
+    @Test
+    func `A checkout without an override reports the committed selection in effect`() throws {
+        let checkout = try Workspace.Selection.Test.checkout(
+            selection: Workspace.Selection.Test.committedDocument
+        )
+        defer { checkout.remove() }
+
+        let resolved = try Workspace.Selection.effective(
+            at: checkout.root,
+            in: Workspace.Selection.Test.inventory
+        )
+
+        #expect(resolved.repositories.map(\.name) == ["swift-color"])
+        #expect(resolved.origin == .committed(count: 1))
+    }
+
+    @Test
+    func `A checkout with an override reports both documents and the merged checkout`() throws {
+        let checkout = try Workspace.Selection.Test.checkout(
+            selection: Workspace.Selection.Test.committedDocument,
+            override: """
+                {
+                  "version": 1,
+                  "add": ["swift-primitives/swift-dimension-primitives"],
+                  "remove": []
+                }
+                """
+        )
+        defer { checkout.remove() }
+
+        let resolved = try Workspace.Selection.effective(
+            at: checkout.root,
+            in: Workspace.Selection.Test.inventory
+        )
+
+        #expect(resolved.repositories.map(\.name) == ["swift-color", "swift-dimension-primitives"])
+        #expect(
+            resolved.origin
+                == .overridden(
+                    committed: 1,
+                    added: [Workspace.Selection.Test.dimension],
+                    removed: []
+                )
+        )
+    }
+
+    @Test
+    func `A malformed override fails the command rather than falling back to committed policy`()
+        throws
+    {
+        let checkout = try Workspace.Selection.Test.checkout(
+            selection: Workspace.Selection.Test.committedDocument,
+            override: "{"
+        )
+        defer { checkout.remove() }
+
+        #expect(throws: Workspace.Error.self) {
+            _ = try Workspace.Selection.effective(
+                at: checkout.root,
+                in: Workspace.Selection.Test.inventory
+            )
+        }
+    }
+
+    @Test
+    func `An override cannot rescue a missing or malformed committed selection`() throws {
+        let complete = """
+            {
+              "version": 1,
+              "add": ["swift-primitives/swift-dimension-primitives"],
+              "remove": []
+            }
+            """
+
+        let absent = try Workspace.Selection.Test.checkout(selection: nil, override: complete)
+        defer { absent.remove() }
+        #expect(throws: Workspace.Error.self) {
+            _ = try Workspace.Selection.effective(
+                at: absent.root,
+                in: Workspace.Selection.Test.inventory
+            )
+        }
+
+        let malformed = try Workspace.Selection.Test.checkout(selection: "{", override: complete)
+        defer { malformed.remove() }
+        #expect(throws: Workspace.Error.self) {
+            _ = try Workspace.Selection.effective(
+                at: malformed.root,
+                in: Workspace.Selection.Test.inventory
+            )
         }
     }
 }

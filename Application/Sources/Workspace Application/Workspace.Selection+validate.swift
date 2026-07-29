@@ -1,25 +1,32 @@
 extension Workspace.Selection {
     public func validated() throws(Workspace.Error) -> Self {
         guard version == 1 else {
-            throw .configuration("unsupported Selection.json version \(version)")
+            throw .configuration("unsupported \(Self.filename) version \(version)")
         }
         guard !repositories.isEmpty else {
-            throw .configuration("Selection.json selects no repositories")
+            throw .configuration("\(Self.filename) selects no repositories")
         }
 
         var keys = Set<Workspace.Repository.Key>()
         for repository in repositories {
             guard keys.insert(repository).inserted else {
                 throw .configuration(
-                    "Selection.json contains duplicate repository \(repository.identity)"
+                    "\(Self.filename) contains duplicate repository \(repository.identity)"
                 )
             }
         }
         return self
     }
 
+    /// Resolves the selection against the inventory, carrying `origin`
+    /// through to the result.
+    ///
+    /// `origin` is not decoration. It decides which document a missing
+    /// identity is attributed to, so a typo in a developer's local override
+    /// is never reported as a defect in committed policy.
     public func resolved(
-        in configuration: Workspace.Configuration
+        in configuration: Workspace.Configuration,
+        origin: Origin
     ) throws(Workspace.Error) -> Resolved {
         let selection = try validated()
         let inventory = try configuration.validated()
@@ -38,11 +45,24 @@ extension Workspace.Selection {
 
         let missing = selected.subtracting(found).sorted(by: Workspace.Repository.Key.precedes)
         guard missing.isEmpty else {
-            throw .configuration(
-                "Selection.json contains repository not present in Workspace.json: "
-                    + missing.map(\.identity).joined(separator: ", ")
-            )
+            let added = Set(origin.added)
+            var diagnostics = [Swift.String]()
+            let committed = missing.filter { !added.contains($0) }
+            if !committed.isEmpty {
+                diagnostics.append(
+                    "\(Self.filename) contains repository not present in Workspace.json: "
+                        + committed.map(\.identity).joined(separator: ", ")
+                )
+            }
+            let local = missing.filter(added.contains)
+            if !local.isEmpty {
+                diagnostics.append(
+                    "\(Override.filename) adds repository not present in Workspace.json: "
+                        + local.map(\.identity).joined(separator: ", ")
+                )
+            }
+            throw .configuration(diagnostics.joined(separator: "; "))
         }
-        return .init(repositories: repositories)
+        return .init(repositories: repositories, origin: origin)
     }
 }

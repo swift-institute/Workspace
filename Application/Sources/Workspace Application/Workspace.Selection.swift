@@ -14,8 +14,18 @@ extension Workspace {
 }
 
 extension Workspace.Selection {
+    /// The committed policy document: the public bounded default checkout.
+    ///
+    /// It is tracked, and it is the authority for what a fresh clone opens.
+    /// A developer changing only their own checkout writes
+    /// ``Workspace/Selection/Override`` instead, which is ignored.
+    public static let file: File.Path.Component = "Selection.json"
+
+    /// ``file`` as it is spelled in diagnostics.
+    public static var filename: Swift.String { file.string }
+
     public static func load(at root: File.Directory) throws(Workspace.Error) -> Self {
-        let file = root[file: "Selection.json"]
+        let file = root[file: Self.file]
         let bytes: [Byte]
         do throws(Either<File.System.Read.Full.Error, Never>) {
             bytes = try file.read.full { span in

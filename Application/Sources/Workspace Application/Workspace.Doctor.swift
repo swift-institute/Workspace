@@ -78,7 +78,7 @@ extension Workspace.Doctor {
                 )
             }
         }
-        return .init(outcomes: outcomes)
+        return .init(outcomes: outcomes, origin: selection.origin)
     }
 
     /// The repository's on-disk checkout, when its path holds a Git

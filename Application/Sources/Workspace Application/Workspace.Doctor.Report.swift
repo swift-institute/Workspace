@@ -4,8 +4,22 @@ extension Workspace.Doctor {
     public struct Report: Equatable, Sendable {
         public let outcomes: [Outcome]
 
-        public init(outcomes: [Outcome]) {
+        /// Which selection the run measured against.
+        ///
+        /// It is rendered unconditionally as the report's first line rather
+        /// than modelled as a check. A local override is a legitimate
+        /// developer choice, not a finding, and a check reporting it would
+        /// be indistinguishable from one that never ran. A header line is
+        /// always printed or always absent.
+        public let origin: Workspace.Selection.Origin
+
+        /// The default names no selection at all, and exists only for
+        /// report tests that assert on statuses and summaries. The one
+        /// production caller, ``Workspace/Doctor/run(access:)``, always
+        /// passes the origin it measured.
+        public init(outcomes: [Outcome], origin: Workspace.Selection.Origin = .committed(count: 0)) {
             self.outcomes = outcomes
+            self.origin = origin
         }
     }
 }
@@ -73,7 +87,7 @@ extension Workspace.Doctor.Report {
 
 extension Workspace.Doctor.Report: CustomStringConvertible {
     public var description: Swift.String {
-        var lines = [Swift.String]()
+        var lines = [origin.description]
         for outcome in outcomes {
             lines.append("\(outcome.check): \(outcome.result)")
             for finding in outcome.findings {

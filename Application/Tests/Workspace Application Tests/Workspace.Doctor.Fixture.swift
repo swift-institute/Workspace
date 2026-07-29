@@ -19,7 +19,8 @@ extension Workspace.Doctor {
 
         init(
             repositories: [Workspace.Repository],
-            selected: [Workspace.Repository]? = nil
+            selected: [Workspace.Repository]? = nil,
+            origin: Workspace.Selection.Origin? = nil
         ) throws {
             let temporary =
                 FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
@@ -41,7 +42,8 @@ extension Workspace.Doctor {
                 xcode: "26.0",
                 repositories: repositories
             )
-            selection = .init(repositories: selected ?? repositories)
+            let chosen = selected ?? repositories
+            selection = .init(repositories: chosen, origin: origin ?? .committed(count: chosen.count))
         }
     }
 }

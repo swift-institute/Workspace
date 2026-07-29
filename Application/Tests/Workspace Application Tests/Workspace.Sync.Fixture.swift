@@ -78,7 +78,7 @@ extension Workspace.Sync.Fixture {
         )
         return Workspace.Sync(
             root: try Workspace.Root(checkout: directory),
-            selection: .init(repositories: [repository]),
+            selection: .init(repositories: [repository], origin: .committed(count: 1)),
             client: client
         )
     }

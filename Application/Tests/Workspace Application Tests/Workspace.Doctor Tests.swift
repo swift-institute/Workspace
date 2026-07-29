@@ -477,3 +477,41 @@ extension Workspace.Doctor.Test.Integration {
         )
     }
 }
+
+// MARK: - Selection provenance
+
+extension Workspace.Doctor.Test.Unit {
+    @Test
+    func `every report leads with the selection in effect, overridden or not`() {
+        let plain = Workspace.Doctor.Report(
+            outcomes: [Self.outcome("a", .ok(population: 2))],
+            origin: .committed(count: 5)
+        )
+
+        #expect(
+            plain.description.hasPrefix(
+                "selection: Selection.json — 5 selected; no local override"
+            )
+        )
+
+        let overridden = Workspace.Doctor.Report(
+            outcomes: [Self.outcome("a", .ok(population: 2))],
+            origin: .overridden(
+                committed: 5,
+                added: [.init(owner: .init("swift-foundations"), name: .init("swift-color"))],
+                removed: [
+                    .init(owner: .init("swift-primitives"), name: .init("swift-dimension-primitives"))
+                ]
+            )
+        )
+
+        #expect(overridden.description.hasPrefix("selection: Selection.json — 5 selected;"))
+        #expect(overridden.description.contains("Selection.local.json — 1 added, 1 removed"))
+        #expect(
+            overridden.description.contains(
+                "Selection.local.json withholds: swift-primitives/swift-dimension-primitives"
+            )
+        )
+        #expect(overridden.status == 0)
+    }
+}

@@ -1,6 +1,13 @@
 .DS_Store
 .build/
 .swiftpm/
+# Local checkout choice, kept out of committed policy.
+# `Selection.json` is the tracked authority for the default checkout;
+# `Selection.local.json` is one developer's delta over it (`add`/`remove`).
+# Ignoring it is the whole point: a local expansion must never appear in
+# `git status`, and must never be one `git add .` from becoming policy.
+# `workspace doctor` and `workspace sync` both name it when it is in effect.
+/Selection.local.json
 # Materialized org roots — regenerable state written by `workspace sync`.
 # The active layout places these beside the checkout (see ARCHITECTURE.md,
 # "Materialization layout"); the entries remain transitionally for
