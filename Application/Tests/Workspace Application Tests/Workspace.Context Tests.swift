@@ -56,10 +56,6 @@ extension Workspace.Context.Test {
         try templates[file: "AGENTS.md"].write.atomic(
             "\(Self.marker)\n# Fixture\n"
         )
-        try templates[file: "CLAUDE.md"].write.atomic(
-            "\(Self.marker)\n@AGENTS.md\n"
-        )
-
         for (root, name) in sources {
             let skill = root[directory: try File.Path.Component(name)]
             try skill.create.recursive()
@@ -94,8 +90,13 @@ extension Workspace.Context.Test.Unit {
             #expect(try context.diagnostics().isEmpty)
             #expect(
                 try File.System.Link.Read.Target.target(
-                    of: context.entry[directory: ".agents"].path / "skills"
+                    of: context.home[directory: ".agents"].path / "skills"
                 ) == skills.path
+            )
+            #expect(
+                try File.System.Link.Read.Target.target(
+                    of: context.entry[file: "CLAUDE.md"].path
+                ) == File.Path("AGENTS.md")
             )
             #expect(
                 try File.System.Link.Read.Target.target(of: skills.path / "public-skill")
@@ -119,14 +120,10 @@ extension Workspace.Context.Test.Unit {
             // The projection is not reachable by walking down from the checkout,
             // which is the whole point: it is reachable from every root instead.
             #expect(!context.entry[directory: ".claude"].stat.exists)
+            #expect(!context.entry[directory: ".agents"].stat.exists)
             #expect(
                 try File.System.Metadata.Permissions(
                     at: context.entry[file: "AGENTS.md"].path
-                ) == .defaultFile
-            )
-            #expect(
-                try File.System.Metadata.Permissions(
-                    at: context.entry[file: "CLAUDE.md"].path
                 ) == .defaultFile
             )
         }
@@ -148,8 +145,6 @@ extension Workspace.Context.Test.Unit {
             try context.install()
             try context.root.checkout[directory: "Context"][file: "AGENTS.md"]
                 .write.atomic("\(Workspace.Context.Test.marker)\n# Revised fixture\n")
-            try context.root.checkout[directory: "Context"][file: "CLAUDE.md"]
-                .write.atomic("\(Workspace.Context.Test.marker)\n@Revised.md\n")
 
             try context.install()
 
@@ -211,6 +206,72 @@ extension Workspace.Context.Test.`Edge Case` {
             #expect(
                 !context.home[directory: ".claude"].stat.exists
             )
+        }
+    }
+
+    @Test
+    func `install migrates the generated Claude document and checkout-local Codex link`() throws {
+        try Workspace.Context.Test.fixture { context in
+            try context.entry[file: "CLAUDE.md"].write.atomic(
+                "\(Workspace.Context.Test.marker)\n@AGENTS.md\n"
+            )
+            let legacy = context.entry[directory: ".agents"]
+            try legacy.create.recursive()
+            try FileManager.default.createSymbolicLink(
+                atPath: (legacy.path / "skills").description,
+                withDestinationPath: Workspace.Context.Test.projections(context).path.description
+            )
+
+            try context.install()
+
+            #expect(try context.diagnostics().isEmpty)
+            #expect(
+                try File.System.Link.Read.Target.target(
+                    of: context.entry[file: "CLAUDE.md"].path
+                ) == File.Path("AGENTS.md")
+            )
+            #expect(!legacy[file: "skills"].stat.exists)
+            #expect(
+                try File.System.Link.Read.Target.target(
+                    of: context.home[directory: ".agents"].path / "skills"
+                ) == Workspace.Context.Test.projections(context).path
+            )
+        }
+    }
+
+    @Test
+    func `install refuses an unmanaged Claude document before creating projections`() throws {
+        try Workspace.Context.Test.fixture { context in
+            try context.entry[file: "CLAUDE.md"].write.atomic("# Local Claude instructions\n")
+
+            #expect(throws: Workspace.Error.self) {
+                try context.install()
+            }
+            #expect(!context.home[directory: ".claude"].stat.exists)
+            #expect(!context.home[directory: ".agents"].stat.exists)
+        }
+    }
+
+    @Test
+    func `install refuses a divergent checkout-local Codex link`() throws {
+        try Workspace.Context.Test.fixture { context in
+            let legacy = context.entry[directory: ".agents"]
+            try legacy.create.recursive()
+            try FileManager.default.createSymbolicLink(
+                atPath: (legacy.path / "skills").description,
+                withDestinationPath: context.home[directory: "elsewhere"].path.description
+            )
+
+            #expect(
+                try context.diagnostics().contains {
+                    $0.contains("retired context link has the wrong target")
+                }
+            )
+            #expect(throws: Workspace.Error.self) {
+                try context.install()
+            }
+            #expect(!context.home[directory: ".claude"].stat.exists)
+            #expect(!context.home[directory: ".agents"].stat.exists)
         }
     }
 

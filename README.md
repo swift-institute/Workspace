@@ -205,9 +205,11 @@ swift run --package-path Application workspace context install
 ```
 
 This validates every canonical skill before projecting it into your account's
-`~/.claude/skills`, writes the generated root `AGENTS.md` and `CLAUDE.md`, and
-fails closed on any path it does not own. The projection is account-wide so the
-skills load whichever root in the hierarchy a session starts from.
+`~/.claude/skills`, links the account-wide `~/.agents/skills` to the same
+projection for Codex and ChatGPT, writes the generated root `AGENTS.md`, and
+links root `CLAUDE.md` to it. It fails closed on any path it does not own. The
+projection is account-wide so both clients load the same skills whichever root
+in the hierarchy a session starts from.
 
 Skills come from canonical roots resolved beside this checkout, all optional
 because the hierarchy is:

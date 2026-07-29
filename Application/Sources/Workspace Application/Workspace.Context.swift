@@ -40,7 +40,7 @@ extension Workspace {
         ///
         /// - Parameters:
         ///   - root: The Workspace checkout whose parent hierarchy belongs to Swift Institute.
-        ///   - home: The account root owning `.claude/skills`.
+        ///   - home: The account root owning `.claude/skills` and `.agents/skills`.
         /// - Throws: ``Workspace/Error`` when the checkout has no containing entry root.
         internal init(root: Workspace.Root, home: File.Directory) throws(Workspace.Error) {
             guard let entry = root.hierarchy.parent else {
@@ -76,7 +76,8 @@ extension Workspace.Context {
             )
         }
         let links = try links()
-        let staleLinks = try staleManagedLinks(expecting: links)
+        let retiredLinks = try retiredManagedLinks(expecting: links)
+        let replacedDocuments = try managedDocumentsReplacedByLinks(links)
         let conflicts = try conflicts(documents: documents, links: links)
         guard conflicts.isEmpty else {
             throw .filesystem(conflicts.joined(separator: "\n"))
@@ -109,11 +110,18 @@ extension Workspace.Context {
                 )
             }
         }
-        for path in staleLinks {
+        for path in retiredLinks {
             do throws(File.System.Delete.Error) {
                 try File(path).delete()
             } catch {
-                throw .filesystem("cannot remove retired skill projection \(path): \(error)")
+                throw .filesystem("cannot remove retired context link \(path): \(error)")
+            }
+        }
+        for path in replacedDocuments {
+            do throws(File.System.Delete.Error) {
+                try File(path).delete()
+            } catch {
+                throw .filesystem("cannot replace generated context document \(path): \(error)")
             }
         }
         for link in links where try metadata(at: link.path) == nil {
@@ -181,6 +189,12 @@ extension Workspace.Context {
     }
 
     private var agents: File.Directory {
+        home[directory: ".agents"]
+    }
+
+    /// The checkout-local Codex projection installed before account-wide
+    /// discovery was supported. It is retained only as a migration source.
+    private var legacyAgents: File.Directory {
         entry[directory: ".agents"]
     }
 
@@ -199,16 +213,23 @@ extension Workspace.Context {
                 target: entry[file: "AGENTS.md"],
                 marker: Self.marker
             ),
-            .init(
-                source: templates[file: "CLAUDE.md"],
-                target: entry[file: "CLAUDE.md"],
-                marker: Self.marker
-            ),
         ]
     }
 
     private func links() throws(Workspace.Error) -> [Link] {
-        [.init(path: agents.path / "skills", target: skills.path)] + (try projections())
+        [
+            .init(path: agents.path / "skills", target: skills.path),
+            .init(
+                path: entry[file: "CLAUDE.md"].path,
+                target: relativeAgentDocumentPath
+            ),
+        ] + (try projections())
+    }
+
+    /// The generated Claude entry point follows the platform-neutral document
+    /// by a relative link so the hierarchy remains movable between machines.
+    private var relativeAgentDocumentPath: File.Path {
+        File.Path("AGENTS.md")
     }
 
     /// Every canonical skill root that is actually present.
@@ -318,7 +339,22 @@ extension Workspace.Context {
         ]
     }
 
-    private func staleManagedLinks(
+    private func retiredManagedLinks(
+        expecting links: [Link]
+    ) throws(Workspace.Error) -> [File.Path] {
+        var retired = try staleManagedSkillLinks(expecting: links)
+        let legacy = legacyAgents.path / "skills"
+        if
+            let info = try metadata(at: legacy),
+            info.type == .symbolicLink,
+            try target(of: legacy) == skills.path
+        {
+            retired.append(legacy)
+        }
+        return retired.sorted { "\($0)" < "\($1)" }
+    }
+
+    private func staleManagedSkillLinks(
         expecting links: [Link]
     ) throws(Workspace.Error) -> [File.Path] {
         guard
@@ -351,7 +387,28 @@ extension Workspace.Context {
             }
             stale.append(path)
         }
-        return stale.sorted { "\($0)" < "\($1)" }
+        return stale
+    }
+
+    /// A generated regular `CLAUDE.md` from the previous installer is safe to
+    /// replace with the link that now owns the same entry point.
+    private func managedDocumentsReplacedByLinks(
+        _ links: [Link]
+    ) throws(Workspace.Error) -> [File.Path] {
+        var paths = [File.Path]()
+        for link in links where link.path == entry[file: "CLAUDE.md"].path {
+            guard
+                let info = try metadata(at: link.path),
+                info.type == .regular
+            else {
+                continue
+            }
+            let document = try read(File(link.path))
+            if document.hasPrefix(Self.marker) {
+                paths.append(link.path)
+            }
+        }
+        return paths
     }
 }
 
@@ -390,17 +447,39 @@ extension Workspace.Context {
         }
         for link in links {
             guard let info = try metadata(at: link.path) else { continue }
+            if
+                link.path == entry[file: "CLAUDE.md"].path,
+                info.type == .regular,
+                try read(File(link.path)).hasPrefix(Self.marker)
+            {
+                continue
+            }
             guard info.type == .symbolicLink else {
                 findings.append(
-                    "refusing to replace non-link skill projection: \(link.path)"
+                    "refusing to replace non-link context path: \(link.path)"
                 )
                 continue
             }
             guard try target(of: link.path) == link.target else {
                 findings.append(
-                    "refusing to replace divergent skill projection: \(link.path)"
+                    "refusing to replace divergent context link: \(link.path)"
                 )
                 continue
+            }
+        }
+        let legacy = legacyAgents.path / "skills"
+        if let info = try metadata(at: legacy) {
+            guard info.type == .symbolicLink else {
+                findings.append(
+                    "refusing to replace non-link retired context path: \(legacy)"
+                )
+                return findings
+            }
+            guard try target(of: legacy) == skills.path else {
+                findings.append(
+                    "refusing to replace divergent retired context link: \(legacy)"
+                )
+                return findings
             }
         }
         return findings
@@ -411,8 +490,16 @@ extension Workspace.Context {
         links: [Link]
     ) throws(Workspace.Error) -> [Swift.String] {
         var findings = [Swift.String]()
-        for path in try staleManagedLinks(expecting: links) {
-            findings.append("retired skill projection remains installed: \(path)")
+        for path in try retiredManagedLinks(expecting: links) {
+            findings.append("retired context link remains installed: \(path)")
+        }
+        let legacy = legacyAgents.path / "skills"
+        if let info = try metadata(at: legacy) {
+            if info.type != .symbolicLink {
+                findings.append("retired context path is not a symbolic link: \(legacy)")
+            } else if try target(of: legacy) != skills.path {
+                findings.append("retired context link has the wrong target: \(legacy)")
+            }
         }
         for directory in directories {
             guard let info = try metadata(at: directory.path) else {
@@ -440,15 +527,15 @@ extension Workspace.Context {
         }
         for link in links {
             guard let info = try metadata(at: link.path) else {
-                findings.append("missing skill projection: \(link.path)")
+                findings.append("missing context link: \(link.path)")
                 continue
             }
             guard info.type == .symbolicLink else {
-                findings.append("skill projection is not a symbolic link: \(link.path)")
+                findings.append("context link is not a symbolic link: \(link.path)")
                 continue
             }
             guard try target(of: link.path) == link.target else {
-                findings.append("skill projection has the wrong target: \(link.path)")
+                findings.append("context link has the wrong target: \(link.path)")
                 continue
             }
         }

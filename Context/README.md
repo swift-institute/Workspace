@@ -4,27 +4,30 @@
 this directory.
 
 - `AGENTS.md` is the platform-neutral boot context.
-- `CLAUDE.md` imports `AGENTS.md` instead of duplicating it.
+- The generated `CLAUDE.md` is a relative symbolic link to `AGENTS.md`, so
+  there is one document rather than two files that can drift.
 - Canonical skill directories are projected as symbolic links into the invoking
-  account's `~/.claude/skills`; `.agents/skills` at the checkout root points to
-  the same projection.
+  account's `~/.claude/skills`; the account-wide `~/.agents/skills` points to
+  the same projection for Codex and ChatGPT.
 
-The destination is account-wide rather than per-checkout because agent skill
-discovery is anchored to the directory a session starts in, and this hierarchy
-has several roots a session legitimately starts in. A per-checkout projection
-loads for exactly one of them; installing one per root means several
+The destinations are account-wide rather than per-checkout because this
+hierarchy has several roots a session legitimately starts in. A per-checkout
+projection loads for exactly one of them; installing one per root means several
 installations that drift. The account root is read from `HOME` at install time
 and never written down, so no committed file names a machine, an account, or a
-checkout location. The link targets are absolute for the same reason a relative
-one cannot work here: the projection directory no longer sits inside the
-hierarchy it points into, and how deep a checkout sits below the account root —
-or whether it sits below it at all — differs per machine.
+checkout location. Skill link targets are absolute because the projection
+directory no longer sits inside the hierarchy it points into, and how deep a
+checkout sits below the account root — or whether it sits below it at all —
+differs per machine. The `CLAUDE.md` target is relative because it sits beside
+`AGENTS.md` and should survive moving the hierarchy.
 
 The installer owns generated documents carrying its marker and symbolic links
 that point into canonical skill roots. It adds current projections and removes
 retired generated projections. It fails closed on divergent paths and never
 removes user-owned entries — including a projection pointing anywhere outside
 the canonical Institute roots, which it does not recognize and must not touch.
+It migrates its former checkout-local `.agents/skills` link to the account-wide
+link only when that old link still points to the projection it owned.
 
 Canonical skill roots are optional. The public `swift-institute/Skills`
 repository is what every contributor clones; `Internal`, `Engagement`, and

@@ -83,11 +83,11 @@ workspace context install
 workspace context check
 ```
 
-Installation creates the root documents and projects canonical skill
-directories into your account's `~/.claude/skills`, aliased from
-`.agents/skills` at this root. The destination is account-wide because a
-session may start from any root in this hierarchy and the skills have to load
-in all of them; a per-checkout projection loads only for the one root that
-contains it. It refuses to replace unmanaged files, directories, or links, and
-never touches a projection pointing outside the canonical Institute roots — a
-skill you installed from elsewhere is yours, not Workspace's.
+Installation creates `AGENTS.md`, links `CLAUDE.md` to it, and projects
+canonical skill directories into your account's `~/.claude/skills`.
+Account-wide `~/.agents/skills` points to the same projection for Codex and
+ChatGPT. Both clients therefore load the same skills when a session starts from
+any root in this hierarchy, without a projection at every checkout root. The
+installer refuses to replace unmanaged files, directories, or links, and never
+touches a projection pointing outside the canonical Institute roots — a skill
+you installed from elsewhere is yours, not Workspace's.
