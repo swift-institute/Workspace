@@ -2276,21 +2276,9 @@
     },
     {
       "layer": "foundations",
-      "name": "swift-metrics",
-      "organization": "swift-foundations",
-      "url": "https://github.com/swift-foundations/swift-metrics.git"
-    },
-    {
-      "layer": "foundations",
       "name": "swift-multipart-form-coding",
       "organization": "swift-foundations",
       "url": "https://github.com/swift-foundations/swift-multipart-form-coding.git"
-    },
-    {
-      "layer": "foundations",
-      "name": "swift-numerics",
-      "organization": "swift-foundations",
-      "url": "https://github.com/swift-foundations/swift-numerics.git"
     },
     {
       "layer": "foundations",

@@ -84,7 +84,36 @@ extension Workspace.Inventory.Policy {
                     .init(name: .init("swift-riscv"), layer: .standards),
                     .init(name: .init("swift-foundations"), layer: .foundations),
                 ],
-                denied: [],
+                // Two packages hold an upstream SwiftPM identity that a
+                // third party inside our graph also needs, and workspace
+                // membership alone is enough to capture it — measured
+                // 2026-07-29, with no Institute manifest declaring either by
+                // URL, the workspace still failed on
+                // `product 'RealModule' required by package 'swift-algorithms'
+                // target 'Algorithms' not found in package 'swift-numerics'`.
+                // Migrating our own consumers cannot reach that, because the
+                // capturing edge is the roster entry rather than a manifest.
+                //
+                // Denying them is the interim, not the remedy. The remedy is
+                // absorption into our own idiom, which is unblocked once the
+                // third parties that need upstream's spelling leave the graph.
+                //
+                // **Exit condition, deliberately narrow:** remove an entry when
+                // the Vapor closure (`vapor`, `async-kit`, `async-http-client`,
+                // `swift-nio-extras` — and for `swift-metrics` additionally
+                // `postgres-nio` and `swift-configuration`) is gone from the
+                // dependency closure. Not when the package looks ready, not
+                // when someone wants it back in Xcode. Re-entry before then
+                // silently re-captures the identity for all 445 packages, which
+                // is the same latent condition already carried by `swift-log`
+                // and `swift-date-parsing` — with the difference that these two
+                // are known to fire rather than merely able to.
+                //
+                // See swift-institute/Workspace#7.
+                denied: [
+                    .init(owner: .init("swift-foundations"), name: .init("swift-numerics")),
+                    .init(owner: .init("swift-foundations"), name: .init("swift-metrics")),
+                ],
                 // Measured 2026-07-28 against `orgs/<name>/repos?type=public`,
                 // the same query discovery issues: every policy organization
                 // lists at least one public repository except `swift-nist`,
