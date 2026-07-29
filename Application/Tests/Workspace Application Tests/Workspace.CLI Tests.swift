@@ -47,6 +47,19 @@ extension Workspace.CLI.Test.Unit {
 
         #expect(command.operation == .doctor)
         #expect(!command.dry)
+        #expect(!command.institute)
+    }
+
+    @Test
+    func `doctor institute selects the institute-internal checks`() throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: ["doctor", "--institute"],
+            initial: .init()
+        )
+
+        #expect(command.operation == .doctor)
+        #expect(command.institute)
     }
 
     @Test(arguments: [
@@ -147,6 +160,19 @@ extension Workspace.CLI.Test.`Edge Case` {
             _ = try Command.parse(
                 Workspace.CLI.self,
                 from: ["doctor", "--dry-run"],
+                initial: .init()
+            )
+        }
+    }
+
+    // A dropped `--institute` would print a report indistinguishable from
+    // the one that measured the roster. Rejecting it is the point.
+    @Test(arguments: [["sync"], ["inventory"], ["lint"], ["package", "build"]])
+    func `institute is rejected outside doctor`(argument: [Swift.String]) {
+        #expect(throws: Command.Error.self) {
+            _ = try Command.parse(
+                Workspace.CLI.self,
+                from: argument + ["--institute"],
                 initial: .init()
             )
         }

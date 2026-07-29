@@ -13,6 +13,7 @@ All paths are relative to the repository root.
 swift run --package-path Application workspace sync --dry-run   # plan only, changes nothing
 swift run --package-path Application workspace sync             # clone and fast-forward
 swift run --package-path Application workspace doctor           # report checkout facts
+swift run --package-path Application workspace doctor --institute  # + roster currency (needs gh)
 Application/.build/debug/workspace package test --package-path Application --fresh
 Application/.build/debug/workspace navigation install
 Application/.build/debug/workspace navigation check
@@ -32,7 +33,9 @@ several minutes**. It is not hung. That invocation bootstraps the executable; af
 run SwiftPM work only through `Application/.build/debug/workspace package`.
 
 `doctor` reports which checks apply to your setup. A check that needs Institute access reports
-that it did not run — that is not a failure of your checkout.
+that it did not run — that is not a failure of your checkout. `--institute` is the one opt-in
+that asks for those checks; it is never selected from ambient machine state, so an
+authenticated `gh` never changes what a plain `doctor` does.
 
 ## Gotchas
 
@@ -66,6 +69,16 @@ that it did not run — that is not a failure of your checkout.
   against the *committed* pair. Change `Selection.json` and run `sync`; never hand-edit the
   workspace or add references in Xcode. `Selection.json` is committed policy input — the
   public bounded default checkout — so it is the one of the two that stays tracked.
+- **Roster drift is detected by CI, not by anyone remembering.** `inventory-currency`
+  compares `Workspace.json` against a live discovery in both directions. It needs an
+  authenticated `gh`, so no contributor command reaches it and none should: `doctor` is
+  credential-free and offline, and selecting Institute access from ambient state would make
+  a green `doctor` mean different things on different machines — including for every
+  contributor who authenticated `gh` to run `gh issue list`, as this file tells them to.
+  `--institute` is the explicit ask; the nightly `roster-currency` workflow is what removes
+  the human. That workflow fails rather than reporting clean when the check says `not run`,
+  because a check that did not execute must never read like one that found nothing — the
+  defect that kept this check unreachable for its whole life (issue #43).
 - **Dependencies are branch-based.** `doctor` warns when a recorded pin lags its branch tip;
   a green over stale pins is not evidence — re-resolve.
 - **A lint verdict of "clean" always means something was measured.** swift-linter

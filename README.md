@@ -362,6 +362,20 @@ carry, so it reports `not run`. **That is the expected result and it does not fa
 checkout.** If a step ever demands credentials or a repository you cannot read, that is a
 defect worth reporting.
 
+A maintainer with an authenticated `gh` can ask for it explicitly:
+
+```sh
+swift run --package-path Application workspace doctor --institute
+```
+
+That discovers the live Institute organizations — roughly one request per repository, about
+460 today — and compares the result with `Workspace.json` in both directions, naming every
+repository that is on one side and not the other. It is opt-in rather than automatic on
+purpose: `doctor` is otherwise credential-free and offline, and it must not become a
+different, slower, network-bound command on the machines that happen to have `gh` logged in.
+Nothing about the contributor invocation above changes. Drift is caught without anyone
+remembering the flag by the `roster-currency` workflow, which runs the same command nightly.
+
 ### Why a population is printed
 
 The population is the check's evidence that it actually measured something. A check that

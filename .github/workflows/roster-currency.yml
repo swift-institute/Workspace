@@ -1,0 +1,176 @@
+# Roster currency (issue #43): `inventory-currency` compares Workspace.json
+# against a live discovery of the Institute organizations and names what
+# drifted, in which direction. It needs an authenticated `gh`, so no
+# contributor command reaches it — `workspace doctor --institute` is opt-in
+# and stays opt-in, which means a flag alone detects drift only when someone
+# remembers to pass it. This job is what removes the human from that loop.
+#
+# On 2026-07-28 the roster was found stale three independent ways in one
+# evening. The check that detects exactly that had been reporting "not run"
+# since it was written.
+name: roster-currency
+
+on:
+  schedule:
+    # 06:20 UTC daily. Off the hour: GitHub queues scheduled jobs at :00.
+    - cron: "20 6 * * *"
+  workflow_dispatch:
+    inputs:
+      control:
+        description: >-
+          Run the positive control instead of the measurement: perturb
+          Workspace.json with a repository GitHub cannot have, assert the
+          check fires and names it, and deliver nothing.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: roster-currency
+  cancel-in-progress: false
+
+jobs:
+  currency:
+    name: doctor --institute over the live organizations
+    if: ${{ !github.event.repository.private }}
+    runs-on: macos-26
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Select the required Xcode
+        run: sudo xcode-select --switch /Applications/Xcode_26.6.app
+
+      # The committed Selection.json is the bounded default checkout — five
+      # repositories — so this materializes five clones, not the roster's 445.
+      # `doctor`'s other checks need materialized work to measure; without
+      # this they report `unmeasured` and the run's exit status stops saying
+      # anything about currency.
+      - name: Materialize the committed selection
+        run: swift run --package-path Application workspace sync
+
+      # The control perturbs the roster with a repository no organization can
+      # own, so the check MUST report it as committed-but-not-discovered. It
+      # proves the detector still detects and that the parser below still
+      # reads it. It delivers nothing and never touches the tracking issue.
+      - name: Perturb the roster (positive control only)
+        if: ${{ inputs.control }}
+        run: |
+          python3 - <<'PY'
+          import json
+          path = "Workspace.json"
+          document = json.load(open(path))
+          document["repositories"].append({
+              "name": "swift-roster-currency-control",
+              "url": "https://github.com/swift-primitives/swift-roster-currency-control.git",
+              "organization": "swift-primitives",
+              "layer": "primitives",
+          })
+          json.dump(document, open(path, "w"), indent=2)
+          PY
+
+      # `gh` is the transport (see Workspace.Inventory.Transport); it reads
+      # GH_TOKEN. Discovery lists public repositories only, so the job-scoped
+      # GITHUB_TOKEN suffices — no PAT, no org secret.
+      #
+      # doctor exits 0 measured-clean, 1 measured-with-errors, 2 unmeasured.
+      # None of those should stop the job before the report is delivered.
+      - name: Measure — doctor --institute
+        id: doctor
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -o pipefail
+          status=0
+          swift run --package-path Application workspace doctor --institute \
+            2>&1 | tee report.txt || status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+      # The whole point of #43 is that a check reporting "not run" is
+      # indistinguishable from one that passed. Assert execution before
+      # reading the result — a green job whose check never ran would
+      # reproduce that defect one level up, in the thing built to fix it.
+      - name: Assert the check executed
+        id: currency
+        run: |
+          line=$(grep -m1 '^inventory-currency: ' report.txt || true)
+          if [ -z "$line" ]; then
+            echo "::error::inventory-currency is absent from the report — doctor did not run it."
+            exit 1
+          fi
+          case "$line" in
+            *"not run"*)
+              echo "::error::inventory-currency reported '$line' — --institute did not take effect."
+              exit 1
+              ;;
+          esac
+          echo "line=${line#inventory-currency: }" >> "$GITHUB_OUTPUT"
+          # Findings are the indented lines between this check and the next.
+          awk '/^inventory-currency: /{capture=1; next} /^[^ ]/{capture=0} capture' \
+            report.txt > findings.txt
+          echo "count=$(wc -l < findings.txt | tr -d ' ')" >> "$GITHUB_OUTPUT"
+          case "$line" in
+            *"ok ("*)         echo "state=current"    >> "$GITHUB_OUTPUT" ;;
+            *"unmeasured"*)   echo "state=unmeasured" >> "$GITHUB_OUTPUT" ;;
+            *)                echo "state=drift"      >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Positive control — the check must have fired, and named the control
+        if: ${{ inputs.control }}
+        run: |
+          if [ "${{ steps.currency.outputs.state }}" != "drift" ]; then
+            echo "::error::control did not fire: state is ${{ steps.currency.outputs.state }}."
+            exit 1
+          fi
+          if ! grep -q 'swift-roster-currency-control: in Workspace.json but not discovered on GitHub' findings.txt; then
+            echo "::error::the check fired but did not name the control in the committed direction."
+            cat findings.txt
+            exit 1
+          fi
+          echo "control: fired, named swift-roster-currency-control, direction committed-not-discovered."
+
+      # Delivery. `swift-institute/.github#65` records what does not work: a
+      # single issue body rewritten each run notifies nobody, carries no
+      # history, and reads the same on a clean fleet as a burning one. So:
+      # the title states the current verdict and count; the body states the
+      # current finding set and a fingerprint of it; and a COMMENT is posted
+      # whenever that fingerprint changes — which is what actually reaches a
+      # person, and what survives the next run.
+      #
+      # This detector covers the whole population every run, not a rotating
+      # slice, so a row leaving the body means the drift was fixed, not that
+      # a different subject came up. That is why the body may be replaced
+      # here where in #65 it may not.
+      - name: Deliver
+        if: ${{ !inputs.control }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATE: ${{ steps.currency.outputs.state }}
+          RESULT: ${{ steps.currency.outputs.line }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bash .github/scripts/roster-currency-report.sh
+
+      # Last, so delivery always happens first: the run's status mirrors
+      # doctor's, and an unmeasured run is never reported as passing.
+      #
+      # Skipped for the control, where drift is the *expected* result and
+      # was already asserted above — a green control run means the detector
+      # still fires, which is the only thing that run is asking.
+      - name: Exit as doctor did
+        if: ${{ !inputs.control }}
+        run: |
+          echo "doctor: ${{ steps.currency.outputs.line }}"
+          exit ${{ steps.doctor.outputs.status }}

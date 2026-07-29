@@ -16,6 +16,7 @@ extension Workspace {
         public var workspacePath: Swift.String
         public var fresh: Bool
         public var changed: Bool
+        public var institute: Bool
         public var arguments: [Swift.String]
 
         public init(
@@ -28,6 +29,7 @@ extension Workspace {
             workspacePath: Swift.String = "",
             fresh: Bool = false,
             changed: Bool = false,
+            institute: Bool = false,
             arguments: [Swift.String] = []
         ) {
             self.operation = operation
@@ -39,6 +41,7 @@ extension Workspace {
             self.workspacePath = workspacePath
             self.fresh = fresh
             self.changed = changed
+            self.institute = institute
             self.arguments = arguments
         }
     }
@@ -88,6 +91,15 @@ extension Workspace.CLI {
                         + "yet in the tracked upstream (lint sweep only)."
                 )
             )
+            Command.Flag(
+                \.institute,
+                name: .long(.literal("institute")),
+                help: .init(
+                    abstract:
+                        "Run the institute-internal doctor checks too, which discover the live "
+                        + "GitHub organizations (needs an authenticated gh; ~460 requests)."
+                )
+            )
             Command.Option(
                 \.consumer,
                 name: .long(.literal("consumer")),
@@ -134,6 +146,12 @@ extension Workspace.CLI {
     public mutating func validate() throws(Command.Error) {
         guard operation == .lint || !changed else {
             throw .validationFailed(reason: "--changed is valid only with the lint sweep.")
+        }
+        // Rejected rather than ignored: a flag that asks for a measurement
+        // and is silently dropped produces a report that looks like the one
+        // that measured, which is the defect `--institute` exists to fix.
+        guard operation == .doctor || !institute else {
+            throw .validationFailed(reason: "--institute is valid only with doctor.")
         }
         if operation == .context {
             guard
@@ -420,15 +438,15 @@ extension Workspace.CLI {
         let configuration = try Workspace.Configuration.load(at: root.checkout)
         switch operation {
         case .sync:
-            let selection = try Workspace.Selection.load(at: root.checkout).resolved(in: configuration)
+            let selection = try Workspace.Selection.effective(at: root.checkout, in: configuration)
             try Workspace.Sync(root: root, selection: selection).run(dry: dry)
         case .doctor:
-            let selection = try Workspace.Selection.load(at: root.checkout).resolved(in: configuration)
+            let selection = try Workspace.Selection.effective(at: root.checkout, in: configuration)
             let report = await Workspace.Doctor(
                 root: root,
                 configuration: configuration,
                 selection: selection
-            ).run()
+            ).run(access: institute ? .institute() : .contributor)
             print(report)
             Process.Exit.normal(report.status)
         case .inventory:
