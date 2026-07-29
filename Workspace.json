@@ -2450,6 +2450,12 @@
     },
     {
       "layer": "foundations",
+      "name": "swift-sql-postgres-provider",
+      "organization": "swift-foundations",
+      "url": "https://github.com/swift-foundations/swift-sql-postgres-provider.git"
+    },
+    {
+      "layer": "foundations",
       "name": "swift-strings",
       "organization": "swift-foundations",
       "url": "https://github.com/swift-foundations/swift-strings.git"
