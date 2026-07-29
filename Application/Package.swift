@@ -65,6 +65,7 @@ let package = Package(
                 .product(name: "Package Manager", package: "swift-package-manager"),
                 .product(name: "POSIX Kernel Process", package: "swift-posix"),
                 .product(name: "Process", package: "swift-process"),
+                .product(name: "Xcode Scheme", package: "swift-xcode"),
                 .product(name: "Xcode Workspace", package: "swift-xcode")
             ]
         ),

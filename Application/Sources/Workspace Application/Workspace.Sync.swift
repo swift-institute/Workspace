@@ -35,6 +35,11 @@ extension Workspace.Sync {
             )
         }
         print("  institute.xcworkspace: \(workspace ? "current" : "generate")")
+        // The scheme's contents are the selected packages' target names, so
+        // it cannot be planned here: a repository this run is about to clone
+        // has no manifest to read yet. It is rendered and compared after
+        // materialization instead, and reported there.
+        print("  \(Workspace.Xcode.Scheme.name).xcscheme: after materialization")
 
         guard !inspections.contains(where: { $0.action.fatal }) else {
             throw .repository("sync stopped before mutation because the plan contains conflicts")
@@ -73,6 +78,19 @@ extension Workspace.Sync {
         if !workspace {
             try Workspace.Xcode.write(selection.repositories, at: root.checkout)
         }
+
+        let buildables = try Workspace.Xcode.Scheme.buildables(
+            for: selection.repositories,
+            at: root
+        )
+        let scheme = Workspace.Xcode.Scheme.current(buildables, at: root.checkout)
+        if !scheme {
+            try Workspace.Xcode.Scheme.write(buildables, at: root.checkout)
+        }
+        print(
+            "  \(Workspace.Xcode.Scheme.name).xcscheme: \(scheme ? "current" : "generated")"
+                + " — \(buildables.count) targets across \(selection.repositories.count) packages"
+        )
         print("Sync complete.")
     }
 

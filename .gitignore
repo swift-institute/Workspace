@@ -24,6 +24,11 @@
 # disagree with its source, which is the whole failure mode generation removes.
 # `workspace doctor` reports it missing and names the command that writes it.
 *.xcworkspace/
+# `workspace build --fresh` builds into an isolated derived-data directory
+# beside the bundle — that is, here — and removes it afterward. Ignored so a
+# build interrupted before cleanup leaves an untracked directory rather than a
+# dirty checkout that the next `sync` or `doctor` has to explain.
+.workspace-derived-data-*/
 Package.resolved
 **/Package.resolved
 xcuserdata/

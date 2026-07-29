@@ -329,3 +329,61 @@ extension Workspace.CLI.Test.`Edge Case` {
         }
     }
 }
+
+extension Workspace.CLI.Test.Unit {
+    @Test
+    func `build selects the whole selection, not a package`() throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: ["build"],
+            initial: .init()
+        )
+
+        #expect(command.operation == .build)
+        #expect(command.modes.isEmpty)
+        #expect(command.packagePath.isEmpty)
+    }
+
+    @Test
+    func `build accepts isolated derived data and forwarded xcodebuild arguments`() throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: ["build", "--fresh", "--argument", "CONFIGURATION=Release"],
+            initial: .init()
+        )
+
+        #expect(command.operation == .build)
+        #expect(command.fresh)
+        #expect(command.arguments == ["CONFIGURATION=Release"])
+    }
+}
+
+extension Workspace.CLI.Test.`Edge Case` {
+    @Test
+    func `build takes no mode`() {
+        // `workspace build build` would read as a package operation and is a
+        // plausible slip; it must not silently mean the whole selection.
+        #expect(throws: Command.Error.self) {
+            var command = Workspace.CLI(operation: .build, modes: [.build])
+            try command.validate()
+        }
+    }
+
+    @Test
+    func `build refuses a package path rather than narrowing to one package`() {
+        #expect(throws: Command.Error.self) {
+            var command = Workspace.CLI(operation: .build, packagePath: "/tmp/pkg")
+            try command.validate()
+        }
+    }
+
+    @Test
+    func `build has no dry run`() {
+        // There is nothing to plan: the selection and the scheme are already
+        // on disk, and a build that changed nothing would still be a build.
+        #expect(throws: Command.Error.self) {
+            var command = Workspace.CLI(operation: .build, dry: true)
+            try command.validate()
+        }
+    }
+}

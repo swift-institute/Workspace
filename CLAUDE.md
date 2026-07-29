@@ -12,6 +12,7 @@ All paths are relative to the repository root.
 ```sh
 swift run --package-path Application workspace sync --dry-run   # plan only, changes nothing
 swift run --package-path Application workspace sync             # clone and fast-forward
+swift run --package-path Application workspace build            # build the whole selection, one xcodebuild
 swift run --package-path Application workspace doctor           # report checkout facts
 swift run --package-path Application workspace doctor --institute  # + roster currency (needs gh)
 Application/.build/debug/workspace package test --package-path Application --fresh
@@ -86,6 +87,25 @@ authenticated `gh` never changes what a plain `doctor` does.
   header rather than a `doctor` check on purpose: a check can report `notApplicable`, and a
   check that never ran must never look like one that passed (issue #43). See
   `Research/Local Resolution/DESIGN-Selection-Override-2026-07-29.md` and issue #46.
+- **`workspace build` builds the selection in one `xcodebuild`; `workspace package build` builds
+  one package in one `swift build`. They are not the same measurement.** The package path
+  resolves dependencies from *pinned remotes*, so it cannot see a local edit at all — change a
+  selected package and a consumer's `swift build` compiles the published version and reports
+  success. The workspace path resolves members from local paths, so it is the only one that
+  builds the institute from the working copy. It is also the only one that shares work: the
+  serialised path gives each package its own `.build` and recompiles the shared closure once per
+  package, while one merged graph compiles it once.
+- **A stale `Institute.xcscheme` does not fail the build — it silently builds less of the
+  selection.** `xcodebuild` drops a `BuildableReference` whose blueprint matches no target in its
+  container *without a warning*: measured, one fabricated entry among valid ones still exits 0 and
+  prints `** BUILD SUCCEEDED **`, and only an entirely unmatched scheme fails (exit 66). Nothing
+  in the build output can catch it either, because an up-to-date target compiles nothing, so "not
+  in the log" and "not in the scheme" are the same observation. This is why the scheme is
+  generated from `swift package dump-package` rather than from target names anyone typed, and why
+  `workspace build` re-renders it from the manifests and byte-compares *before* building, refusing
+  to run on a mismatch. Never hand-edit the scheme, and never soften that pre-flight check into a
+  warning — a build path that can report success having compiled a fraction of the selection is
+  the exact failure this gate exists to prevent.
 - **Roster drift is detected by CI, not by anyone remembering.** `inventory-currency`
   compares `Workspace.json` against a live discovery in both directions. It needs an
   authenticated `gh`, so no contributor command reaches it and none should: `doctor` is

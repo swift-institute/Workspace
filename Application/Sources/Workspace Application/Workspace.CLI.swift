@@ -60,7 +60,7 @@ extension Workspace.CLI {
             Command.Positional(
                 \.operation,
                 name: "operation",
-                placeholder: "sync|doctor|inventory|compose|restore|verify|context|navigation|package|lint",
+                placeholder: "sync|build|doctor|inventory|compose|restore|verify|context|navigation|package|lint",
                 help: .init(abstract: "Operation to perform.")
             )
             Command.Positional<Self, Mode>.Many(
@@ -80,7 +80,11 @@ extension Workspace.CLI {
             Command.Flag(
                 \.fresh,
                 name: .long(.literal("fresh")),
-                help: .init(abstract: "Use isolated scratch state for a package build or test.")
+                help: .init(
+                    abstract:
+                        "Use isolated build state — a scratch directory for a package build or "
+                        + "test, a derived-data directory for the workspace build."
+                )
             )
             Command.Flag(
                 \.changed,
@@ -137,7 +141,9 @@ extension Workspace.CLI {
                 name: .long(.literal("argument")),
                 placeholder: "swiftpm-argument",
                 help: .init(
-                    abstract: "Argument forwarded to SwiftPM (repeatable; package operations only)."
+                    abstract:
+                        "Argument forwarded to the underlying tool (repeatable) — SwiftPM for a "
+                        + "package operation, xcodebuild for the workspace build."
                 )
             )
         }
@@ -280,6 +286,28 @@ extension Workspace.CLI {
             }
             guard arguments.isEmpty else {
                 throw .validationFailed(reason: "--argument is valid only with package.")
+            }
+        } else if operation == .build {
+            guard modes.isEmpty else {
+                throw .validationFailed(
+                    reason: "build takes no mode; it builds the whole selection."
+                )
+            }
+            guard consumer.isEmpty, dependency.isEmpty else {
+                throw .validationFailed(
+                    reason: "--consumer and --dependency are not valid with build."
+                )
+            }
+            guard !dry else {
+                throw .validationFailed(reason: "--dry-run is valid only with sync or inventory.")
+            }
+            guard packagePath.isEmpty else {
+                throw .validationFailed(
+                    reason: "--package-path is valid only with package; build builds the selection."
+                )
+            }
+            guard workspacePath.isEmpty else {
+                throw .validationFailed(reason: "--workspace-path is valid only with navigation or lint.")
             }
         } else {
             guard consumer.isEmpty, dependency.isEmpty else {
@@ -451,6 +479,12 @@ extension Workspace.CLI {
         case .sync:
             let selection = try Workspace.Selection.effective(at: root.checkout, in: configuration)
             try Workspace.Sync(root: root, selection: selection).run(dry: dry)
+        case .build:
+            let selection = try Workspace.Selection.effective(at: root.checkout, in: configuration)
+            print(selection.origin)
+            let status = try Workspace.Xcode.Build(root: root, selection: selection)
+                .run(fresh: fresh, arguments: arguments)
+            Process.Exit.normal(status)
         case .doctor:
             let selection = try Workspace.Selection.effective(at: root.checkout, in: configuration)
             let report = await Workspace.Doctor(

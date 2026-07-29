@@ -1,8 +1,8 @@
-private import File_System
+// Internal rather than private: `remove(_:after:)` is shared with the
+// workspace operation in another file, and its parameter is a `File` type.
+internal import File_System
 private import Kernel_System
 private import Kernel_Thread
-private import POSIX_Kernel_Lock
-private import Process
 
 extension Build {
     /// Runs SwiftPM operations with one owned interface and isolated evidence builds.
@@ -74,89 +74,23 @@ extension Build.Coordinator {
             arguments: arguments
         )
 
-        let lockPath: File.Path
-        do throws(File.Path.Error) {
-            lockPath = try File.Path.Temporary.deterministic(
-                prefix: "swift-institute-",
-                key: "swiftpm-build-coordinator",
-                suffix: ".lock"
-            )
-        } catch {
-            try remove(scratch, after: nil)
-            throw .filesystem("cannot construct the SwiftPM coordination lock path: \(error)")
-        }
-
-        let lock: File.Descriptor
-        do {
-            lock = try File.Descriptor.open(
-                lockPath,
-                mode: .readWrite,
-                options: [.create, .execClose]
-            )
-        } catch {
-            try remove(scratch, after: nil)
-            throw .filesystem("cannot open SwiftPM coordination lock \(lockPath): \(error)")
-        }
-        do throws(POSIX.Kernel.Lock.Error) {
-            try POSIX.Kernel.Lock.lock(
-                lock.kernelDescriptor,
-                range: .file,
-                kind: .exclusive
-            )
-        } catch {
-            try remove(scratch, after: nil)
-            throw .filesystem("cannot acquire SwiftPM coordination lock \(lockPath): \(error)")
-        }
-
-        var output: Process.Output?
-        var failure: Build.Error?
-        do throws(Process.Error) {
-            output = try Process.Spawn.run(
-                .init(
-                    executable: "/usr/bin/env",
-                    arguments: invocation,
-                    workingDirectory: package.description
-                )
-            )
-        } catch {
-            failure = .process("cannot execute \(action.rawValue) at \(package): \(error)")
-        }
-
-        do {
-            try remove(scratch, after: failure)
-        } catch {
-            failure = error
-        }
-        do throws(POSIX.Kernel.Lock.Error) {
-            try POSIX.Kernel.Lock.unlock(
-                lock.kernelDescriptor,
-                range: .file
-            )
-        } catch {
-            let message = "cannot release SwiftPM coordination lock \(lockPath): \(error)"
-            failure = failure.map {
-                .filesystem("\($0); additionally, \(message)")
-            } ?? .filesystem(message)
-        }
-
-        if let failure {
-            throw failure
-        }
-        guard let output else {
-            throw .process("\(action.rawValue) produced neither output nor an error")
-        }
-
-        switch output.status {
-        case .exited(let code):
-            return code
-        case .signaled(let signal):
-            throw .process("\(action.rawValue) terminated by signal \(signal)")
-        case .stopped(let signal):
-            throw .process("\(action.rawValue) stopped by signal \(signal)")
+        return try coordinated(
+            invocation,
+            in: package.description,
+            describing: "\(action.rawValue) at \(package)"
+        ) { failure in
+            do throws(Build.Error) {
+                try remove(scratch, after: failure)
+                return failure
+            } catch {
+                return error
+            }
         }
     }
 
-    private func remove(
+    /// Internal rather than private so the workspace operation removes its
+    /// fresh derived data through the same failure-folding path.
+    func remove(
         _ scratch: File.Directory?,
         after failure: Build.Error?
     ) throws(Build.Error) {
