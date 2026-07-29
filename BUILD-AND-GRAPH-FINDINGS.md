@@ -48,7 +48,8 @@ private and 383→388 public. The visibility probe was positive-controlled — i
 Publication resolved the access defect but not the completeness one. **None of the five is in the
 441-package roster, and none is checked out on disk** — verified directly. So:
 
-- `workspace inventory` should now discover them; until it is re-run, the roster undercounts.
+- `workspace inventory regenerate` should now discover them; until it is run, the roster
+  undercounts.
 - Any "build the whole graph from local source" claim is short by five packages, and the 113-package
   top-level floor (§3) is computed over a roster that does not contain them. **Re-derive the floor
   after the roster is regenerated** rather than assuming 113 still holds.

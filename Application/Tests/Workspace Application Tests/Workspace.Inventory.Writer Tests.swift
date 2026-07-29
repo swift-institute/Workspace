@@ -1,5 +1,6 @@
 import File_System
 import Foundation
+import Git_Foundation
 import GitHub
 import Tagged_Primitives_Standard_Library_Integration
 import Testing
@@ -137,12 +138,72 @@ extension Workspace.Inventory.Test.Integration {
     }
 
     @Test
+    func `Dry regeneration reports drift without replacing tracked inventory`() async throws {
+        let configuration = Workspace.Configuration(
+            version: 1,
+            scope: "swift-institute",
+            swift: "6.3.3",
+            xcode: "26.6",
+            repositories: []
+        )
+        let fixture = try Workspace.Inventory.Test.Fixture(
+            configuration: configuration
+        )
+        defer { fixture.remove() }
+        let before = try Data(contentsOf: fixture.file)
+        let owner = GitHub.Organization.Name("swift-foundations")
+        let policy = try Workspace.Inventory.Policy(
+            organizations: [.init(name: owner, layer: .foundations)],
+            denied: [],
+            limit: .init(fixture: 1, items: 1)
+        )
+        let repositories = GitHub.Organization.Repositories.Client<
+            Workspace.Inventory.Test.Failure
+        > {
+            _ async throws(Workspace.Inventory.Test.Failure) in
+            .init(
+                response: .init(
+                    repositories: [.init(fixture: 1, name: "swift-file")]
+                ),
+                next: nil
+            )
+        }
+        let content = GitHub.Repository.Content.Client<
+            Workspace.Inventory.Test.Failure
+        > {
+            _ async throws(Workspace.Inventory.Test.Failure) in .init(kind: .file)
+        }
+        let application = Workspace.Inventory.Application(
+            root: fixture.root,
+            policy: policy,
+            client: .init(repositories: repositories, content: content)
+        )
+        let existing = try Workspace.Configuration.Document.load(at: fixture.root)
+
+        let plan = try await application.run(existing: existing, dry: true)
+
+        guard case .replace(let output) = plan else {
+            Issue.record("Expected regeneration to report a replacement")
+            return
+        }
+        #expect(output.contains("\"name\": \"swift-file\""))
+        #expect(try Data(contentsOf: fixture.file) == before)
+        #expect(try fixture.git.status(at: fixture.location.path).isEmpty)
+    }
+
+    @Test
     func `Content failure leaves the existing inventory byte-for-byte unchanged`() async throws {
-        let location = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: location) }
-        try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
-        let file = location.appending(path: "Workspace.json")
-        let root = try File.Directory(validating: location.path)
+        let configuration = Workspace.Configuration(
+            version: 1,
+            scope: "swift-institute",
+            swift: "6.3.3",
+            xcode: "26.6",
+            repositories: []
+        )
+        let fixture = try Workspace.Inventory.Test.Fixture(
+            configuration: configuration
+        )
+        defer { fixture.remove() }
         let owner = GitHub.Organization.Name("swift-foundations")
         let policy = try Workspace.Inventory.Policy(
             organizations: [.init(name: owner, layer: .foundations)],
@@ -158,20 +219,12 @@ extension Workspace.Inventory.Test.Integration {
             throw .status
         }
         let application = Workspace.Inventory.Application(
-            root: root,
+            root: fixture.root,
             policy: policy,
             client: .init(repositories: repositories, content: content)
         )
-        let configuration = Workspace.Configuration(
-            version: 1,
-            scope: "swift-institute",
-            swift: "6.3.3",
-            xcode: "26.6",
-            repositories: []
-        )
-        let original = try configuration.rendered()
-        try Data(original.utf8).write(to: file, options: .atomic)
-        let existing = try Workspace.Configuration.Document.load(at: root)
+        let original = try Data(contentsOf: fixture.file)
+        let existing = try Workspace.Configuration.Document.load(at: fixture.root)
 
         do throws(Workspace.Inventory.Error<Workspace.Inventory.Test.Failure, Workspace.Inventory.Test.Failure>) {
             _ = try await application.run(existing: existing, dry: false)
@@ -182,16 +235,11 @@ extension Workspace.Inventory.Test.Integration {
                 return
             }
         }
-        #expect(try Data(contentsOf: file) == Data(original.utf8))
+        #expect(try Data(contentsOf: fixture.file) == original)
     }
 
     @Test
     func `Publication rejects an intervening byte change without replacing it`() async throws {
-        let location = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
-        defer { try? FileManager.default.removeItem(at: location) }
-        try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
-        let file = location.appending(path: "Workspace.json")
-        let root = try File.Directory(validating: location.path)
         let configuration = Workspace.Configuration(
             version: 1,
             scope: "swift-institute",
@@ -199,11 +247,14 @@ extension Workspace.Inventory.Test.Integration {
             xcode: "26.6",
             repositories: []
         )
+        let fixture = try Workspace.Inventory.Test.Fixture(
+            configuration: configuration
+        )
+        defer { fixture.remove() }
         let original = try configuration.rendered()
-        try Data(original.utf8).write(to: file, options: .atomic)
-        let existing = try Workspace.Configuration.Document.load(at: root)
+        let existing = try Workspace.Configuration.Document.load(at: fixture.root)
         let intervening = Swift.String(original.dropLast())
-        let target = root[file: "Workspace.json"]
+        let target = fixture.root[file: "Workspace.json"]
         let replace: @Sendable () throws(File.System.Write.Atomic.Error) -> Void = {
             try target.write.atomic(intervening)
         }
@@ -233,7 +284,7 @@ extension Workspace.Inventory.Test.Integration {
             _ async throws(Workspace.Inventory.Test.Failure) in .init(kind: .file)
         }
         let application = Workspace.Inventory.Application(
-            root: root,
+            root: fixture.root,
             policy: policy,
             client: .init(repositories: repositories, content: content)
         )
@@ -248,6 +299,143 @@ extension Workspace.Inventory.Test.Integration {
             }
         }
 
-        #expect(try Data(contentsOf: file) == Data(intervening.utf8))
+        #expect(try Data(contentsOf: fixture.file) == Data(intervening.utf8))
+    }
+
+    @Test
+    func `Regeneration refuses a dirty Workspace worktree before discovery`() async throws {
+        let configuration = Workspace.Configuration(
+            version: 1,
+            scope: "swift-institute",
+            swift: "6.3.3",
+            xcode: "26.6",
+            repositories: []
+        )
+        let fixture = try Workspace.Inventory.Test.Fixture(
+            configuration: configuration
+        )
+        defer { fixture.remove() }
+        let existing = try Workspace.Configuration.Document.load(at: fixture.root)
+        let dirty = Swift.String(try configuration.rendered().dropLast())
+        try Data(dirty.utf8).write(to: fixture.file, options: .atomic)
+        let owner = GitHub.Organization.Name("swift-foundations")
+        let policy = try Workspace.Inventory.Policy(
+            organizations: [.init(name: owner, layer: .foundations)],
+            denied: [],
+            limit: .init(fixture: 1, items: 1)
+        )
+        let repositories = GitHub.Organization.Repositories.Client<
+            Workspace.Inventory.Test.Failure
+        > {
+            _ async throws(Workspace.Inventory.Test.Failure) in
+            .init(
+                response: .init(
+                    repositories: [.init(fixture: 1, name: "swift-file")]
+                ),
+                next: nil
+            )
+        }
+        let content = GitHub.Repository.Content.Client<
+            Workspace.Inventory.Test.Failure
+        > {
+            _ async throws(Workspace.Inventory.Test.Failure) in .init(kind: .file)
+        }
+        let application = Workspace.Inventory.Application(
+            root: fixture.root,
+            policy: policy,
+            client: .init(repositories: repositories, content: content)
+        )
+
+        do throws(
+            Workspace.Inventory.Error<
+                Workspace.Inventory.Test.Failure,
+                Workspace.Inventory.Test.Failure
+            >
+        ) {
+            _ = try await application.run(existing: existing, dry: false)
+            Issue.record("Expected dirty-state refusal")
+        } catch {
+            guard case .workspace(.repository(let message)) = error else {
+                Issue.record("Unexpected error: \(error)")
+                return
+            }
+            #expect(
+                message
+                    == "inventory regeneration requires a clean Workspace worktree; "
+                        + "found 1 changed path"
+            )
+        }
+        #expect(try Data(contentsOf: fixture.file) == Data(dirty.utf8))
+    }
+
+    @Test
+    func `Regeneration reports an uninspectable Workspace worktree explicitly`() async throws {
+        let location =
+            FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: location) }
+        try FileManager.default.createDirectory(
+            at: location,
+            withIntermediateDirectories: true
+        )
+        let root = try File.Directory(validating: location.path)
+        let configuration = Workspace.Configuration(
+            version: 1,
+            scope: "swift-institute",
+            swift: "6.3.3",
+            xcode: "26.6",
+            repositories: []
+        )
+        try Data(configuration.rendered().utf8).write(
+            to: location.appending(path: "Workspace.json"),
+            options: .atomic
+        )
+        let existing = try Workspace.Configuration.Document.load(at: root)
+        let owner = GitHub.Organization.Name("swift-foundations")
+        let policy = try Workspace.Inventory.Policy(
+            organizations: [.init(name: owner, layer: .foundations)],
+            denied: [],
+            limit: .init(fixture: 1, items: 1)
+        )
+        let repositories = GitHub.Organization.Repositories.Client<
+            Workspace.Inventory.Test.Failure
+        > {
+            _ async throws(Workspace.Inventory.Test.Failure) in
+            .init(
+                response: .init(
+                    repositories: [.init(fixture: 1, name: "swift-file")]
+                ),
+                next: nil
+            )
+        }
+        let content = GitHub.Repository.Content.Client<
+            Workspace.Inventory.Test.Failure
+        > {
+            _ async throws(Workspace.Inventory.Test.Failure) in .init(kind: .file)
+        }
+        let application = Workspace.Inventory.Application(
+            root: root,
+            policy: policy,
+            client: .init(repositories: repositories, content: content)
+        )
+
+        do throws(
+            Workspace.Inventory.Error<
+                Workspace.Inventory.Test.Failure,
+                Workspace.Inventory.Test.Failure
+            >
+        ) {
+            _ = try await application.run(existing: existing, dry: false)
+            Issue.record("Expected worktree inspection failure")
+        } catch {
+            guard case .workspace(.repository(let message)) = error else {
+                Issue.record("Unexpected error: \(error)")
+                return
+            }
+            #expect(
+                message.hasPrefix(
+                    "inventory regeneration cannot inspect the Workspace worktree:"
+                )
+            )
+        }
     }
 }

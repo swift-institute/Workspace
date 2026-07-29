@@ -29,9 +29,10 @@ extension Workspace.Inventory {
     ///
     /// ## Requirement this imposes
     ///
-    /// **`workspace inventory` requires the `gh` CLI, authenticated, on the
-    /// machine that runs it.** No other `workspace` command is affected. This
-    /// is acceptable for an internal maintenance command and is *not*
+    /// **`workspace inventory regenerate` requires the `gh` CLI,
+    /// authenticated, on the machine that runs it.** The read-only `workspace
+    /// inventory` register and every other contributor command are unaffected.
+    /// This is acceptable for an internal maintenance command and is *not*
     /// library-grade capability — do not build a shipped feature on it.
     public enum Transport {}
 }

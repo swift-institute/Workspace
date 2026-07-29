@@ -12,6 +12,8 @@ and local-source composition for cross-package work (`workspace compose` / `rest
 | --- | --- |
 | `sync` | Clone missing repositories and fast-forward eligible ones. Never rewrites work. |
 | `doctor` | Report what is measurably true about this checkout. |
+| `inventory` | Print the committed name → organization → relative-path register. Never discovers or writes. |
+| `inventory regenerate` | Discover the live roster and replace `Workspace.json`; `--dry-run` plans only. |
 | `compose` | Point one package's dependency at your local checkout of it, so edits are picked up. |
 | `restore` | Undo a composition, returning the manifest to its declared form byte-for-byte. |
 | `verify` | Report which source a dependency actually compiled from, read from resolved state. |
@@ -82,6 +84,14 @@ an operand does not have to remain in the default selection once it is already c
 
 Prefer running `doctor` over trusting any written snapshot: repository-state prose is a
 measurement with a timestamp, and it drifts.
+
+`workspace inventory` is the read-only view of the committed register. It prints each
+repository's name, owning organization, and inventory-derived relative materialization path;
+it performs no GitHub discovery and cannot write `Workspace.json`. Roster maintenance uses the
+explicitly mutating `workspace inventory regenerate`. Run it with `--dry-run` to learn whether
+the file would be replaced. Applying the regeneration requires a clean Workspace worktree and
+refuses before discovery otherwise; the final write is atomic and also refuses if
+`Workspace.json` changes during discovery.
 
 ## Where open work lives
 

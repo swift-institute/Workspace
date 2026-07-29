@@ -34,7 +34,7 @@ drift)
     committed=$(grep -c 'not discovered on GitHub' "$FINDINGS" || true)
     discovered=$(grep -c 'missing from Workspace.json' "$FINDINGS" || true)
     title="roster drift: $((committed + discovered)) repositories — ${discovered} missing from Workspace.json, ${committed} listed but absent from GitHub"
-    headline="Run \`swift run --package-path Application workspace inventory\` to regenerate, then commit the result."
+    headline="Run \`swift run --package-path Application workspace inventory regenerate --dry-run\` to plan, then rerun without \`--dry-run\` and commit the result."
     ;;
 unmeasured)
     # Loudest of the three on purpose. A detector that stopped measuring
