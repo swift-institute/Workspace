@@ -409,6 +409,7 @@
     "swift-foundations/swift-splat",
     "swift-foundations/swift-sql",
     "swift-foundations/swift-sql-migrations",
+    "swift-foundations/swift-sql-postgres-provider",
     "swift-foundations/swift-strings",
     "swift-foundations/swift-stripe",
     "swift-foundations/swift-stripe-live",
