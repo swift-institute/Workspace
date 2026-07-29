@@ -108,12 +108,9 @@ gh issue list --repo swift-institute/Workspace
 alone, against public repositories, with no credentials and no internal tooling. If a step here
 needs anything you cannot get, that is a defect — please open an issue.
 
-Requires macOS 26, **Xcode 26.6 or newer**, **Swift 6.3.3 or newer**, and Git. Those two
-versions are *minimums*, declared once in `Workspace.json` and enforced by `doctor` as a floor:
-a newer toolchain passes, so you are never asked to install a beta to match a maintainer. The
-Institute is moving to Swift 6.4 and above, and the floor rises when that toolchain is
-installable without a preview — it is not raised ahead of it, because a floor nobody can meet
-turns every green tick red for a reason unrelated to the change under test.
+Requires the macOS, Xcode, and Swift floors declared in [`Workspace.json`](Workspace.json),
+plus Git. `workspace doctor` checks those floors on the current machine; a newer toolchain
+passes.
 
 `swiftly` is how the Institute installs and selects Swift toolchains; install it if you do not
 already keep one. If you keep more than one Swift toolchain installed,
@@ -202,12 +199,11 @@ works.** Before `workspace install` can print anything, SwiftPM resolves and
 compiles the command-line application and its whole dependency graph. Two costs
 stack up, and both are silent:
 
-- **Resolution.** SwiftPM fetches the full transitive dependency graph — around **200
-  repositories** — before compiling anything. On a first run with a cold package cache this is
-  network-bound, so how long it takes depends on your connection more than your machine.
-- **Compilation.** Roughly **5,900 build steps, about 4,200 of them compilations**. Measured
-  with sources already local, that alone took **4–7 minutes** depending on the machine and its
-  load; treat it as a floor, with fetching on top.
+- **Resolution.** SwiftPM fetches the full transitive dependency graph before compiling anything.
+  On a first run with a cold package cache this is network-bound, so how long it takes depends on
+  your connection more than your machine.
+- **Compilation.** The graph is large, so compilation can take several minutes after fetching;
+  the duration and step count depend on the checkout, toolchain, and machine.
 
 The earliest minutes print nothing at all while SwiftPM evaluates manifests,
 and the rest print nothing either: no progress bar, no percentage, nothing
@@ -467,11 +463,9 @@ N checks: … ok, 1 not run (institute-internal); measured populations: …
 doctor: passed — N check(s) measured, 1 not run (institute-internal), N warning(s).
 ```
 
-Deliberately a shape rather than a transcript. The sample that stood here until 2026-07-29
-listed seven named checks and their populations; by then there were eight, and every
-population had moved from 5 to the full roster, so it misreported both what runs and how much
-it covers. Read the verdict line and the populations your own run prints — a pasted sample is
-a claim about a version of this repository you are probably not on.
+Deliberately a shape rather than a transcript. Read the verdict line and the populations your
+own run prints — a pasted sample is a claim about a version of this repository you are probably
+not on.
 
 ### The four results
 
@@ -503,8 +497,7 @@ A maintainer with an authenticated `gh` can ask for it explicitly:
 workspace doctor --institute
 ```
 
-That discovers the live Institute organizations — roughly one request per repository, about
-460 today — and compares the result with `Workspace.json` in both directions, naming every
+That discovers the live Institute organizations and compares the result with `Workspace.json` in both directions, naming every
 repository that is on one side and not the other. It is opt-in rather than automatic on
 purpose: `doctor` is otherwise credential-free and offline, and it must not become a
 different, slower, network-bound command on the machines that happen to have `gh` logged in.
@@ -516,7 +509,7 @@ remembering the flag by the `roster-currency` workflow, which runs the same comm
 The population is the check's evidence that it actually measured something. A check that
 silently evaluated zero subjects would print exactly the same reassuring `ok` as one that
 examined all of them, so the count is printed to make the difference visible: `materialization:
-ok (population 5)` says five repositories were inspected, not that inspection was skipped.
+ok (population n)` says repositories were inspected, not that inspection was skipped.
 
 `ok (population 0)` therefore means something specific: the check ran, its controls fired
 correctly, and there were genuinely **zero subjects in existence** to measure. Above,
@@ -725,10 +718,8 @@ of it once the change lands.
 ## Scope
 
 The committed selection is the full public roster, so a fresh clone materializes every package
-in `Workspace.json` rather than a proof chain. It described a five-entry selection until
-2026-07-28; deliberately no count is given here, because the roster moves and a number in this
-paragraph would be wrong again rather than the world being wrong — `Workspace.json` and the
-selection line that `sync` and `doctor` both print are the authorities.
+in `Workspace.json`. The inventory and the selection line that `sync` and `doctor` print are the
+authorities; this document does not duplicate their changing counts.
 
 The Xcode workspace uses only relative sibling-layout references
 (`../swift-foundations/swift-color`, …); non-selected transitive dependencies still resolve
