@@ -108,6 +108,24 @@ unnamed moving target; name the toolchain you mean.
 Unambiguous, and works when nothing else is configured. Verbose, but it is the fallback that
 cannot silently do something else.
 
+**Use the real path, never a symlink to it.** A symlink pointing at a toolchain's `swift`
+resolves back to the *default* toolchain and reports its version, exit 0, with no warning:
+
+```sh
+ln -s …/swift-6.3.3-RELEASE.xctoolchain/usr/bin/swift shim/swift
+shim/swift --version     # reports 6.4 — the default toolchain, not the one named
+```
+
+Invoking the toolchain's own `usr/bin/swift` directly, or reaching it through `PATH`, reports
+6.3.3 correctly. The driver locates its resources relative to the *resolved* executable, and a
+symlink placed elsewhere resolves elsewhere.
+
+This is the same fail-open class as `TOOLCHAINS`: the wrong answer is indistinguishable from
+the right one, so nothing tells you the selection did not take. It is worth naming because it
+defeats the very thing a fallback is for — the drill that found it lost a control to it, and
+caught that only because the control failed to bite. Build a shim directory of symlinks to
+pin a toolchain and you will silently measure the default.
+
 ## Why other toolchains stay installed
 
 Do not "clean up" by uninstalling. Toolchains beyond the system one are load-bearing:

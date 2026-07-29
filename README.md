@@ -272,6 +272,12 @@ through the Workspace commands above; it does not copy old index artifacts.
 
 ### Lint
 
+**Run `lint install` once as part of setting up.** Until you do, `doctor` reports a `linter`
+warning — `swift-linter is not installed` — on every run, so a fresh checkout never comes up
+clean. The warning is honest rather than cosmetic: without the binaries there is no lint
+verdict to have, and Workspace reports the absence instead of counting an unlinted ecosystem
+as a clean one. It does not fail your checkout; warnings still exit 0.
+
 Workspace runs the same swift-linter CI gates on: the same binaries from the
 same rolling `ci-binaries` release, verified against that release's
 `SHA256SUMS`, invoked as `swift-linter <package-root> --exit-policy strict`
@@ -417,21 +423,22 @@ snapshot:
 swift run --package-path Application workspace doctor
 ```
 
-A healthy contributor run looks like this:
+A healthy contributor run reports one line per check, then a summary that repeats every
+measured population, then a verdict:
 
 ```text
-toolchain: ok (population 4)
-workspace-reference: ok (population 1)
-materialization: ok (population 5)
-working-state: ok (population 5)
-resolved-pins: ok (population 0)
-manifest-identity: ok (population 5)
+<check>: ok (population n)
+…
 inventory-currency: not run (institute-internal)
-7 checks: 6 ok, 1 not run (institute-internal); measured populations: toolchain 4,
-workspace-reference 1, materialization 5, working-state 5, resolved-pins 0,
-manifest-identity 5
-doctor: passed — 6 check(s) measured, 1 not run (institute-internal), 0 warning(s).
+N checks: … ok, 1 not run (institute-internal); measured populations: …
+doctor: passed — N check(s) measured, 1 not run (institute-internal), N warning(s).
 ```
+
+Deliberately a shape rather than a transcript. The sample that stood here until 2026-07-29
+listed seven named checks and their populations; by then there were eight, and every
+population had moved from 5 to the full roster, so it misreported both what runs and how much
+it covers. Read the verdict line and the populations your own run prints — a pasted sample is
+a claim about a version of this repository you are probably not on.
 
 ### The four results
 
@@ -642,13 +649,57 @@ Before opening a pull request, run `doctor` and make sure the package builds and
 own repository. `doctor` reports which of its checks apply to your setup; checks that need
 Institute access report that they did not run rather than failing your checkout.
 
+### From a clone to a pull request
+
+The steps above get you a working checkout; these are the ones that get a change out of it.
+They are listed because nothing else here covered them, and a contributor who is set up but
+cannot land a change is not set up.
+
+**Set a Git identity.** A fresh account has none, and the commit fails rather than warns:
+
+```sh
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+```
+
+**Expect to push somewhere other than where you cloned.** The quickstart clones over HTTPS and
+`sync` gives every materialized package an HTTPS remote, so `git push` on an unauthenticated
+HTTPS remote fails with `could not read Username`. That is the expected result of a
+credential-free setup, not a broken checkout — read access needs nothing, write access needs
+an account.
+
+If you have no write access to the package — which is the normal case — fork it and push
+there. Run this **inside the package's own repository**, not inside this one:
+
+```sh
+cd ../swift-foundations/<package>        # the package you changed
+gh repo fork --remote --remote-name fork
+git switch -c <branch>
+git commit -am "<message>"
+git push -u fork <branch>
+gh pr create --repo <org>/<package>
+```
+
+If you do have write access, push a branch to `origin` directly and open the pull request the
+same way. Maintainers push over SSH: an HTTPS remote is additionally rejected when a change
+touches workflow files, so switch that remote to `git@github.com:<org>/<package>.git` rather
+than working around the failure.
+
+**Open the pull request against the package's repository, never this one.** Each package is an
+independent repository with its own history and CI, and `sync` will fast-forward your checkout
+of it once the change lands.
+
 ## Scope
 
-The current roster contains a three-repository proof chain spanning all three layers —
-`swift-dimension-primitives → swift-color-standard → swift-color` — plus `swift-url-routing`
-and `swift-http-body` for an active migration workspace. The Xcode workspace uses only
-relative sibling-layout references (`../swift-foundations/swift-color`, …); non-selected
-transitive dependencies still resolve from their canonical remote URLs.
+The committed selection is the full public roster, so a fresh clone materializes every package
+in `Workspace.json` rather than a proof chain. It described a five-entry selection until
+2026-07-28; deliberately no count is given here, because the roster moves and a number in this
+paragraph would be wrong again rather than the world being wrong — `Workspace.json` and the
+selection line that `sync` and `doctor` both print are the authorities.
+
+The Xcode workspace uses only relative sibling-layout references
+(`../swift-foundations/swift-color`, …); non-selected transitive dependencies still resolve
+from their canonical remote URLs.
 
 ## License
 
