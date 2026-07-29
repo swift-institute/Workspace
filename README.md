@@ -97,18 +97,41 @@ gh issue list --repo swift-institute/Workspace
 alone, against public repositories, with no credentials and no internal tooling. If a step here
 needs anything you cannot get, that is a defect — please open an issue.
 
-Requires macOS 26, Xcode 26.6, Swift 6.3.3, and Git. The optional navigation
-setup additionally requires Node 18 or newer and Bun. If you keep more than one Swift toolchain
-installed, [TOOLCHAINS.md](TOOLCHAINS.md) covers how to select one explicitly and how to
-determine which one actually produced a result — machine-local configuration, not committed
-state.
+Requires macOS 26, **Xcode 26.6 or newer**, **Swift 6.3.3 or newer**, and Git. Those two
+versions are *minimums*, declared once in `Workspace.json` and enforced by `doctor` as a floor:
+a newer toolchain passes, so you are never asked to install a beta to match a maintainer. The
+Institute is moving to Swift 6.4 and above, and the floor rises when that toolchain is
+installable without a preview — it is not raised ahead of it, because a floor nobody can meet
+turns every green tick red for a reason unrelated to the change under test.
+
+`swiftly` is how the Institute installs and selects Swift toolchains; install it if you do not
+already keep one. If you keep more than one Swift toolchain installed,
+[TOOLCHAINS.md](TOOLCHAINS.md) covers how to select one explicitly and how to determine which
+one actually produced a result — machine-local configuration, not committed state.
+
+The optional navigation setup additionally requires Node 18 or newer and Bun.
+
+**Clone into a directory named `swift-institute`.** The layout is load-bearing, not cosmetic:
+the materialized organization roots are placed beside this checkout, and the canonical skill
+roots are resolved from its grandparent. Cloning into a bare directory puts both somewhere
+nothing looks.
 
 ```sh
+mkdir -p Institute/swift-institute && cd Institute/swift-institute
 git clone https://github.com/swift-institute/Workspace.git
+git clone https://github.com/swift-institute/Skills.git
 cd Workspace
 swift run --package-path Application workspace sync
 open institute.xcworkspace
 ```
+
+`Institute` is yours to name; `swift-institute` is not. That leaves you with
+`Institute/swift-institute/Workspace` alongside `Institute/swift-institute/Skills`, the
+materialized roots as further siblings, and the generated agent entry point in `Institute/`.
+
+**Choose that parent directory as a long-lived one.** It becomes the home of every Institute
+repository you will work in, and the sole custodian of your machine-local `Selection.local.json`,
+which exists in no remote by construction.
 
 The committed `Selection.json` decides that first synchronization. It selects the whole
 public roster, so a fresh clone materializes every package in `Workspace.json`. To open
@@ -175,8 +198,7 @@ produced `Application/.build/debug/workspace`, run all later SwiftPM work
 through the coordinator rather than invoking raw build, test, or
 package-administration commands.
 
-Install the shared agent entry point after cloning the surrounding Coenttb
-checkout:
+Install the shared agent entry point:
 
 ```sh
 swift run --package-path Application workspace context install
@@ -185,9 +207,23 @@ swift run --package-path Application workspace context install
 This validates every canonical skill before projecting it into your account's
 `~/.claude/skills`, writes the generated root `AGENTS.md` and `CLAUDE.md`, and
 fails closed on any path it does not own. The projection is account-wide so the
-skills load whichever root in the hierarchy a session starts from. It projects
-the canonical skill roots your account actually carries and skips the rest, so
-a clone of the public repositories alone installs cleanly.
+skills load whichever root in the hierarchy a session starts from.
+
+Skills come from canonical roots resolved beside this checkout, all optional
+because the hierarchy is:
+
+| Root | Public | Holds |
+| --- | --- | --- |
+| `swift-institute/Skills` | yes — clone it | the Institute's shared skills |
+| `swift-institute/Internal/Skills` | no | internal-only skills |
+| `swift-institute/Engagement/Skills` | no | engagement-only skills |
+| `rule-institute/Skills` | no | Rule Institute skills |
+
+`swift-institute/Skills` is the one every contributor can clone, and the
+quickstart above clones it. The command reports how many skills it projected
+and from which roots, and **fails rather than reporting success when it
+resolves no root at all** — an install that projected nothing is not an
+install, and used to print the same line as one that worked.
 
 ### Install code navigation
 

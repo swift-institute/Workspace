@@ -270,3 +270,54 @@ extension Workspace.Context.Test.`Edge Case` {
         }
     }
 }
+
+// MARK: - An install that projects nothing is not a success (#58)
+
+extension Workspace.Context.Test.`Edge Case` {
+    /// The defect this guards: a hierarchy carrying no canonical skill root
+    /// printed `installed and verified`, exited 0, and wrote no projection —
+    /// a report indistinguishable from a complete install.
+    @Test
+    func `install with no canonical skill root fails and names every root it looked for`() throws {
+        try Workspace.Context.Test.fixture(roots: []) { context in
+            #expect(throws: Workspace.Error.self) {
+                try context.install()
+            }
+
+            do {
+                try context.install()
+                Issue.record("install reported success with no canonical skill root")
+            } catch let error as Workspace.Error {
+                let message = "\(error)"
+                #expect(message.contains("no canonical skill root resolved"))
+                // Naming the roots is the difference between a failure a
+                // contributor can act on and one they can only report.
+                #expect(message.contains("swift-institute/Skills"))
+                #expect(message.contains("rule-institute/Skills"))
+            }
+        }
+    }
+
+    @Test
+    func `check reports a hierarchy that projects nothing rather than calling it current`() throws {
+        try Workspace.Context.Test.fixture(roots: []) { context in
+            let diagnostics = try context.diagnostics()
+
+            #expect(diagnostics.contains { $0.contains("no canonical skill root resolved") })
+        }
+    }
+
+    /// The positive control for both assertions above. Without it, a passing
+    /// negative control proves only that these fixtures fail — which they
+    /// would also do if the fixture itself were broken.
+    @Test
+    func `install reports the count and the roots it projected from`() throws {
+        try Workspace.Context.Test.fixture(roots: ["public-skill", "rule-skill"]) { context in
+            let projection = try context.install()
+
+            #expect(projection.skills == ["public-skill", "rule-skill"])
+            #expect(projection.sources.count == 2)
+            #expect(projection.summary.contains("2 skill(s) from 2 root(s)"))
+        }
+    }
+}

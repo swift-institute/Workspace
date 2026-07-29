@@ -61,8 +61,13 @@ extension Workspace.Doctor.Fixture {
         _ arguments: [Swift.String]
     ) -> Swift.String {
         switch executable {
-        case "swift": "Swift version 6.3"
-        case "xcodebuild": "Xcode 26.0"
+        // The real output shapes, so the parse is exercised rather than
+        // assumed: `swift` reports through the driver line and prefixes
+        // the vendor, and `xcodebuild` follows its version with a build.
+        case "swift":
+            "swift-driver version: 1.168.5 Apple Swift version 6.3 (swiftlang-6.3.0.1)\n"
+                + "Target: arm64-apple-macosx26.0.0"
+        case "xcodebuild": "Xcode 26.0\nBuild version 17A400"
         case "xcode-select": "\(developer)\n"
         case "xcrun": "\(developer)/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift\n"
         default: ""

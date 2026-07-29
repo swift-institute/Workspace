@@ -117,6 +117,16 @@ authenticated `gh` never changes what a plain `doctor` does.
   the human. That workflow fails rather than reporting clean when the check says `not run`,
   because a check that did not execute must never read like one that found nothing — the
   defect that kept this check unreachable for its whole life (issue #43).
+- **The `swift` and `xcode` fields in `Workspace.json` are a floor, not a pin, and the README
+  documents that same floor.** They were a pin compared by string containment, which meant a
+  toolchain *newer* than the declared one failed. No single number could be green on both the
+  maintainer machine and a contributor following the README, so the two drifted apart and
+  `contributor-path.yml` sat red: the README named Swift 6.3.3 / Xcode 26.6 while
+  `Workspace.json` declared 6.4 / 27.0, and a contributor who installed exactly what they were
+  told got exit 1 (issue #57). Do not restore containment, and do not raise the floor to a
+  toolchain that is only available as a beta or a preview runner image — a floor nobody can
+  meet turns every green tick red for a reason unrelated to the change under test. Raise it
+  when the toolchain is installable without a preview, and move the README in the same commit.
 - **Dependencies are branch-based.** `doctor` warns when a recorded pin lags its branch tip;
   a green over stale pins is not evidence — re-resolve.
 - **A lint verdict of "clean" always means something was measured.** swift-linter

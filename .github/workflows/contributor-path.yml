@@ -37,10 +37,13 @@ jobs:
         with:
           persist-credentials: false
 
-      # The README requires Xcode 26.6 (Workspace.json is the authority);
-      # the macos-26 image defaults to a different Xcode, so select it the
-      # way a contributor would.
-      - name: Select the required Xcode
+      # `Workspace.json` declares the toolchain *floor* — Swift 6.3.3 and
+      # Xcode 26.6 — and the README documents that same floor. The image
+      # defaults to a different Xcode, so select it the way a contributor
+      # would. This job deliberately runs the floor rather than the newest
+      # Xcode available: the floor is what the README tells a contributor
+      # to install, so it is the version that has to be proven.
+      - name: Select the documented minimum Xcode
         run: sudo xcode-select --switch /Applications/Xcode_26.6.app
 
       - name: Quickstart — plan, then sync (README verbatim)
@@ -53,3 +56,30 @@ jobs:
       # population.
       - name: Facts — doctor
         run: swift run --package-path Application workspace doctor
+
+      # The negative control for the step below, and the acceptance for the
+      # defect it fixes: with no skill root cloned there is nothing to
+      # project, and `context install` used to print "installed and
+      # verified" and exit 0 having written nothing. A vacuous success is
+      # indistinguishable from a real one, so the only way to prove this
+      # stays fixed is to assert the failure.
+      - name: Context — installing with no skill root must fail, not report success
+        run: |
+          if swift run --package-path Application workspace context install; then
+            echo "::error::context install reported success with no canonical skill root"
+            exit 1
+          fi
+
+      # The canonical roots resolve from the checkout's grandparent, which
+      # is $GITHUB_WORKSPACE/../.. on a runner. This is the same placement
+      # the README documents for a contributor.
+      - name: Clone the public skill root, as the README documents
+        run: |
+          mkdir -p "${GITHUB_WORKSPACE}/../../swift-institute"
+          git clone --depth 1 https://github.com/swift-institute/Skills.git \
+            "${GITHUB_WORKSPACE}/../../swift-institute/Skills"
+
+      - name: Context — install, then verify
+        run: |
+          swift run --package-path Application workspace context install
+          swift run --package-path Application workspace context check

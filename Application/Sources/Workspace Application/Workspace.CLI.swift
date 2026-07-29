@@ -458,8 +458,7 @@ extension Workspace.CLI {
             let context = try Workspace.Context(root: root)
             switch modes.first {
             case .some(.install):
-                try context.install()
-                print("context: installed and verified")
+                print(try context.install().summary)
             case .some(.check):
                 let diagnostics = try context.diagnostics()
                 guard diagnostics.isEmpty else {

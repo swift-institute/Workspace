@@ -60,8 +60,21 @@ extension Workspace.Context {
     ///
     /// Existing unmanaged files, directories, and symbolic links are rejected
     /// before any mutation. Generated documents may be refreshed in place.
-    public func install() throws(Workspace.Error) {
+    @discardableResult
+    public func install() throws(Workspace.Error) -> Projection {
         let documents = try documents()
+        let resolved = try resolvedSources()
+        guard !resolved.isEmpty else {
+            throw .configuration(
+                """
+                no canonical skill root resolved, so there is nothing to install. \
+                Looked for:
+                \(sources.map { "  \($0)" }.joined(separator: "\n"))
+                Clone the public https://github.com/swift-institute/Skills into \
+                \(entry[directory: "swift-institute"][directory: "Skills"]) and run this again.
+                """
+            )
+        }
         let links = try links()
         let staleLinks = try staleManagedLinks(expecting: links)
         let conflicts = try conflicts(documents: documents, links: links)
@@ -121,6 +134,11 @@ extension Workspace.Context {
         guard diagnostics.isEmpty else {
             throw .filesystem(diagnostics.joined(separator: "\n"))
         }
+
+        return .init(
+            sources: resolved,
+            skills: try projected().keys.sorted()
+        )
     }
 
     /// Reports every missing or divergent generated document and skill projection.
@@ -129,7 +147,18 @@ extension Workspace.Context {
     ///   templates and skill sources.
     /// - Throws: ``Workspace/Error`` when canonical context state cannot be read.
     public func diagnostics() throws(Workspace.Error) -> [Swift.String] {
-        try diagnostics(documents: documents(), links: links())
+        var findings = try diagnostics(documents: documents(), links: links())
+        // A hierarchy carrying no skill root projects nothing, and an empty
+        // set of projections is otherwise indistinguishable from a complete
+        // one — the shape of the defect at issue #58.
+        if try resolvedSources().isEmpty {
+            findings.insert(
+                "no canonical skill root resolved, so no skill is projected; looked for:\n"
+                    + sources.map { "  \($0)" }.joined(separator: "\n"),
+                at: 0
+            )
+        }
+        return findings
     }
 }
 
@@ -179,6 +208,35 @@ extension Workspace.Context {
     }
 
     private func links() throws(Workspace.Error) -> [Link] {
+        [.init(path: agents.path / "skills", target: skills.path)] + (try projections())
+    }
+
+    /// Every canonical skill root that is actually present.
+    ///
+    /// Reported rather than merely counted: a run that resolved two roots
+    /// and a run that resolved all four both "succeed", and only naming
+    /// them tells the difference.
+    private func resolvedSources() throws(Workspace.Error) -> [File.Directory] {
+        var present = [File.Directory]()
+        for source in sources {
+            guard let info = try metadata(at: source.path) else { continue }
+            guard info.type == .directory else {
+                throw .configuration(
+                    "canonical skill source is not a directory: \(source)"
+                )
+            }
+            present.append(source)
+        }
+        return present
+    }
+
+    private func projections() throws(Workspace.Error) -> [Link] {
+        let projected = try projected()
+        return projected.keys.sorted().compactMap { projected[$0] }
+    }
+
+    /// Every skill this hierarchy projects, keyed by skill name.
+    private func projected() throws(Workspace.Error) -> [Swift.String: Link] {
         var projected = [Swift.String: Link]()
         for source in sources {
             // A source root is optional because the hierarchy is. The public
@@ -243,9 +301,7 @@ extension Workspace.Context {
             }
         }
 
-        return [
-            .init(path: agents.path / "skills", target: skills.path)
-        ] + projected.keys.sorted().compactMap { projected[$0] }
+        return projected
     }
 
     /// Every canonical skill root this hierarchy may carry, present or not.
