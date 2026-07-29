@@ -16,6 +16,19 @@ extension Workspace {
         public let selection: Workspace.Selection.Resolved
         public let git: Git.Client
         public let packages: Package.Manager
+
+        /// How many subjects a per-subject check gathers at once.
+        ///
+        /// Every per-subject gather here spawns child processes and most of
+        /// them wait on something — a remote, a Git process, SwiftPM — so
+        /// serial gathering spends the majority of the run's wall clock
+        /// idle. See ``Workspace/Fanout``.
+        public let fanout: Workspace.Fanout
+
+        /// Where the run reports what it is doing while it does it. Never
+        /// consulted by a check and never part of an outcome.
+        public let progress: Progress
+
         public let environment: @Sendable (_ variable: Swift.String) -> Swift.String?
         public let tool:
             @Sendable (
@@ -29,19 +42,23 @@ extension Workspace {
             selection: Workspace.Selection.Resolved,
             git: Git.Client = .init(),
             packages: Package.Manager = .init(),
+            fanout: Workspace.Fanout = .init(),
+            progress: Progress = .silent,
             environment: @escaping @Sendable (_ variable: Swift.String) -> Swift.String? =
                 Self.variable,
             tool:
                 @escaping @Sendable (
                     _ executable: Swift.String,
                     _ arguments: [Swift.String]
-                ) throws(Workspace.Error) -> Swift.String = Self.spawn
+                ) throws(Workspace.Error) -> Swift.String = Self.interrogation()
         ) {
             self.root = root
             self.configuration = configuration
             self.selection = selection
             self.git = git
             self.packages = packages
+            self.fanout = fanout
+            self.progress = progress
             self.environment = environment
             self.tool = tool
         }
@@ -55,30 +72,63 @@ extension Workspace.Doctor {
     /// `notApplicable` here, before its measurement is attempted; a
     /// measurement that has begun can only end in `ok`, `finding`, or
     /// `unmeasured`.
+    ///
+    /// The run reports itself to ``progress`` as it goes — the selection in
+    /// effect first, then each check's outcome as it lands, and each
+    /// per-subject gather's completions as they accumulate. None of that is
+    /// a measurement; the returned report is unchanged by whether anyone is
+    /// listening.
     public func run(access: Access = .contributor) async -> Report {
-        let checkouts = selection.repositories.compactMap(materialized)
+        progress.write(selection.origin.description)
+        let checkouts = await materialized(selection.repositories)
         var outcomes = [
-            toolchain(),
-            reference(),
-            materialization(),
-            census(checkouts),
-            pins(checkouts),
-            manifest(checkouts),
-            linter(),
+            record(toolchain()),
+            record(reference()),
+            record(await materialization()),
+            record(await census(checkouts)),
+            record(await pins(checkouts)),
+            record(await manifest(checkouts)),
+            record(linter()),
         ]
         switch access {
         case .contributor:
-            outcomes.append(Self.currency.omitted)
+            outcomes.append(record(Self.currency.omitted))
         case .institute(let inventory):
             do throws(Workspace.Error) {
-                outcomes.append(currency(try await inventory()))
+                outcomes.append(record(currency(try await inventory())))
             } catch {
                 outcomes.append(
-                    Self.currency.unmeasured(reason: "inventory discovery failed: \(error)")
+                    record(Self.currency.unmeasured(reason: "inventory discovery failed: \(error)"))
                 )
             }
         }
         return .init(outcomes: outcomes, origin: selection.origin)
+    }
+
+    /// Reports a completed check's outcome to ``progress`` and returns it
+    /// unchanged, so the run's transcript is written by the same expression
+    /// that collects the report rather than by a parallel one that could
+    /// disagree with it.
+    private func record(_ outcome: Outcome) -> Outcome {
+        progress.write("\(outcome.check): \(outcome.result)")
+        return outcome
+    }
+
+    /// Every selected repository whose path holds a Git repository, in
+    /// selection order.
+    ///
+    /// One `git` interrogation per selected repository, and the three
+    /// per-subject checks downstream all measure what it finds.
+    func materialized(
+        _ repositories: [Workspace.Repository]
+    ) async -> [(Workspace.Repository, File.Directory)] {
+        await fanout.map(
+            repositories,
+            completed: progress.steps("locating checkouts", of: repositories.count)
+        ) { repository in
+            self.materialized(repository)
+        }
+        .compactMap { $0 }
     }
 
     /// The repository's on-disk checkout, when its path holds a Git
@@ -115,11 +165,32 @@ extension Workspace.Doctor {
         Environment.read(name)
     }
 
-    /// Spawns the tool and captures its standard output — the default
-    /// interrogation behind ``tool``.
+    /// The default interrogation behind ``tool``: spawns the tool and
+    /// captures its standard output, against one environment snapshot taken
+    /// when the interrogation is built.
+    ///
+    /// The snapshot is taken once, here, rather than at each spawn. A
+    /// full-roster run makes thousands of these calls and gathers them
+    /// concurrently, and inheriting the parent environment re-reads process
+    /// global state on every one of them. Snapshotting also gives the run a
+    /// property a report of facts should have anyway: every interrogation in
+    /// it saw the same environment, so no finding can depend on when in the
+    /// run it was measured.
+    public static func interrogation() -> @Sendable (
+        _ executable: Swift.String,
+        _ arguments: [Swift.String]
+    ) throws(Workspace.Error) -> Swift.String {
+        let environment = Environment.Snapshot.current().values
+        return { executable, arguments throws(Workspace.Error) in
+            try spawn(executable, arguments: arguments, environment: environment)
+        }
+    }
+
+    /// Spawns the tool and captures its standard output.
     public static func spawn(
         _ executable: Swift.String,
-        arguments: [Swift.String]
+        arguments: [Swift.String],
+        environment: [Swift.String: Swift.String]? = nil
     ) throws(Workspace.Error) -> Swift.String {
         let output: Process.Output
         do throws(Process.Error) {
@@ -127,6 +198,7 @@ extension Workspace.Doctor {
                 .init(
                     executable: "/usr/bin/env",
                     arguments: [executable] + arguments,
+                    environment: environment,
                     stdout: .pipe,
                     stderr: .pipe
                 )

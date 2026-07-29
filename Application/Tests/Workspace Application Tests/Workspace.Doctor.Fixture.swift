@@ -75,6 +75,7 @@ extension Workspace.Doctor.Fixture {
     }
 
     func doctor(
+        progress: Workspace.Doctor.Progress = .silent,
         environment: @escaping @Sendable (Swift.String) -> Swift.String? = { _ in nil },
         tool:
             @escaping @Sendable (
@@ -86,6 +87,7 @@ extension Workspace.Doctor.Fixture {
             root: root,
             configuration: configuration,
             selection: selection,
+            progress: progress,
             environment: environment,
             tool: tool
         )

@@ -1,7 +1,5 @@
 internal import File_System
 public import Git_Foundation
-internal import Kernel_System
-internal import Kernel_Thread
 
 extension Workspace.Lint {
     /// The whole-ecosystem mode.
@@ -43,7 +41,7 @@ extension Workspace.Lint {
         /// Read from the machine rather than fixed, so the sweep neither
         /// under-uses a large host nor oversubscribes a small one.
         public static var processors: Swift.Int {
-            Swift.Int(Kernel.Thread.Count(System.Processor.count))
+            Workspace.Fanout.processors
         }
 
         public init(
@@ -182,31 +180,15 @@ extension Workspace.Lint.Sweep {
     /// measurement — the filter interrogates Git once per repository,
     /// and run sequentially over hundreds of repositories it costs more
     /// than the linting it is supposed to avoid.
+    ///
+    /// The bounding itself belongs to ``Workspace/Fanout``, which `doctor`
+    /// gathers through as well. Two implementations of the same bound would
+    /// be two chances to drift.
     func concurrently<Item: Sendable, Result: Sendable>(
         _ items: [Item],
         _ work: @escaping @Sendable (Item) -> Result
     ) async -> [Result] {
-        guard !items.isEmpty else { return [] }
-        return await withTaskGroup(of: (offset: Swift.Int, value: Result).self) { group in
-            var next = 0
-            var results = [Result?](repeating: nil, count: items.count)
-
-            while next < items.count, next < jobs {
-                let offset = next
-                let item = items[offset]
-                group.addTask { (offset: offset, value: work(item)) }
-                next += 1
-            }
-            while let completed = await group.next() {
-                results[completed.offset] = completed.value
-                guard next < items.count else { continue }
-                let offset = next
-                let item = items[offset]
-                group.addTask { (offset: offset, value: work(item)) }
-                next += 1
-            }
-            return results.compactMap { $0 }
-        }
+        await Workspace.Fanout(jobs: jobs).map(items, work)
     }
 
     /// Whether the repository at `directory` carries local work.

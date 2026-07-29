@@ -46,10 +46,23 @@ extension Workspace.Doctor {
         }
     }
 
-    func manifest(_ materialized: [(Workspace.Repository, File.Directory)]) -> Outcome {
+    /// One `swift package dump-package` per materialized repository,
+    /// gathered concurrently.
+    ///
+    /// SwiftPM takes its exclusive lock on the *target package's* `.build`,
+    /// so evaluations of distinct packages do not contend; the population is
+    /// rebuilt in selection order regardless of completion order.
+    func manifest(_ materialized: [(Workspace.Repository, File.Directory)]) async -> Outcome {
         Self.manifest.run(
-            population: materialized.map { repository, path in
-                .init(name: repository.name, identity: identity(at: path))
+            population: await fanout.map(
+                materialized,
+                completed: progress.steps(
+                    "manifest-identity: evaluated",
+                    of: materialized.count
+                )
+            ) { entry in
+                let (repository, path) = entry
+                return Manifest(name: repository.name, identity: self.identity(at: path))
             },
             inventory: selection.repositories.count
         )

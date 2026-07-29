@@ -65,15 +65,26 @@ extension Workspace.Doctor {
         }
     }
 
-    func materialization() -> Outcome {
+    /// Two `git` interrogations per selected repository — the canonical
+    /// location and the superseded in-checkout one — gathered concurrently.
+    /// Each subject already resolves to a state of its own, so the gather
+    /// has no order dependency and the population is rebuilt in selection
+    /// order regardless of completion order.
+    func materialization() async -> Outcome {
         Self.materialization.run(
-            population: selection.repositories.map { repository in
+            population: await fanout.map(
+                selection.repositories,
+                completed: progress.steps(
+                    "materialization: gathered",
+                    of: selection.repositories.count
+                )
+            ) { repository in
                 let location = "../\(Workspace.Layout.reference(for: repository))"
                 do throws(Workspace.Error) {
-                    let canonical = try root.materialization(for: repository)
-                    let legacy = try root.legacy(for: repository)
-                    let current = try exists(at: canonical)
-                    let superseded = try exists(at: legacy)
+                    let canonical = try self.root.materialization(for: repository)
+                    let legacy = try self.root.legacy(for: repository)
+                    let current = try self.exists(at: canonical)
+                    let superseded = try self.exists(at: legacy)
                     let state: Materialization.State
                     switch (current, superseded) {
                     case (true, false): state = .canonical

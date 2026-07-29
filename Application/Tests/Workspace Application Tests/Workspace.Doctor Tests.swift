@@ -478,6 +478,99 @@ extension Workspace.Doctor.Test.Integration {
     }
 }
 
+// MARK: - Progress
+
+extension Workspace.Doctor.Test.Integration {
+    private static func repository(_ name: Swift.String) -> Workspace.Repository {
+        .init(
+            name: name,
+            url: "https://github.com/swift-foundations/\(name).git",
+            organization: "swift-foundations",
+            layer: .foundations
+        )
+    }
+
+    @Test
+    func `a run names the selection in effect and every check outcome before the report exists`()
+        async throws
+    {
+        let repository = Self.repository("swift-example")
+        let fixture = try Workspace.Doctor.Fixture(repositories: [repository])
+        defer { fixture.remove() }
+        try fixture.materialize(repository.name)
+        try Workspace.Xcode.write([repository], at: fixture.directory)
+        let transcript = Workspace.Doctor.Transcript()
+
+        let report = await fixture.doctor(progress: transcript.progress).run()
+
+        // The selection leads, exactly as the report's own header does.
+        #expect(transcript.lines.first == fixture.selection.origin.description)
+        // Every check the report carries was announced while the run was
+        // still going, so a contributor watching sees the run advance
+        // rather than a silence that ends in a verdict.
+        for outcome in report.outcomes {
+            #expect(transcript.lines.contains("\(outcome.check): \(outcome.result)"))
+        }
+    }
+
+    @Test
+    func `reporting progress changes no outcome`() async throws {
+        let repository = Self.repository("swift-example")
+        let fixture = try Workspace.Doctor.Fixture(repositories: [repository])
+        defer { fixture.remove() }
+        try fixture.materialize(repository.name)
+        try Workspace.Xcode.write([repository], at: fixture.directory)
+        let transcript = Workspace.Doctor.Transcript()
+
+        let silent = await fixture.doctor().run()
+        let watched = await fixture.doctor(progress: transcript.progress).run()
+
+        #expect(silent == watched)
+        #expect(!transcript.lines.isEmpty)
+    }
+
+    @Test
+    func `a concurrent gather measures every selected repository, in selection order`() async throws {
+        // More repositories than any plausible fan-out bound, so the gather
+        // genuinely queues and completes out of order while the population
+        // it produces must not.
+        let repositories = (1...40).map { Self.repository("swift-example-\($0)") }
+        let fixture = try Workspace.Doctor.Fixture(repositories: repositories)
+        defer { fixture.remove() }
+        for repository in repositories.dropLast() {
+            try fixture.materialize(repository.name)
+        }
+        try Workspace.Xcode.write(repositories, at: fixture.directory)
+
+        let report = await fixture.doctor().run()
+
+        let materialization = try #require(report.outcomes.first { $0.check == "materialization" })
+        #expect(materialization.result == .finding(severity: .error, population: 40))
+        // One repository is absent, and it is the one that is absent —
+        // order-independent completion must not shuffle findings onto
+        // the wrong subject.
+        #expect(materialization.findings.count == 1)
+        #expect(
+            materialization.findings.first?.message.hasPrefix("swift-example-40:") == true
+        )
+    }
+}
+
+extension Workspace.Doctor.Test.Unit {
+    @Test
+    func `a fan-out's last completion always reports, whatever the reporting interval`() {
+        let transcript = Workspace.Doctor.Transcript()
+        // 41 is not a multiple of its own interval, so only the explicit
+        // final-item rule can report it.
+        let steps = transcript.progress.steps("gathered", of: 41)
+
+        for completed in 1...41 { steps(completed) }
+
+        #expect(transcript.lines.last == "gathered 41/41")
+        #expect(transcript.lines.count <= Workspace.Doctor.Progress.updates + 1)
+    }
+}
+
 // MARK: - Selection provenance
 
 extension Workspace.Doctor.Test.Unit {

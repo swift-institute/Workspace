@@ -489,7 +489,8 @@ extension Workspace.CLI {
             let report = await Workspace.Doctor(
                 root: root,
                 configuration: configuration,
-                selection: selection
+                selection: selection,
+                progress: .standardOutput
             ).run(access: institute ? .institute() : .contributor)
             print(report)
             Process.Exit.normal(report.status)
