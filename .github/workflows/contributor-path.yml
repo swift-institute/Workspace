@@ -1,6 +1,7 @@
-# The contributor-path acceptance (issue #11): a clean clone with NO
-# credentials follows the README quickstart verbatim — plain `swift run`,
-# never the internal build coordinator — and reaches the expected result.
+# The contributor-path acceptance (issues #11 and #61): a clean clone with NO
+# credentials follows the README quickstart — one self-hosting `swift run`
+# installs the coordinator, then every command uses the installed surface —
+# and reaches the expected result.
 # Until this job is green the contributor path is a claim, not a property.
 name: contributor-path
 
@@ -19,7 +20,7 @@ concurrency:
 
 jobs:
   contributor-path:
-    name: clean clone → sync → context → doctor, no credentials
+    name: clean clone → install → sync → context → doctor, no credentials
     if: ${{ !github.event.repository.private }}
     runs-on: macos-26
     timeout-minutes: 60
@@ -46,10 +47,28 @@ jobs:
       - name: Select the documented minimum Xcode
         run: sudo xcode-select --switch /Applications/Xcode_26.6.app
 
-      - name: Quickstart — plan, then sync (README verbatim)
+      # The command directory is exported before the bootstrap because the
+      # installer refuses to publish a command the invoking shell cannot find.
+      # GITHUB_PATH gives later steps the environment-manager equivalent of
+      # that README export; Workspace never edits a shell startup file.
+      - name: Quickstart — install the canonical command
         run: |
-          swift run --package-path Application workspace sync --dry-run
-          swift run --package-path Application workspace sync
+          export PATH="$HOME/.local/bin:$PATH"
+          if command -v workspace; then
+            echo "::error::clean runner unexpectedly already exposes a workspace command"
+            exit 1
+          fi
+          swift run --package-path Application workspace install
+          test "$(command -v workspace)" = "$HOME/.local/bin/workspace"
+          test "$(readlink "$HOME/.local/bin/workspace")" = \
+            "../share/swift-institute/workspace/bin/workspace"
+          workspace --help >/dev/null
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Quickstart — plan, then sync
+        run: |
+          workspace sync --dry-run
+          workspace sync
 
       # The negative control for the step below, and the acceptance for the
       # defect it fixes: with no skill root cloned there is nothing to
@@ -59,7 +78,7 @@ jobs:
       # stays fixed is to assert the failure.
       - name: Context — installing with no skill root must fail, not report success
         run: |
-          if swift run --package-path Application workspace context install; then
+          if workspace context install; then
             echo "::error::context install reported success with no canonical skill root"
             exit 1
           fi
@@ -75,8 +94,8 @@ jobs:
 
       - name: Context — install, then verify
         run: |
-          swift run --package-path Application workspace context install
-          swift run --package-path Application workspace context check
+          workspace context install
+          workspace context check
 
       # Context is intentionally verified before doctor. These are independent
       # acceptance paths, and a doctor finding must not skip the clean-clone
@@ -86,4 +105,4 @@ jobs:
       # report "not run", never failure; every measured check states its
       # population.
       - name: Facts — doctor
-        run: swift run --package-path Application workspace doctor
+        run: workspace doctor

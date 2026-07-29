@@ -10,6 +10,7 @@ and local-source composition for cross-package work (`workspace compose` / `rest
 
 | Command | What it does |
 | --- | --- |
+| `install` | Install or refresh the account-local `workspace` command. |
 | `sync` | Clone missing repositories and fast-forward eligible ones. Never rewrites work. |
 | `doctor` | Report what is measurably true about this checkout. |
 | `inventory` | Print the committed name → organization → relative-path register. Never discovers or writes. |
@@ -131,13 +132,21 @@ mkdir -p Institute/swift-institute && cd Institute/swift-institute
 git clone https://github.com/swift-institute/Workspace.git
 git clone https://github.com/swift-institute/Skills.git
 cd Workspace
-swift run --package-path Application workspace sync
+export PATH="$HOME/.local/bin:$PATH"
+swift run --package-path Application workspace install
+workspace sync
+workspace context install
 open institute.xcworkspace
 ```
 
 `Institute` is yours to name; `swift-institute` is not. That leaves you with
 `Institute/swift-institute/Workspace` alongside `Institute/swift-institute/Skills`, the
 materialized roots as further siblings, and the generated agent entry point in `Institute/`.
+
+The `export` changes only the current shell; Workspace never edits a shell
+startup file. If your environment already puts `$HOME/.local/bin` on `PATH`, it
+changes nothing. Keep the equivalent setting in whichever environment manager
+owns future shells on your machine.
 
 **Choose that parent directory as a long-lived one.** It becomes the home of every Institute
 repository you will work in, and the sole custodian of your machine-local `Selection.local.json`,
@@ -183,14 +192,15 @@ selection: Selection.json — 5 selected; Selection.local.json — 1 added, 1 re
 ```
 
 `institute.xcworkspace` is **generated, not committed** — `sync` writes it from the
-selection in effect, which is why the third command must run before the fourth. A fresh clone
+selection in effect, which is why `workspace sync` must run before `open`. A fresh clone
 has no workspace file until it does; `workspace doctor` reports it missing and names the
 command that writes it. Change the selection and re-run `sync` rather than editing the
 workspace in Xcode, because the next `sync` rewrites whatever you edited.
 
-**The third command is slow the first time, and it is silent while it works.** Before it does
-anything visible, `swift run` resolves and compiles the command-line application and its whole
-dependency graph. Two costs stack up, and both are silent:
+**The bootstrap `swift run` is slow the first time, and it is silent while it
+works.** Before `workspace install` can print anything, SwiftPM resolves and
+compiles the command-line application and its whole dependency graph. Two costs
+stack up, and both are silent:
 
 - **Resolution.** SwiftPM fetches the full transitive dependency graph — around **200
   repositories** — before compiling anything. On a first run with a cold package cache this is
@@ -199,19 +209,30 @@ dependency graph. Two costs stack up, and both are silent:
   with sources already local, that alone took **4–7 minutes** depending on the machine and its
   load; treat it as a floor, with fetching on top.
 
-The earliest minutes print nothing at all while SwiftPM evaluates manifests, and the rest print
-nothing either: no progress bar, no percentage, nothing until the build finishes and `sync`
-prints its plan. Silence there is expected, not a hang.
+The earliest minutes print nothing at all while SwiftPM evaluates manifests,
+and the rest print nothing either: no progress bar, no percentage, nothing
+until the build finishes and `workspace install` reports its destinations.
+Silence there is expected, not a hang.
 
-That first `swift run` is the unavoidable self-hosting bootstrap. Once it has
-produced `Application/.build/debug/workspace`, run all later SwiftPM work
-through the coordinator rather than invoking raw build, test, or
-package-administration commands.
+That first `swift run` is the unavoidable self-hosting bootstrap. Its only job
+is to install a durable copy at
+`$HOME/.local/share/swift-institute/workspace/bin/workspace` and expose it
+through the relative link `$HOME/.local/bin/workspace`. The copy lives outside
+SwiftPM's generated build state, so cleaning `Application` does not break the
+command. From the next line onward, `workspace` is the one canonical command
+surface, and all SwiftPM work goes through `workspace package`.
+
+The installer owns only a receipt-marked installation directory and the exact
+link it creates. It refreshes those on a later run, but refuses before changing
+anything if `$HOME/.local/bin/workspace` is an unmanaged executable or link, or
+if its installation directory exists without the receipt. It also refuses to
+report success when `$HOME/.local/bin` is not on `PATH`, because a binary the
+shell cannot discover does not close the bootstrap gap.
 
 Install the shared agent entry point:
 
 ```sh
-swift run --package-path Application workspace context install
+workspace context install
 ```
 
 This validates every canonical skill before projecting it into your account's
@@ -243,8 +264,8 @@ Workspace owns the reproducible integration boundary between
 [cclsp](https://github.com/swift-institute/cclsp) and Xcode's SourceKit-LSP:
 
 ```sh
-Application/.build/debug/workspace navigation install
-Application/.build/debug/workspace navigation check
+workspace navigation install
+workspace navigation check
 ```
 
 `install` clones the public `sourcekit-lsp-adapter` line at the exact revision
@@ -298,11 +319,11 @@ sets that environment variable itself; a developer's shell profile is never
 written, which is what makes the setup identical for everyone.
 
 ```sh
-Application/.build/debug/workspace lint install     # fetch, verify, record the build
-Application/.build/debug/workspace lint check       # is it the build CI consumes?
-Application/.build/debug/workspace lint             # the whole ecosystem
-Application/.build/debug/workspace lint --changed   # only packages with local work
-workspace package lint                              # one package, from inside it
+workspace lint install     # fetch, verify, record the build
+workspace lint check       # is it the build CI consumes?
+workspace lint             # the whole ecosystem
+workspace lint --changed   # only packages with local work
+workspace package lint     # one package, from inside it
 ```
 
 `package lint` takes no arguments: standing anywhere inside a package it finds
@@ -366,9 +387,9 @@ The bootstrapped executable owns SwiftPM concurrency, job count, and build
 state:
 
 ```sh
-Application/.build/debug/workspace package build --package-path Application
-Application/.build/debug/workspace package test --package-path Application --fresh
-Application/.build/debug/workspace package resolve --package-path Application
+workspace package build --package-path Application
+workspace package test --package-path Application --fresh
+workspace package resolve --package-path Application
 ```
 
 Builds are serialized through a machine-wide advisory lock and compile with
@@ -387,7 +408,7 @@ resets, cleans, stashes, rebases, switches a feature branch, or overwrites a rep
 Preview the plan without changing files or Git metadata:
 
 ```sh
-swift run --package-path Application workspace sync --dry-run
+workspace sync --dry-run
 ```
 
 ### Where packages materialize
@@ -432,7 +453,7 @@ another process replacing a directory concurrently.
 snapshot:
 
 ```sh
-swift run --package-path Application workspace doctor
+workspace doctor
 ```
 
 A healthy contributor run reports one line per check, then a summary that repeats every
@@ -479,7 +500,7 @@ defect worth reporting.
 A maintainer with an authenticated `gh` can ask for it explicitly:
 
 ```sh
-swift run --package-path Application workspace doctor --institute
+workspace doctor --institute
 ```
 
 That discovers the live Institute organizations — roughly one request per repository, about
@@ -560,7 +581,7 @@ local copy.
 **1. Compose.** Point the consumer at your local checkout:
 
 ```sh
-swift run --package-path Application workspace compose \
+workspace compose \
   --consumer swift-color --dependency swift-color-standard
 ```
 
@@ -585,7 +606,7 @@ normally. It now compiles your local source.
 **3. Verify** — which source *actually* compiled:
 
 ```sh
-swift run --package-path Application workspace verify \
+workspace verify \
   --consumer swift-color --dependency swift-color-standard
 ```
 
@@ -597,7 +618,7 @@ anything.
 **4. Restore before you commit or push:**
 
 ```sh
-swift run --package-path Application workspace restore \
+workspace restore \
   --consumer swift-color --dependency swift-color-standard
 ```
 

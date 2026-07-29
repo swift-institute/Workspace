@@ -59,6 +59,12 @@ requires them.
 
 ## Building and verification
 
+- A fresh Workspace clone has one self-hosting exception. From the Workspace
+  checkout, put `$HOME/.local/bin` on the current shell's `PATH`, then run
+  `swift run --package-path Application workspace install`. The first run is
+  silent for several minutes while SwiftPM compiles the coordinator. The
+  installer never edits shell startup files and refuses unmanaged executables
+  or links.
 - Run SwiftPM work through `workspace package`; do not invoke raw
   `swift build`, `swift test`, or package-administration commands.
 - Use `workspace package build|test --fresh` when a result is evidence.

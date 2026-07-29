@@ -2,6 +2,7 @@ public import Command
 
 extension Workspace.CLI {
     public enum Operation: Sendable, Equatable, Argument.Codable {
+        case install
         case sync
         case doctor
         case inventory
@@ -16,6 +17,7 @@ extension Workspace.CLI {
 
         public init?(argument: Swift.String) {
             switch argument {
+            case "install": self = .install
             case "sync": self = .sync
             case "doctor": self = .doctor
             case "inventory": self = .inventory
@@ -36,6 +38,7 @@ extension Workspace.CLI {
 extension Workspace.CLI.Operation {
     public var argumentDescription: Swift.String {
         switch self {
+        case .install: "install"
         case .sync: "sync"
         case .doctor: "doctor"
         case .inventory: "inventory"
@@ -61,7 +64,8 @@ extension Workspace.CLI.Operation {
     /// on, so it lives here rather than being re-derived at the call site.
     internal var composesADependency: Swift.Bool {
         switch self {
-        case .sync, .doctor, .inventory, .context, .navigation, .package, .lint, .build: false
+        case .install, .sync, .doctor, .inventory, .context, .navigation, .package, .lint, .build:
+            false
         case .compose, .restore, .verify: true
         }
     }
