@@ -62,6 +62,45 @@ extension Workspace.CLI.Test.Unit {
         #expect(command.institute)
     }
 
+    @Test
+    func `inventory selects the read-only register`() throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: ["inventory"],
+            initial: .init()
+        )
+
+        #expect(command.operation == .inventory)
+        #expect(command.modes.isEmpty)
+        #expect(!command.dry)
+    }
+
+    @Test
+    func `inventory regenerate selects mutating execution`() throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: ["inventory", "regenerate"],
+            initial: .init()
+        )
+
+        #expect(command.operation == .inventory)
+        #expect(command.modes == [.regenerate])
+        #expect(!command.dry)
+    }
+
+    @Test
+    func `inventory regenerate dry run selects nonmutating planning`() throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: ["inventory", "regenerate", "--dry-run"],
+            initial: .init()
+        )
+
+        #expect(command.operation == .inventory)
+        #expect(command.modes == [.regenerate])
+        #expect(command.dry)
+    }
+
     @Test(arguments: [
         ("install", Workspace.CLI.Mode.install),
         ("check", Workspace.CLI.Mode.check),
@@ -160,6 +199,28 @@ extension Workspace.CLI.Test.`Edge Case` {
             _ = try Command.parse(
                 Workspace.CLI.self,
                 from: ["doctor", "--dry-run"],
+                initial: .init()
+            )
+        }
+    }
+
+    @Test
+    func `inventory rejects dry run because the register is already read-only`() {
+        #expect(throws: Command.Error.self) {
+            _ = try Command.parse(
+                Workspace.CLI.self,
+                from: ["inventory", "--dry-run"],
+                initial: .init()
+            )
+        }
+    }
+
+    @Test
+    func `inventory rejects a mutating mode that is not regeneration`() {
+        #expect(throws: Command.Error.self) {
+            _ = try Command.parse(
+                Workspace.CLI.self,
+                from: ["inventory", "update"],
                 initial: .init()
             )
         }

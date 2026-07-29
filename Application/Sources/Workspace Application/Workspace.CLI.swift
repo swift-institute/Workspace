@@ -66,16 +66,23 @@ extension Workspace.CLI {
             Command.Positional<Self, Mode>.Many(
                 \.modes,
                 name: "mode",
-                placeholder: "install|check|serve|build|test|run|resolve|update|clean|dump-package|lint",
+                placeholder:
+                    "install|check|serve|build|test|run|resolve|update|regenerate|clean|dump-package|lint",
                 arity: .atMost(1),
                 help: .init(
-                    abstract: "Required after context, navigation, or package; optional after lint."
+                    abstract:
+                        "Required after context, navigation, or package; optional after inventory "
+                        + "or lint."
                 )
             )
             Command.Flag(
                 \.dry,
                 name: .long(.literal("dry-run")),
-                help: .init(abstract: "Plan synchronization without changing files or Git metadata.")
+                help: .init(
+                    abstract:
+                        "Plan synchronization or inventory regeneration without changing files "
+                        + "or Git metadata."
+                )
             )
             Command.Flag(
                 \.fresh,
@@ -172,7 +179,9 @@ extension Workspace.CLI {
                 )
             }
             guard !dry else {
-                throw .validationFailed(reason: "--dry-run is valid only with sync.")
+                throw .validationFailed(
+                    reason: "--dry-run is valid only with sync or inventory regenerate."
+                )
             }
             guard !fresh else {
                 throw .validationFailed(reason: "--fresh is valid only with package build or test.")
@@ -199,7 +208,9 @@ extension Workspace.CLI {
                 )
             }
             guard !dry else {
-                throw .validationFailed(reason: "--dry-run is valid only with sync.")
+                throw .validationFailed(
+                    reason: "--dry-run is valid only with sync or inventory regenerate."
+                )
             }
             guard !fresh else {
                 throw .validationFailed(reason: "--fresh is valid only with package build or test.")
@@ -225,7 +236,9 @@ extension Workspace.CLI {
                 )
             }
             guard !dry else {
-                throw .validationFailed(reason: "--dry-run is valid only with sync.")
+                throw .validationFailed(
+                    reason: "--dry-run is valid only with sync or inventory regenerate."
+                )
             }
             guard !fresh else {
                 throw .validationFailed(reason: "--fresh is valid only with package build or test.")
@@ -258,7 +271,9 @@ extension Workspace.CLI {
                 )
             }
             guard !dry else {
-                throw .validationFailed(reason: "--dry-run is valid only with sync.")
+                throw .validationFailed(
+                    reason: "--dry-run is valid only with sync or inventory regenerate."
+                )
             }
             guard !fresh || action == .build || action == .test else {
                 throw .validationFailed(reason: "--fresh is valid only with package build or test.")
@@ -277,7 +292,35 @@ extension Workspace.CLI {
                 throw .validationFailed(reason: "\(operation.argumentDescription) requires --dependency.")
             }
             guard !dry else {
-                throw .validationFailed(reason: "--dry-run is valid only with sync.")
+                throw .validationFailed(
+                    reason: "--dry-run is valid only with sync or inventory regenerate."
+                )
+            }
+            guard !fresh, packagePath.isEmpty, workspacePath.isEmpty else {
+                throw .validationFailed(
+                    reason: "--fresh, --package-path, and --workspace-path are not valid here."
+                )
+            }
+            guard arguments.isEmpty else {
+                throw .validationFailed(reason: "--argument is valid only with package.")
+            }
+        } else if operation == .inventory {
+            guard modes.isEmpty || (modes.count == 1 && modes.first == .regenerate) else {
+                throw .validationFailed(
+                    reason: "inventory takes regenerate or no mode (the read-only register)."
+                )
+            }
+            guard consumer.isEmpty, dependency.isEmpty else {
+                throw .validationFailed(
+                    reason: "--consumer and --dependency are not valid with inventory."
+                )
+            }
+            guard !dry || modes.first == .regenerate else {
+                throw .validationFailed(
+                    reason:
+                        "--dry-run is valid only with inventory regenerate; inventory is already "
+                        + "read-only."
+                )
             }
             guard !fresh, packagePath.isEmpty, workspacePath.isEmpty else {
                 throw .validationFailed(
@@ -299,7 +342,9 @@ extension Workspace.CLI {
                 )
             }
             guard !dry else {
-                throw .validationFailed(reason: "--dry-run is valid only with sync or inventory.")
+                throw .validationFailed(
+                    reason: "--dry-run is valid only with sync or inventory regenerate."
+                )
             }
             guard packagePath.isEmpty else {
                 throw .validationFailed(
@@ -315,8 +360,10 @@ extension Workspace.CLI {
                     reason: "--consumer and --dependency are valid only with compose, restore, or verify."
                 )
             }
-            guard operation == .sync || operation == .inventory || !dry else {
-                throw .validationFailed(reason: "--dry-run is valid only with sync or inventory.")
+            guard operation == .sync || !dry else {
+                throw .validationFailed(
+                    reason: "--dry-run is valid only with sync or inventory regenerate."
+                )
             }
             guard modes.isEmpty else {
                 throw .validationFailed(reason: "install and check are valid only after context.")
@@ -495,32 +542,50 @@ extension Workspace.CLI {
             print(report)
             Process.Exit.normal(report.status)
         case .inventory:
-            let document = try Workspace.Configuration.Document.load(at: root.checkout)
-            let http = GitHub.HTTP.Client<
-                Workspace.Inventory.Transport.Error,
-                GitHub.HTTP.Pagination.Error
-            >(
-                agent: .init(rawValue: "swift-institute-workspace"),
-                version: .init(rawValue: "2022-11-28"),
-                execute: Workspace.Inventory.Transport.githubCLI()
-            )
-            let application = Workspace.Inventory.Application(
-                root: root.checkout,
-                policy: .institute(),
-                // `gh` supplies the credential; see Workspace.Inventory.Transport.
-                client: Workspace.Inventory.client(http, authentication: .token(.init(rawValue: "")))
-            )
-            let plan: Workspace.Inventory.Writer.Plan
-            do {
-                plan = try await application.run(existing: document, dry: dry)
-            } catch {
-                throw .configuration("inventory: \(error)")
-            }
-            switch plan {
-            case .current:
-                print("inventory: current")
-            case .replace:
-                print(dry ? "inventory: would replace Workspace.json" : "inventory: replaced Workspace.json")
+            switch modes.first {
+            case nil:
+                print(
+                    Workspace.Inventory.Register(
+                        repositories: configuration.repositories
+                    )
+                )
+            case .some(.regenerate):
+                let document = try Workspace.Configuration.Document.load(at: root.checkout)
+                let http = GitHub.HTTP.Client<
+                    Workspace.Inventory.Transport.Error,
+                    GitHub.HTTP.Pagination.Error
+                >(
+                    agent: .init(rawValue: "swift-institute-workspace"),
+                    version: .init(rawValue: "2022-11-28"),
+                    execute: Workspace.Inventory.Transport.githubCLI()
+                )
+                let application = Workspace.Inventory.Application(
+                    root: root.checkout,
+                    policy: .institute(),
+                    // `gh` supplies the credential; see Workspace.Inventory.Transport.
+                    client: Workspace.Inventory.client(
+                        http,
+                        authentication: .token(.init(rawValue: ""))
+                    )
+                )
+                let plan: Workspace.Inventory.Writer.Plan
+                do {
+                    plan = try await application.run(existing: document, dry: dry)
+                } catch {
+                    throw .configuration("inventory regenerate: \(error)")
+                }
+                switch plan {
+                case .current:
+                    print("inventory regenerate: Workspace.json is current")
+                case .replace:
+                    print(
+                        dry
+                            ? "inventory regenerate: would replace Workspace.json"
+                            : "inventory regenerate: replaced Workspace.json"
+                    )
+                }
+            default:
+                throw .configuration("inventory operation must be regenerate or absent")
             }
         case .compose:
             try Workspace.Composition(root: root, configuration: configuration)

@@ -264,6 +264,10 @@ Diagnostic prose remains `String`; replacing it would add no semantic informatio
 
 - discover every public, non-archived package repository with pagination;
 - exclude private, archived, non-package, and policy-ineligible repositories;
+- expose the committed name → organization → relative-path register through a read-only
+  `workspace inventory`;
+- put discovery and replacement only behind `workspace inventory regenerate`, with a
+  nonmutating `--dry-run` plan and a clean-worktree publication gate;
 - produce a stable sort and byte-for-byte deterministic `Workspace.json`;
 - preserve application-owned annotations without duplicating GitHub client behavior.
 
