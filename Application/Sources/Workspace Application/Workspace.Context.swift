@@ -1,3 +1,4 @@
+private import Environment
 public import File_System
 private import Skill_Validation
 
@@ -6,13 +7,42 @@ extension Workspace {
     public struct Context: Sendable {
         public let root: Workspace.Root
         public let entry: File.Directory
+        public let home: File.Directory
 
         /// Creates context management for the entry root containing Swift Institute.
         ///
+        /// Skill projections are installed under the invoking account's home
+        /// directory, read from `HOME` at install time. That destination is what
+        /// makes a projection reachable from every checkout root a session may
+        /// start in; a per-checkout destination is reachable only from the one
+        /// root that contains it.
+        ///
         /// - Parameter root: The Workspace checkout whose parent hierarchy belongs
         ///   to Swift Institute.
-        /// - Throws: ``Workspace/Error`` when the checkout has no containing entry root.
+        /// - Throws: ``Workspace/Error`` when the checkout has no containing entry
+        ///   root, or when `HOME` is unset or is not a usable path.
         public init(root: Workspace.Root) throws(Workspace.Error) {
+            guard let value = Environment.read("HOME"), !value.isEmpty else {
+                throw .configuration(
+                    "HOME is not available, so the account-wide skill destination cannot be resolved"
+                )
+            }
+            let home: File.Directory
+            do throws(Paths.Path.Error) {
+                home = try File.Directory(validating: value)
+            } catch {
+                throw .configuration("HOME is not a usable path \(value): \(error)")
+            }
+            try self.init(root: root, home: home)
+        }
+
+        /// Creates context management against an explicit account root.
+        ///
+        /// - Parameters:
+        ///   - root: The Workspace checkout whose parent hierarchy belongs to Swift Institute.
+        ///   - home: The account root owning `.claude/skills`.
+        /// - Throws: ``Workspace/Error`` when the checkout has no containing entry root.
+        internal init(root: Workspace.Root, home: File.Directory) throws(Workspace.Error) {
             guard let entry = root.hierarchy.parent else {
                 throw .configuration(
                     "the Swift Institute hierarchy has no containing context root"
@@ -20,12 +50,13 @@ extension Workspace {
             }
             self.root = root
             self.entry = entry
+            self.home = home
         }
     }
 }
 
 extension Workspace.Context {
-    /// Installs generated documents and relative skill projections.
+    /// Installs generated documents and account-wide skill projections.
     ///
     /// Existing unmanaged files, directories, and symbolic links are rejected
     /// before any mutation. Generated documents may be refreshed in place.
@@ -110,8 +141,14 @@ extension Workspace.Context {
         root.checkout[directory: "Context"]
     }
 
+    /// The account-wide agent configuration root.
+    ///
+    /// Deliberately not `entry[directory: ".claude"]`. A projection under a
+    /// checkout root loads only for a session that starts inside that root, and
+    /// the Institute hierarchy has several roots a session legitimately starts
+    /// in. This one is reachable from all of them.
     private var claude: File.Directory {
-        entry[directory: ".claude"]
+        home[directory: ".claude"]
     }
 
     private var agents: File.Directory {
@@ -144,20 +181,23 @@ extension Workspace.Context {
     private func links() throws(Workspace.Error) -> [Link] {
         var projected = [Swift.String: Link]()
         for source in sources {
-            guard
-                let info = try metadata(at: source.directory.path),
-                info.type == .directory
-            else {
+            // A source root is optional because the hierarchy is. The public
+            // Skills repository is what every contributor clones; the remaining
+            // roots are separate repositories only some accounts carry.
+            // Requiring all four made the whole installation fail for anyone
+            // holding fewer, which is every contributor.
+            guard let info = try metadata(at: source.path) else { continue }
+            guard info.type == .directory else {
                 throw .configuration(
-                    "canonical skill source is missing or not a directory: \(source.directory)"
+                    "canonical skill source is not a directory: \(source)"
                 )
             }
 
             let entries: [File.Directory.Entry]
             do throws(File.Directory.Contents.Error) {
-                entries = try File.Directory.Contents.list(at: source.directory)
+                entries = try File.Directory.Contents.list(at: source)
             } catch {
-                throw .filesystem("cannot enumerate \(source.directory): \(error)")
+                throw .filesystem("cannot enumerate \(source): \(error)")
             }
 
             for entry in entries where entry.type == .directory {
@@ -188,40 +228,37 @@ extension Workspace.Context {
                 } catch {
                     throw .configuration("invalid skill name \(name): \(error)")
                 }
-                let target = File.Path("\(source.prefix)/\(name)")
-                let link = Link(path: skills.path / component, target: target)
+                // The projection is absolute because its directory no longer sits
+                // in the hierarchy it points into. A relative target would have to
+                // encode how deep the checkout sits below the account root, which
+                // differs per machine and is not expressible when the checkout is
+                // not below it at all. `path` is already physical: the checkout it
+                // descends from was canonically resolved by `Workspace.Root`.
+                let link = Link(path: skills.path / component, target: path)
                 if let existing = projected.updateValue(link, forKey: name) {
                     throw .configuration(
-                        "duplicate canonical skill \(name): \(existing.target) and \(target)"
+                        "duplicate canonical skill \(name): \(existing.target) and \(path)"
                     )
                 }
             }
         }
 
-        let shared = File.Path("../.claude/skills")
         return [
-            .init(path: agents.path / "skills", target: shared)
+            .init(path: agents.path / "skills", target: skills.path)
         ] + projected.keys.sorted().compactMap { projected[$0] }
     }
 
-    private var sources: [(directory: File.Directory, prefix: Swift.String)] {
+    /// Every canonical skill root this hierarchy may carry, present or not.
+    ///
+    /// The list is complete rather than filtered so that a projection whose
+    /// source repository has since gone away is still recognized as this
+    /// installer's own and retired, instead of lingering as an unowned link.
+    private var sources: [File.Directory] {
         [
-            (
-                entry[directory: "swift-institute"][directory: "Skills"],
-                "../../swift-institute/Skills"
-            ),
-            (
-                entry[directory: "swift-institute"][directory: "Internal"][directory: "Skills"],
-                "../../swift-institute/Internal/Skills"
-            ),
-            (
-                entry[directory: "swift-institute"][directory: "Engagement"][directory: "Skills"],
-                "../../swift-institute/Engagement/Skills"
-            ),
-            (
-                entry[directory: "rule-institute"][directory: "Skills"],
-                "../../rule-institute/Skills"
-            ),
+            entry[directory: "swift-institute"][directory: "Skills"],
+            entry[directory: "swift-institute"][directory: "Internal"][directory: "Skills"],
+            entry[directory: "swift-institute"][directory: "Engagement"][directory: "Skills"],
+            entry[directory: "rule-institute"][directory: "Skills"],
         ]
     }
 
@@ -243,7 +280,7 @@ extension Workspace.Context {
         }
 
         let expected = Set(links.map(\.path))
-        let prefixes = sources.map { "\($0.prefix)/" }
+        let prefixes = sources.map { "\($0.path)/" }
         var stale = [File.Path]()
         for entry in entries where entry.type == .symbolicLink {
             guard let path = entry.pathIfValid, !expected.contains(path) else {

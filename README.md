@@ -180,8 +180,12 @@ checkout:
 swift run --package-path Application workspace context install
 ```
 
-This validates every canonical skill before projecting it, writes the generated
-root `AGENTS.md` and `CLAUDE.md`, and fails closed on any path it does not own.
+This validates every canonical skill before projecting it into your account's
+`~/.claude/skills`, writes the generated root `AGENTS.md` and `CLAUDE.md`, and
+fails closed on any path it does not own. The projection is account-wide so the
+skills load whichever root in the hierarchy a session starts from. It projects
+the canonical skill roots your account actually carries and skips the rest, so
+a clone of the public repositories alone installs cleanly.
 
 ### Install code navigation
 
