@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   contributor-path:
-    name: clean clone → sync → doctor, no credentials
+    name: clean clone → sync → context → doctor, no credentials
     if: ${{ !github.event.repository.private }}
     runs-on: macos-26
     timeout-minutes: 60
@@ -51,12 +51,6 @@ jobs:
           swift run --package-path Application workspace sync --dry-run
           swift run --package-path Application workspace sync
 
-      # A healthy contributor checkout exits 0: institute-internal checks
-      # report "not run", never failure; every measured check states its
-      # population.
-      - name: Facts — doctor
-        run: swift run --package-path Application workspace doctor
-
       # The negative control for the step below, and the acceptance for the
       # defect it fixes: with no skill root cloned there is nothing to
       # project, and `context install` used to print "installed and
@@ -83,3 +77,13 @@ jobs:
         run: |
           swift run --package-path Application workspace context install
           swift run --package-path Application workspace context check
+
+      # Context is intentionally verified before doctor. These are independent
+      # acceptance paths, and a doctor finding must not skip the clean-clone
+      # coverage that guards against a vacuous context success.
+      #
+      # A healthy contributor checkout exits 0: institute-internal checks
+      # report "not run", never failure; every measured check states its
+      # population.
+      - name: Facts — doctor
+        run: swift run --package-path Application workspace doctor
