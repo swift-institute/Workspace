@@ -104,6 +104,12 @@ The committed `Selection.json` bounds that first synchronization. To change the 
 checkout, edit its `repositories` list using the exact `owner/repository` identity from
 `Workspace.json`; selection-file order has no effect.
 
+`institute.xcworkspace` is **generated, not committed** — `sync` writes it from
+`Selection.json`, which is why the third command must run before the fourth. A fresh clone
+has no workspace file until it does; `workspace doctor` reports it missing and names the
+command that writes it. Change `Selection.json` and re-run `sync` rather than editing the
+workspace in Xcode, because the next `sync` rewrites whatever you edited.
+
 **The third command is slow the first time, and it is silent while it works.** Before it does
 anything visible, `swift run` resolves and compiles the command-line application and its whole
 dependency graph. Two costs stack up, and both are silent:
@@ -279,7 +285,7 @@ invoking the tool through a symlink does not redirect that hierarchy. For a clon
 ```text
 X/
 ├── Workspace/              this repository: Application/, Workspace.json, Selection.json,
-│                            institute.xcworkspace
+│                            and the generated, untracked institute.xcworkspace
 ├── swift-primitives/       ┐
 ├── swift-standards/        ├ materialization roots: independent repositories,
 └── swift-foundations/      ┘ none part of this repository

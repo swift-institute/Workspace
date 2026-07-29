@@ -57,6 +57,15 @@ that it did not run — that is not a failure of your checkout.
   that guarantee in any change you make to it.
 - **`Package.resolved` is generated state.** Never commit, hand-edit, or delete it to force
   resolution. Change `Package.swift` and resolve.
+- **`institute.xcworkspace` is generated state; `Selection.json` is its authored input.**
+  `sync` renders the workspace from the resolved selection and byte-compares before writing,
+  so it is deterministic in the same sense `Workspace.json` is. It is ignored and must never
+  be committed — a tracked derived file can disagree with its source, and it did: the
+  version tracked until 2026-07-28 rendered a five-entry selection while the working copy
+  carried 437, and nothing reported the divergence because agreement was never checked
+  against the *committed* pair. Change `Selection.json` and run `sync`; never hand-edit the
+  workspace or add references in Xcode. `Selection.json` is committed policy input — the
+  public bounded default checkout — so it is the one of the two that stays tracked.
 - **Dependencies are branch-based.** `doctor` warns when a recorded pin lags its branch tip;
   a green over stale pins is not evidence — re-resolve.
 - **A lint verdict of "clean" always means something was measured.** swift-linter

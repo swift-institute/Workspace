@@ -11,6 +11,12 @@
 /swift-components/
 /swift-applications/
 .workspace/
+# Xcode workspaces are generated or scratch, never authored.
+# `institute.xcworkspace` is written by `workspace sync` from Selection.json
+# and byte-compared before every write; committing it would let a derived file
+# disagree with its source, which is the whole failure mode generation removes.
+# `workspace doctor` reports it missing and names the command that writes it.
+*.xcworkspace/
 Package.resolved
 **/Package.resolved
 xcuserdata/

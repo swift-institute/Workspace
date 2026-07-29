@@ -23,13 +23,22 @@ extension Workspace.Doctor {
         )
     ) { reference in
         guard let actual = reference.actual else {
-            return [.init(severity: .error, message: "institute.xcworkspace is missing")]
+            return [
+                .init(
+                    severity: .error,
+                    message:
+                        "institute.xcworkspace is missing; it is generated rather than committed — "
+                        + "run `workspace sync` to write it from Selection.json"
+                )
+            ]
         }
         guard actual != reference.expected else { return [] }
         return [
             .init(
                 severity: .error,
-                message: "institute.xcworkspace does not match the resolved selection"
+                message:
+                    "institute.xcworkspace does not match the resolved selection; "
+                    + "run `workspace sync` to regenerate it"
             )
         ]
     }

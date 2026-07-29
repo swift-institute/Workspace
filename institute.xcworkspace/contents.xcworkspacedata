@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<Workspace version="1.0">
-  <FileRef location="group:Application"/>
-  <FileRef location="group:../swift-primitives/swift-dimension-primitives"/>
-  <FileRef location="group:../swift-standards/swift-color-standard"/>
-  <FileRef location="group:../swift-foundations/swift-color"/>
-  <FileRef location="group:../swift-foundations/swift-url-routing"/>
-  <FileRef location="group:../swift-foundations/swift-http-body"/>
-</Workspace>
