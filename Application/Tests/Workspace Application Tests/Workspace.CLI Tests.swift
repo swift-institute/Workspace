@@ -113,6 +113,29 @@ extension Workspace.CLI.Test.Unit {
         #expect(command.dry)
     }
 
+    @Test
+    func `dependencies parses deterministic output and policy exception inputs`() throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: [
+                "dependencies",
+                "--format", "json",
+                "--sanctioned-exception", "apple/swift-crypto",
+                "--sanctioned-exception", "swiftlang/swift-syntax",
+            ],
+            initial: .init()
+        )
+
+        #expect(command.operation == .dependencies)
+        #expect(command.output == .json)
+        #expect(
+            command.sanctionedExceptions == [
+                "apple/swift-crypto",
+                "swiftlang/swift-syntax",
+            ]
+        )
+    }
+
     @Test(arguments: [
         ("install", Workspace.CLI.Mode.install),
         ("check", Workspace.CLI.Mode.check),
@@ -255,6 +278,28 @@ extension Workspace.CLI.Test.`Edge Case` {
             _ = try Command.parse(
                 Workspace.CLI.self,
                 from: ["inventory", "update"],
+                initial: .init()
+            )
+        }
+    }
+
+    @Test
+    func `dependencies rejects malformed or duplicate exception inputs`() {
+        #expect(throws: Command.Error.self) {
+            _ = try Command.parse(
+                Workspace.CLI.self,
+                from: ["dependencies", "--sanctioned-exception", "not-an-identity"],
+                initial: .init()
+            )
+        }
+        #expect(throws: Command.Error.self) {
+            _ = try Command.parse(
+                Workspace.CLI.self,
+                from: [
+                    "dependencies",
+                    "--sanctioned-exception", "apple/swift-crypto",
+                    "--sanctioned-exception", "apple/swift-crypto",
+                ],
                 initial: .init()
             )
         }

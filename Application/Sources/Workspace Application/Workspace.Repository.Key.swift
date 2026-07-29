@@ -12,27 +12,36 @@ extension Workspace.Repository {
             self.name = name
         }
 
-        public init?(repository: Workspace.Repository) {
-            let prefix = "https://github.com/"
-            let suffix = ".git"
-            guard repository.url.hasPrefix(prefix), repository.url.hasSuffix(suffix) else {
-                return nil
-            }
-
-            let start = repository.url.index(repository.url.startIndex, offsetBy: prefix.count)
-            let end = repository.url.index(repository.url.endIndex, offsetBy: -suffix.count)
-            let components = repository.url[start..<end].split(separator: "/", omittingEmptySubsequences: false)
+        public init?(identity: Swift.String) {
+            let components = identity.split(separator: "/", omittingEmptySubsequences: false)
             guard
                 components.count == 2,
                 !components[0].isEmpty,
-                !components[1].isEmpty,
-                components[1] == repository.name
+                !components[1].isEmpty
             else { return nil }
-
             self.init(
                 owner: .init(Swift.String(components[0])),
                 name: .init(Swift.String(components[1]))
             )
+        }
+
+        public init?(url: Swift.String) {
+            let prefix = "https://github.com/"
+            let suffix = ".git"
+            guard url.hasPrefix(prefix), url.hasSuffix(suffix) else {
+                return nil
+            }
+
+            let start = url.index(url.startIndex, offsetBy: prefix.count)
+            let end = url.index(url.endIndex, offsetBy: -suffix.count)
+            self.init(identity: Swift.String(url[start..<end]))
+        }
+
+        public init?(repository: Workspace.Repository) {
+            guard let key = Self(url: repository.url), key.name.underlying == repository.name else {
+                return nil
+            }
+            self = key
         }
     }
 }
@@ -59,17 +68,9 @@ extension Workspace.Repository.Key {
 
     public static func deserialize(_ json: JSON) throws(JSON.Error) -> Self {
         let value = try Swift.String(json: json)
-        let components = value.split(separator: "/", omittingEmptySubsequences: false)
-        guard
-            components.count == 2,
-            !components[0].isEmpty,
-            !components[1].isEmpty
-        else {
+        guard let value = Self(identity: value) else {
             throw .typeMismatch(expected: "repository identity owner/name", got: value)
         }
-        return .init(
-            owner: .init(Swift.String(components[0])),
-            name: .init(Swift.String(components[1]))
-        )
+        return value
     }
 }
