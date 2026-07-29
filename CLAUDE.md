@@ -69,7 +69,8 @@ authenticated `gh` never changes what a plain `doctor` does.
   carried 437, and nothing reported the divergence because agreement was never checked
   against the *committed* pair. Change the selection and run `sync`; never hand-edit the
   workspace or add references in Xcode. `Selection.json` is committed policy input — the
-  public bounded default checkout — so it is the one of the two that stays tracked.
+  public default checkout, the whole roster since c850ed5 — so it is the one of the two
+  that stays tracked.
 - **`Selection.json` is policy; `Selection.local.json` is one machine's choice.** They used to
   be the same file, which meant every local expansion showed up as a pending policy change,
   was one `git add .` from becoming one, and left the file perpetually dirty. On 2026-07-28

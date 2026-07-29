@@ -1,7 +1,7 @@
 # Swift Institute Workspace
 
 The front door to the Swift Institute: the public package inventory
-([Workspace.json](Workspace.json)), the bounded default checkout
+([Workspace.json](Workspace.json)), the default checkout
 ([Selection.json](Selection.json)) with a per-machine override that stays out of Git
 (`Selection.local.json`), machine-checked facts about that checkout
 (`workspace doctor`), an isolated local development checkout for Xcode (`workspace sync`),
@@ -110,7 +110,9 @@ swift run --package-path Application workspace sync
 open institute.xcworkspace
 ```
 
-The committed `Selection.json` bounds that first synchronization.
+The committed `Selection.json` decides that first synchronization. It selects the whole
+public roster, so a fresh clone materializes every package in `Workspace.json`. To open
+fewer, `remove` them in `Selection.local.json` below.
 
 **To add packages to your own checkout, do not edit `Selection.json`.** Write
 `Selection.local.json` beside it — the file is gitignored, so it never appears in
@@ -135,7 +137,7 @@ same package in both lists, removing everything, or naming a package absent from
 `Workspace.json` each stop the command and say which file is wrong. Delete the file to go
 back to the default checkout.
 
-`Selection.json` itself is committed policy — the public bounded default checkout. Edit it
+`Selection.json` itself is committed policy — the public default checkout. Edit it
 only when you intend to change what *everyone's* fresh clone opens, and expect that change
 to be reviewed as policy.
 

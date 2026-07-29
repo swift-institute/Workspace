@@ -14,7 +14,7 @@ extension Workspace {
 }
 
 extension Workspace.Selection {
-    /// The committed policy document: the public bounded default checkout.
+    /// The committed policy document: the public default checkout.
     ///
     /// It is tracked, and it is the authority for what a fresh clone opens.
     /// A developer changing only their own checkout writes
