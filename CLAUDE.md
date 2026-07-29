@@ -66,9 +66,26 @@ authenticated `gh` never changes what a plain `doctor` does.
   be committed — a tracked derived file can disagree with its source, and it did: the
   version tracked until 2026-07-28 rendered a five-entry selection while the working copy
   carried 437, and nothing reported the divergence because agreement was never checked
-  against the *committed* pair. Change `Selection.json` and run `sync`; never hand-edit the
+  against the *committed* pair. Change the selection and run `sync`; never hand-edit the
   workspace or add references in Xcode. `Selection.json` is committed policy input — the
   public bounded default checkout — so it is the one of the two that stays tracked.
+- **`Selection.json` is policy; `Selection.local.json` is one machine's choice.** They used to
+  be the same file, which meant every local expansion showed up as a pending policy change,
+  was one `git add .` from becoming one, and left the file perpetually dirty. On 2026-07-28
+  that became a live hazard: concurrent sessions had to be told individually not to commit,
+  checkout, stash or clean it. To change what *your* checkout opens, write the ignored
+  `Selection.local.json` — `{"version": 1, "add": [...], "remove": [...]}`, both keys
+  required — and never edit `Selection.json` for that purpose. Three properties are
+  load-bearing and must survive any change here. It is a **delta**, not a replacement, so a
+  package added to policy later still arrives rather than being silently frozen out.
+  Validation applies to the **merged** result — `Selection.effective(at:in:)` is the only
+  path to a selection, and an override that is present but malformed fails the command
+  instead of falling back to committed policy. And `sync` and `doctor` both **lead with
+  which selection is in effect**, naming every identity the local file withholds, because a
+  silent override is worse than the shared artifact it replaced. That line is a report
+  header rather than a `doctor` check on purpose: a check can report `notApplicable`, and a
+  check that never ran must never look like one that passed (issue #43). See
+  `Research/Local Resolution/DESIGN-Selection-Override-2026-07-29.md` and issue #46.
 - **Roster drift is detected by CI, not by anyone remembering.** `inventory-currency`
   compares `Workspace.json` against a live discovery in both directions. It needs an
   authenticated `gh`, so no contributor command reaches it and none should: `doctor` is

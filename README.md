@@ -2,7 +2,8 @@
 
 The front door to the Swift Institute: the public package inventory
 ([Workspace.json](Workspace.json)), the bounded default checkout
-([Selection.json](Selection.json)), machine-checked facts about that checkout
+([Selection.json](Selection.json)) with a per-machine override that stays out of Git
+(`Selection.local.json`), machine-checked facts about that checkout
 (`workspace doctor`), an isolated local development checkout for Xcode (`workspace sync`),
 and local-source composition for cross-package work (`workspace compose` / `restore` /
 `verify`).
@@ -63,13 +64,19 @@ organizations, both documents must be updated explicitly before `sync` can proce
   workspace manages, intended to grow to every public, non-archived Institute package.
 - **Default checkout:** [Selection.json](Selection.json) is a membership list of canonical
   `owner/repository` identities. It deliberately does not repeat package metadata, paths, or
-  ordering.
+  ordering. It is *committed policy*: it decides what a fresh clone opens, for everyone.
+- **Your checkout:** `Selection.local.json` is your own delta over that policy — `add` and
+  `remove` — and it is gitignored. It is how you change what your machine opens without
+  editing a tracked file.
 - **Checkout facts:** `workspace doctor` measures the checkout directly — identities,
   remotes, branches, upstreams, toolchain, and workspace references.
 
-`sync` and `doctor` load both files and fail before repository work if the selection is
-missing, malformed, duplicated, or names an entry absent from the inventory. They never treat
-an invalid selection as permission to operate on the complete inventory. `compose`, `restore`,
+`sync` and `doctor` load these files and fail before repository work if the selection is
+missing, malformed, duplicated, or names an entry absent from the inventory. Those checks
+apply to the *selection in effect* — the committed document with your override applied — so a
+local file cannot buy an exemption from them, and a present-but-malformed override fails the
+command rather than falling back to committed policy. They never treat an invalid selection as
+permission to operate on the complete inventory. `compose`, `restore`,
 and `verify` resolve their explicitly named operands against the complete inventory instead;
 an operand does not have to remain in the default selection once it is already checked out.
 
@@ -103,14 +110,47 @@ swift run --package-path Application workspace sync
 open institute.xcworkspace
 ```
 
-The committed `Selection.json` bounds that first synchronization. To change the default
-checkout, edit its `repositories` list using the exact `owner/repository` identity from
-`Workspace.json`; selection-file order has no effect.
+The committed `Selection.json` bounds that first synchronization.
 
-`institute.xcworkspace` is **generated, not committed** — `sync` writes it from
-`Selection.json`, which is why the third command must run before the fourth. A fresh clone
+**To add packages to your own checkout, do not edit `Selection.json`.** Write
+`Selection.local.json` beside it — the file is gitignored, so it never appears in
+`git status` and can never be committed by a `git add .`:
+
+```json
+{
+  "version": 1,
+  "add": ["swift-primitives/swift-affine-primitives"],
+  "remove": []
+}
+```
+
+Identities are the exact `owner/repository` spelling from `Workspace.json`; order has no
+effect. `add` and `remove` are both required — write `[]` for the one you are not using.
+Then re-run `sync`.
+
+It is a *delta*, not a replacement list, so a package added to the committed policy later
+still reaches your machine. It also fails closed rather than doing something approximate:
+adding a package the committed selection already has, removing one it does not, naming the
+same package in both lists, removing everything, or naming a package absent from
+`Workspace.json` each stop the command and say which file is wrong. Delete the file to go
+back to the default checkout.
+
+`Selection.json` itself is committed policy — the public bounded default checkout. Edit it
+only when you intend to change what *everyone's* fresh clone opens, and expect that change
+to be reviewed as policy.
+
+Both `sync` and `doctor` lead with which selection is in effect, so a package that is not
+where you expect it names its own cause:
+
+```text
+selection: Selection.json — 5 selected; Selection.local.json — 1 added, 1 removed; 5 in effect
+  Selection.local.json withholds: swift-foundations/swift-http-body
+```
+
+`institute.xcworkspace` is **generated, not committed** — `sync` writes it from the
+selection in effect, which is why the third command must run before the fourth. A fresh clone
 has no workspace file until it does; `workspace doctor` reports it missing and names the
-command that writes it. Change `Selection.json` and re-run `sync` rather than editing the
+command that writes it. Change the selection and re-run `sync` rather than editing the
 workspace in Xcode, because the next `sync` rewrites whatever you edited.
 
 **The third command is slow the first time, and it is silent while it works.** Before it does
@@ -288,7 +328,8 @@ invoking the tool through a symlink does not redirect that hierarchy. For a clon
 ```text
 X/
 ├── Workspace/              this repository: Application/, Workspace.json, Selection.json,
-│                            and the generated, untracked institute.xcworkspace
+│                            your ignored Selection.local.json if you have one, and the
+│                            generated, untracked institute.xcworkspace
 ├── swift-primitives/       ┐
 ├── swift-standards/        ├ materialization roots: independent repositories,
 └── swift-foundations/      ┘ none part of this repository
@@ -434,7 +475,9 @@ things in.
 
 Both packages must be named in [`Workspace.json`](Workspace.json) and checked out. If one is
 not already checked out because it is outside the committed default, add its canonical
-identity to [`Selection.json`](Selection.json), then run `sync` before composing it.
+identity to the `add` list in your `Selection.local.json`, then run `sync` before composing
+it — not to [`Selection.json`](Selection.json), which is committed policy rather than your
+own checkout.
 
 ### The loop, end to end
 
