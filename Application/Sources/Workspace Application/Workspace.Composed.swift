@@ -1,5 +1,5 @@
 public import File_System
-private import Package_Manager
+import Package_Manager
 
 extension Workspace {
     /// The pure-SwiftPM composed-root build path — Phase 2 of the
@@ -106,7 +106,7 @@ extension Workspace.Composed {
     /// silent omission — skipping it would understate the composed
     /// graph while still reporting a count, exactly the failure the
     /// population control exists to catch.
-    public static func manifests(
+    static func manifests(
         for repositories: [Workspace.Repository],
         at root: Workspace.Root,
         packages: Package.Manager = .init()

@@ -1,4 +1,4 @@
-private import Build_Coordinator
+import Build_Coordinator
 public import File_System
 public import Git_Foundation
 
@@ -39,11 +39,11 @@ extension Workspace.Coherence {
         /// can substitute a count without a real `institute.xcworkspace`.
         public let graph:
             @Sendable (Workspace.Root, Workspace.Selection.Resolved) throws(Workspace.Error) -> Swift.Int
-        public let build:
+        let build:
             @Sendable (Workspace.Root, Workspace.Selection.Resolved) throws(Workspace.Error) ->
                 Build_Coordinator.Build.Coordinator.Result
 
-        public init(
+        init(
             root: Workspace.Root,
             configuration: Workspace.Configuration,
             selection: Workspace.Selection.Resolved,

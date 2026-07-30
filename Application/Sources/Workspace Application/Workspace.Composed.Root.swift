@@ -1,4 +1,4 @@
-private import Build_Coordinator
+import Build_Coordinator
 public import File_System
 
 extension Workspace.Composed {
@@ -21,10 +21,10 @@ extension Workspace.Composed.Root {
     /// The composed root's directory name, at the workspace checkout
     /// root — ignored, generated, never committed, exactly like
     /// `institute.xcworkspace`.
-    public static let directoryName = "institute-composed-root"
+    public static let directoryName: File.Path.Component = "institute-composed-root"
 
     /// The composed root's one synthetic target and package name.
-    public static let targetName = "CoherenceComposedRoot"
+    public static let targetName: File.Path.Component = "CoherenceComposedRoot"
 
     public static func directory(at checkout: File.Directory) -> File.Directory {
         checkout[directory: directoryName]
@@ -132,7 +132,7 @@ extension Workspace.Composed.Root {
     /// diagnostics for the coherence instrument's mechanical attribution
     /// — the SwiftPM analogue of
     /// ``Xcode/Build/run(fresh:arguments:capturingDiagnostics:)``.
-    public static func build(
+    static func build(
         at checkout: File.Directory,
         fresh: Swift.Bool,
         arguments: [Swift.String],

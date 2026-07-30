@@ -1,4 +1,4 @@
-private import Build_Coordinator
+import Build_Coordinator
 public import File_System
 
 extension Workspace.Xcode {
@@ -107,7 +107,7 @@ extension Workspace.Xcode.Build {
     /// Runs the build, optionally capturing `xcodebuild`'s `stdout`/`stderr`
     /// so a caller can extract the first compiler diagnostic mechanically —
     /// the ecosystem coherence instrument's `build`-stage attribution.
-    public func run(
+    func run(
         fresh: Swift.Bool,
         arguments: [Swift.String],
         capturingDiagnostics: Swift.Bool
