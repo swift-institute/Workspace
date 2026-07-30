@@ -3,6 +3,7 @@ public import Command
 private import GitHub_HTTP
 private import Environment
 private import File_System
+private import Git_Foundation
 private import Process
 
 extension Workspace {
@@ -17,6 +18,8 @@ extension Workspace {
         public var fresh: Bool
         public var changed: Bool
         public var institute: Bool
+        public var output: Workspace.Dependency.Output?
+        public var sanctionedExceptions: [Swift.String]
         public var arguments: [Swift.String]
 
         public init(
@@ -30,6 +33,8 @@ extension Workspace {
             fresh: Bool = false,
             changed: Bool = false,
             institute: Bool = false,
+            output: Workspace.Dependency.Output? = nil,
+            sanctionedExceptions: [Swift.String] = [],
             arguments: [Swift.String] = []
         ) {
             self.operation = operation
@@ -42,6 +47,8 @@ extension Workspace {
             self.fresh = fresh
             self.changed = changed
             self.institute = institute
+            self.output = output
+            self.sanctionedExceptions = sanctionedExceptions
             self.arguments = arguments
         }
     }
@@ -61,7 +68,7 @@ extension Workspace.CLI {
                 \.operation,
                 name: "operation",
                 placeholder:
-                    "install|sync|build|doctor|inventory|compose|restore|verify|context|navigation|package|lint",
+                    "install|sync|build|doctor|inventory|dependencies|compose|restore|verify|context|navigation|package|lint",
                 help: .init(abstract: "Operation to perform.")
             )
             Command.Positional<Self, Mode>.Many(
@@ -110,6 +117,26 @@ extension Workspace.CLI {
                     abstract:
                         "Run the institute-internal doctor checks too, which discover the live "
                         + "GitHub organizations (needs an authenticated gh; ~460 requests)."
+                )
+            )
+            Command.Option(
+                \.output,
+                name: .long(.literal("format")),
+                placeholder: "human|json",
+                help: .init(
+                    abstract:
+                        "Render a concise human summary or deterministic JSON "
+                        + "(dependencies only; defaults to human)."
+                )
+            )
+            Command.Option<Self, Swift.String>.Many(
+                \.sanctionedExceptions,
+                name: .long(.literal("sanctioned-exception")),
+                placeholder: "owner/repository",
+                help: .init(
+                    abstract:
+                        "Classify this canonical repository identity as a policy-supplied "
+                        + "sanctioned exception (dependencies only; repeatable)."
                 )
             )
             Command.Option(
@@ -167,7 +194,46 @@ extension Workspace.CLI {
         guard operation == .doctor || !institute else {
             throw .validationFailed(reason: "--institute is valid only with doctor.")
         }
-        if operation == .install {
+        guard operation == .dependencies || (output == nil && sanctionedExceptions.isEmpty) else {
+            throw .validationFailed(
+                reason: "--format and --sanctioned-exception are valid only with dependencies."
+            )
+        }
+        if operation == .dependencies {
+            guard modes.isEmpty else {
+                throw .validationFailed(reason: "dependencies takes no mode.")
+            }
+            guard consumer.isEmpty, dependency.isEmpty else {
+                throw .validationFailed(
+                    reason: "--consumer and --dependency are not valid with dependencies."
+                )
+            }
+            guard !dry, !fresh, !changed, !institute else {
+                throw .validationFailed(
+                    reason:
+                        "--dry-run, --fresh, --changed, and --institute are not valid with dependencies."
+                )
+            }
+            guard packagePath.isEmpty, workspacePath.isEmpty, arguments.isEmpty else {
+                throw .validationFailed(
+                    reason:
+                        "--package-path, --workspace-path, and --argument are not valid with dependencies."
+                )
+            }
+            var exceptions = Set<Workspace.Repository.Key>()
+            for value in sanctionedExceptions {
+                guard let key = Workspace.Repository.Key(identity: value) else {
+                    throw .validationFailed(
+                        reason: "invalid sanctioned exception \(value); expected owner/repository."
+                    )
+                }
+                guard exceptions.insert(key).inserted else {
+                    throw .validationFailed(
+                        reason: "duplicate sanctioned exception \(value)."
+                    )
+                }
+            }
+        } else if operation == .install {
             guard modes.isEmpty else {
                 throw .validationFailed(reason: "install takes no mode.")
             }
@@ -627,6 +693,40 @@ extension Workspace.CLI {
             default:
                 throw .configuration("inventory operation must be regenerate or absent")
             }
+        case .dependencies:
+            let git = Git.Client()
+            let head: Git.Object.ID
+            let dirty: Swift.Bool
+            do throws(Git.Client.Error) {
+                head = try git.head(at: root.checkout.description)
+                dirty = try git.status(at: root.checkout.description).contains {
+                    $0.path == [UInt8]("Workspace.json".utf8)
+                }
+            } catch {
+                throw .process("cannot identify the Workspace.json source revision: \(error)")
+            }
+            guard !dirty else {
+                throw .configuration(
+                    "Workspace.json has working-tree changes; an exact source revision "
+                        + "cannot be recorded"
+                )
+            }
+            let exceptions = Set(
+                sanctionedExceptions.compactMap(Workspace.Repository.Key.init(identity:))
+            )
+            let report = await Workspace.Dependency.Audit(
+                repositories: configuration.repositories,
+                policy: .institute(),
+                client: Workspace.Dependency.Remote.client(),
+                sanctioned: exceptions,
+                inventoryReference: "HEAD",
+                inventoryRevision: head.rawValue
+            ).run()
+            switch output ?? .human {
+            case .human: print(report)
+            case .json: print(report.json, terminator: "")
+            }
+            Process.Exit.normal(report.status)
         case .compose:
             try Workspace.Composition(root: root, configuration: configuration)
                 .compose(consumer: consumer, dependency: dependency)

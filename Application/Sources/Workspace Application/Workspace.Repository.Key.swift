@@ -1,6 +1,7 @@
 public import GitHub
 public import JSON
 public import Tagged_Primitives
+private import RFC_3986
 
 extension Workspace.Repository {
     public struct Key: Equatable, Hashable, Sendable, JSON.Serializable {
@@ -12,32 +13,74 @@ extension Workspace.Repository {
             self.name = name
         }
 
-        public init?(repository: Workspace.Repository) {
-            let prefix = "https://github.com/"
-            let suffix = ".git"
-            guard repository.url.hasPrefix(prefix), repository.url.hasSuffix(suffix) else {
-                return nil
-            }
-
-            let start = repository.url.index(repository.url.startIndex, offsetBy: prefix.count)
-            let end = repository.url.index(repository.url.endIndex, offsetBy: -suffix.count)
-            let components = repository.url[start..<end].split(separator: "/", omittingEmptySubsequences: false)
+        public init?(identity: Swift.String) {
+            let components = identity.split(separator: "/", omittingEmptySubsequences: false)
             guard
                 components.count == 2,
-                !components[0].isEmpty,
-                !components[1].isEmpty,
-                components[1] == repository.name
+                Self.valid(components[0]),
+                Self.valid(components[1])
             else { return nil }
-
             self.init(
                 owner: .init(Swift.String(components[0])),
                 name: .init(Swift.String(components[1]))
             )
         }
+
+        public init?(url: Swift.String) {
+            let uri: RFC_3986.URI
+            do throws(RFC_3986.Error) {
+                uri = try .init(url)
+            } catch {
+                return nil
+            }
+            guard
+                uri.scheme?.value == "https",
+                uri.userinfo == nil,
+                uri.host == .registeredName("github.com"),
+                uri.port == nil,
+                uri.query == nil,
+                uri.fragment == nil,
+                let path = uri.path,
+                path.isAbsolute,
+                path.segments.count == 2,
+                !path.segments.contains(where: { $0.contains("%") }),
+                path.segments[1].hasSuffix(".git")
+            else { return nil }
+
+            let repository = path.segments[1].dropLast(".git".count)
+            guard
+                let key = Self(
+                    identity: "\(path.segments[0])/\(repository)"
+                ),
+                key.url == url
+            else { return nil }
+            self = key
+        }
+
+        public init?(repository: Workspace.Repository) {
+            guard let key = Self(url: repository.url), key.name.underlying == repository.name else {
+                return nil
+            }
+            self = key
+        }
     }
 }
 
 extension Workspace.Repository.Key {
+    private static func valid(_ component: some Swift.StringProtocol) -> Swift.Bool {
+        guard !component.isEmpty, component != ".", component != ".." else {
+            return false
+        }
+        return component.utf8.allSatisfy { byte in
+            switch byte {
+            case 0x30...0x39, 0x41...0x5A, 0x61...0x7A, 0x2D, 0x2E, 0x5F:
+                true
+            default:
+                false
+            }
+        }
+    }
+
     public var identity: Swift.String {
         "\(owner.underlying)/\(name.underlying)"
     }
@@ -59,17 +102,9 @@ extension Workspace.Repository.Key {
 
     public static func deserialize(_ json: JSON) throws(JSON.Error) -> Self {
         let value = try Swift.String(json: json)
-        let components = value.split(separator: "/", omittingEmptySubsequences: false)
-        guard
-            components.count == 2,
-            !components[0].isEmpty,
-            !components[1].isEmpty
-        else {
+        guard let value = Self(identity: value) else {
             throw .typeMismatch(expected: "repository identity owner/name", got: value)
         }
-        return .init(
-            owner: .init(Swift.String(components[0])),
-            name: .init(Swift.String(components[1]))
-        )
+        return value
     }
 }

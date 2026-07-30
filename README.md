@@ -15,6 +15,7 @@ and local-source composition for cross-package work (`workspace compose` / `rest
 | `doctor` | Report what is measurably true about this checkout. |
 | `inventory` | Print the committed name → organization → relative-path register. Never discovers or writes. |
 | `inventory regenerate` | Discover the live roster and replace `Workspace.json`; `--dry-run` plans only. |
+| `dependencies` | Audit direct manifest dependency origins at exact remote revisions; never writes package state. |
 | `compose` | Point one package's dependency at your local checkout of it, so edits are picked up. |
 | `restore` | Undo a composition, returning the manifest to its declared form byte-for-byte. |
 | `verify` | Report which source a dependency actually compiled from, read from resolved state. |
@@ -93,6 +94,43 @@ explicitly mutating `workspace inventory regenerate`. Run it with `--dry-run` to
 the file would be replaced. Applying the regeneration requires a clean Workspace worktree and
 refuses before discovery otherwise; the final write is atomic and also refuses if
 `Workspace.json` changes during discovery.
+
+### Audit dependency origins
+
+`workspace dependencies` reads the repositories already eligible in `Workspace.json`, fetches
+every root, nested, and `Package@swift-*` manifest from each repository's default branch, and
+records the exact commit examined. It enumerates direct canonical GitHub repository URLs; the
+report keeps repeated declaration edges separate from distinct package identities and states
+that transitive closure was not measured.
+
+```sh
+workspace dependencies
+workspace dependencies --format json
+workspace dependencies \
+  --sanctioned-exception <owner/repository> \
+  --sanctioned-exception <owner/repository>
+```
+
+The human format is a concise diagnosis. The JSON format is deterministic evidence carrying
+the inventory population, source references and revisions, per-manifest and per-edge
+provenance, ownership classifications, excluded path or registry declarations, and every
+unavailable, rate-limited, malformed, or otherwise unmeasured input. Sanctioned exceptions are
+explicit inputs from the governing policy rather than a second policy list in Workspace, and
+the report records them. A redirect is resolved before ownership is classified. Runtime controls
+drive a finding and a clean input through that same redirect, classification, report, and exit-status
+pipeline before the inventory is measured.
+
+Any excluded declaration — including a path dependency, registry dependency, or malformed
+repository URL — makes the report incomplete and exits `2`. A sanctioned exception applies only
+to its canonical repository identity; it cannot sanction a declaration whose identity was not
+measured.
+
+The command is read-only. It does not inspect or change local package manifests,
+`Package.resolved`, the inventory, or a materialized checkout. Exit `0` means complete evidence
+containing only Institute-owned or supplied sanctioned-exception identities; exit `1` means a
+measured personal-owner or third-party identity; exit `2` means some input was not measured.
+Remote reads use an authenticated `gh` session, but require no Institute-only repository access;
+anything the session cannot read is reported as unavailable rather than clean.
 
 ## Where open work lives
 
