@@ -39,7 +39,11 @@ let package = Package(
         .package(url: "https://github.com/swift-foundations/swift-xcode.git", branch: "main"),
         .package(url: "https://github.com/swift-ietf/swift-rfc-3986.git", branch: "main"),
         .package(url: "https://github.com/swift-ietf/swift-rfc-4648.git", branch: "main"),
-        .package(url: "https://github.com/swift-primitives/swift-byte-primitives.git", branch: "main")
+        .package(url: "https://github.com/swift-primitives/swift-byte-primitives.git", branch: "main"),
+        .package(
+            url: "https://github.com/swift-primitives/swift-standard-library-extensions.git",
+            branch: "main"
+        )
     ],
     targets: [
         .target(
@@ -103,6 +107,10 @@ let package = Package(
                 .product(name: "JSON", package: "swift-json"),
                 .product(name: "Byte Primitives", package: "swift-byte-primitives"),
                 .product(name: "Byte Primitives Standard Library Integration", package: "swift-byte-primitives"),
+                .product(
+                    name: "Standard Library Extensions",
+                    package: "swift-standard-library-extensions"
+                ),
             ],
             path: "Tests/Workspace Application Tests"
         ),

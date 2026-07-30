@@ -1,5 +1,6 @@
 import File_System
 import Foundation
+import JSON
 import Testing
 
 @testable import Workspace_Application
@@ -72,7 +73,7 @@ extension Workspace.Pages.Test.Unit {
         let secondDigest = try second.digest(at: fixture.root)
         #expect(firstDigest == secondDigest)
         #expect(firstDigest.count == 64)
-        #expect(firstDigest.allSatisfy(\.isHexDigit))
+        #expect(firstDigest.allSatisfy { $0.isHexDigit })
 
         let decoded = try Workspace.Pages.Inventory(jsonString: first.canonical)
         #expect(decoded == first)
@@ -169,7 +170,7 @@ extension Workspace.Pages.Test.Unit {
         let subject = inventory.repositories.first { $0.name == "swift-example-one" }
         let doccPages = subject?.pages.filter { $0.kind == .docc } ?? []
         #expect(doccPages.map(\.path) == ["Sources/Example.docc"])
-        #expect(doccPages.allSatisfy(\.present))
+        #expect(doccPages.allSatisfy { $0.present })
     }
 
     @Test

@@ -1,6 +1,7 @@
 import Build_Coordinator
 import File_System
 import Foundation
+import JSON
 import Testing
 
 @testable import Workspace_Application
@@ -198,7 +199,7 @@ extension Workspace.Coherence.Test.Unit {
         let second = try receipt.digest(at: fixture.root)
         #expect(first == second)
         #expect(first.count == 64)
-        #expect(first.allSatisfy(\.isHexDigit))
+        #expect(first.allSatisfy { $0.isHexDigit })
     }
 
     @Test

@@ -4,6 +4,7 @@ private import GitHub_HTTP
 private import Environment
 private import File_System
 private import Git_Foundation
+private import JSON
 private import Process
 #if canImport(Darwin)
 private import Darwin
@@ -29,6 +30,7 @@ extension Workspace {
         public var sanctionedExceptions: [Swift.String]
         public var arguments: [Swift.String]
         public var buildPath: Workspace.Coherence.BuildPath?
+        public var receiptPath: Swift.String
 
         public init(
             operation: Operation = .sync,
@@ -44,7 +46,8 @@ extension Workspace {
             output: Workspace.Dependency.Output? = nil,
             sanctionedExceptions: [Swift.String] = [],
             arguments: [Swift.String] = [],
-            buildPath: Workspace.Coherence.BuildPath? = nil
+            buildPath: Workspace.Coherence.BuildPath? = nil,
+            receiptPath: Swift.String = ""
         ) {
             self.operation = operation
             self.dry = dry
@@ -60,6 +63,7 @@ extension Workspace {
             self.sanctionedExceptions = sanctionedExceptions
             self.arguments = arguments
             self.buildPath = buildPath
+            self.receiptPath = receiptPath
         }
     }
 }
@@ -79,7 +83,7 @@ extension Workspace.CLI {
                 name: "operation",
                 placeholder:
                     "install|sync|build|doctor|inventory|dependencies|compose|restore|verify|context"
-                        + "|navigation|package|lint|coherence",
+                        + "|navigation|package|lint|coherence|conversion",
                 help: .init(abstract: "Operation to perform.")
             )
             Command.Positional<Self, Mode>.Many(
@@ -87,12 +91,12 @@ extension Workspace.CLI {
                 name: "mode",
                 placeholder:
                     "install|check|serve|build|test|run|resolve|update|regenerate|clean|dump-package|lint"
-                        + "|pages",
+                        + "|pages|seal",
                 arity: .atMost(1),
                 help: .init(
                     abstract:
-                        "Required after context, navigation, or package; optional after inventory "
-                        + "or lint."
+                        "Required after context, navigation, package, or conversion; optional "
+                        + "after inventory or lint."
                 )
             )
             Command.Flag(
@@ -202,6 +206,14 @@ extension Workspace.CLI {
                         "Which build path measures coherence (defaults to xcodebuild-merged, "
                         + "issue #80); swiftpm-composed-root is the Ubuntu-capable Phase 2 path "
                         + "(issue #81)."
+                )
+            )
+            Command.Option(
+                \.receiptPath,
+                name: .long(.literal("receipt")),
+                placeholder: "path",
+                help: .init(
+                    abstract: "Conversion receipt file `conversion check` re-reads (issue #83)."
                 )
             )
         }
@@ -453,6 +465,40 @@ extension Workspace.CLI {
             }
             guard arguments.isEmpty else {
                 throw .validationFailed(reason: "--argument is valid only with package.")
+            }
+        } else if operation == .conversion {
+            guard
+                modes.count == 1,
+                modes.first == .seal || modes.first == .check
+            else {
+                throw .validationFailed(reason: "conversion requires seal or check.")
+            }
+            guard consumer.isEmpty, dependency.isEmpty else {
+                throw .validationFailed(
+                    reason: "--consumer and --dependency are not valid with conversion."
+                )
+            }
+            guard !dry else {
+                throw .validationFailed(
+                    reason: "--dry-run is valid only with sync or inventory regenerate."
+                )
+            }
+            guard !fresh else {
+                throw .validationFailed(reason: "--fresh is valid only with package build or test.")
+            }
+            guard packagePath.isEmpty, workspacePath.isEmpty else {
+                throw .validationFailed(
+                    reason: "--package-path and --workspace-path are not valid with conversion."
+                )
+            }
+            guard arguments.isEmpty else {
+                throw .validationFailed(reason: "--argument is valid only with package.")
+            }
+            guard modes.first == .check || receiptPath.isEmpty else {
+                throw .validationFailed(reason: "--receipt is valid only with conversion check.")
+            }
+            guard modes.first != .check || !receiptPath.isEmpty else {
+                throw .validationFailed(reason: "conversion check requires --receipt.")
             }
         } else if operation == .build {
             guard modes.isEmpty else {
@@ -722,6 +768,52 @@ extension Workspace.CLI {
                     + (digest.map { ", digest \($0)" } ?? " (digest unavailable)")
             )
             Process.Exit.normal(receipt.verdict.status)
+        case .conversion:
+            switch modes.first {
+            case .some(.seal):
+                let selection = try Workspace.Selection.effective(at: root.checkout, in: configuration)
+                let receipt = try await Workspace.Conversion.Seal(root: root, selection: selection).run()
+                print(receipt.canonical)
+                let digest = try? receipt.digest(at: root)
+                let summaryLine =
+                    "conversion seal: \(receipt.cohort.count) repositories, "
+                    + "\(receipt.pages.count) pages"
+                    + (digest.map { ", digest \($0)" } ?? ", digest unavailable") + "\n"
+                unsafe fputs(summaryLine, stderr)
+            case .some(.check):
+                let validated: File.Path
+                do throws(File.Path.Error) {
+                    validated = try File.Path(receiptPath)
+                } catch {
+                    throw .configuration("invalid --receipt path \(receiptPath): \(error)")
+                }
+                let bytes: [Byte]
+                do throws(Either<File.System.Read.Full.Error, Never>) {
+                    bytes = try File.System.Read.Full.read(from: validated) { (span: Swift.Span<Byte>) in
+                        var storage = [Byte]()
+                        storage.reserveCapacity(span.count)
+                        for index in span.indices {
+                            storage.append(span[index])
+                        }
+                        return storage
+                    }
+                } catch {
+                    throw .configuration("cannot read --receipt \(receiptPath): \(error)")
+                }
+                let receipt: Workspace.Conversion.Receipt
+                do throws(JSON.Error) {
+                    receipt = try .init(jsonString: Swift.String(decoding: bytes, as: Swift.UTF8.self))
+                } catch {
+                    throw .configuration("cannot decode --receipt \(receiptPath): \(error)")
+                }
+                let diagnostics = Workspace.Conversion.Check.diagnostics(for: receipt, root: root)
+                guard diagnostics.isEmpty else {
+                    throw .configuration(diagnostics.joined(separator: "\n"))
+                }
+                print("conversion: current — \(receipt.cohort.count) repositories consistent")
+            default:
+                throw .configuration("conversion operation must be seal or check")
+            }
         case .inventory:
             switch modes.first {
             case nil:
