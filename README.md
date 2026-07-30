@@ -183,9 +183,14 @@ startup file. If your environment already puts `$HOME/.local/bin` on `PATH`, it
 changes nothing. Keep the equivalent setting in whichever environment manager
 owns future shells on your machine.
 
-**Choose that parent directory as a long-lived one.** It becomes the home of every Institute
-repository you will work in, and the sole custodian of your machine-local `Selection.local.json`,
-which exists in no remote by construction.
+**Choose that parent directory as a long-lived one, never a reclaimed-on-reboot location such
+as `/tmp`.** It becomes the home of every Institute repository you will work in — the checkout
+root and the materialized organization roots beside it are durable working state, not scratch
+output. `Selection.local.json` is **unrecoverable** if lost: it is gitignored and exists in no
+remote by construction. `Application/.build`, the Xcode workspace and scheme, and a clean
+materialized repository are merely **expensive to rebuild** — regenerable from `sync` and a
+fresh resolve — but any uncommitted or unpushed work inside a materialized repository is not,
+because package work happens in those checkouts, not in this one.
 
 The committed `Selection.json` decides that first synchronization. It selects the whole
 public roster, so a fresh clone materializes every package in `Workspace.json`. To open
