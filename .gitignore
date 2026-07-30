@@ -29,6 +29,10 @@
 # build interrupted before cleanup leaves an untracked directory rather than a
 # dirty checkout that the next `sync` or `doctor` has to explain.
 .workspace-derived-data-*/
+# `workspace coherence`'s swiftpm-composed-root build path (Phase 2, issue
+# #81) regenerates this directory fresh at the start of every run — never
+# byte-compared, always rewritten, so there is no version worth tracking.
+/institute-composed-root/
 Package.resolved
 **/Package.resolved
 xcuserdata/

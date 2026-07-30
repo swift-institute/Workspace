@@ -21,6 +21,12 @@ extension Workspace.Coherence {
         /// run never reads or writes one on its own.
         public let priorGreen: Receipt?
 
+        /// Which build path measures the `graph` and `build` stages —
+        /// Phase 1's `xcodebuild`-merged instrument by default, or Phase
+        /// 2's `swiftpm-composed-root` (issue #81). Recorded verbatim into
+        /// the receipt's `instrument.buildPath`.
+        public let buildPath: Workspace.Coherence.BuildPath
+
         public let sync:
             @Sendable (Workspace.Root, Workspace.Selection.Resolved) throws(Workspace.Error) -> Void
         public let doctor:
@@ -43,25 +49,30 @@ extension Workspace.Coherence {
             selection: Workspace.Selection.Resolved,
             git: Git.Client = .init(),
             priorGreen: Receipt? = nil,
+            buildPath: Workspace.Coherence.BuildPath = .xcodebuildMerged,
             sync: @escaping @Sendable (Workspace.Root, Workspace.Selection.Resolved) throws(Workspace.Error)
                 -> Void = Self.realSync,
             doctor: @escaping @Sendable (
                 Workspace.Root, Workspace.Configuration, Workspace.Selection.Resolved
             ) async -> Workspace.Doctor.Report = Self.realDoctor,
-            graph: @escaping @Sendable (Workspace.Root, Workspace.Selection.Resolved) throws(Workspace.Error)
-                -> Swift.Int = Self.realGraph,
-            build: @escaping @Sendable (Workspace.Root, Workspace.Selection.Resolved) throws(Workspace.Error)
-                -> Build_Coordinator.Build.Coordinator.Result = Self.realBuild
+            graph: (
+                @Sendable (Workspace.Root, Workspace.Selection.Resolved) throws(Workspace.Error) -> Swift.Int
+            )? = nil,
+            build: (
+                @Sendable (Workspace.Root, Workspace.Selection.Resolved) throws(Workspace.Error)
+                    -> Build_Coordinator.Build.Coordinator.Result
+            )? = nil
         ) {
             self.root = root
             self.configuration = configuration
             self.selection = selection
             self.git = git
             self.priorGreen = priorGreen
+            self.buildPath = buildPath
             self.sync = sync
             self.doctor = doctor
-            self.graph = graph
-            self.build = build
+            self.graph = graph ?? Self.realGraph(for: buildPath, swift: configuration.swift)
+            self.build = build ?? Self.realBuild(for: buildPath)
         }
     }
 }
@@ -106,6 +117,59 @@ extension Workspace.Coherence.Run {
             arguments: [],
             capturingDiagnostics: true
         )
+    }
+
+    /// Generates the composed root fresh from the current selection's
+    /// manifests and returns its reachable population — Phase 2's `graph`
+    /// stage. There is no separate staleness gate here (unlike
+    /// ``realGraph(_:_:)``'s scheme byte-compare): ``Composed/Root/write``
+    /// regenerates the directory unconditionally, so the count it returns
+    /// is always current for this run.
+    static func realComposedGraph(
+        swift: Swift.String
+    ) -> @Sendable (Workspace.Root, Workspace.Selection.Resolved) throws(Workspace.Error) -> Swift.Int {
+        { root, selection in
+            let manifests = try Workspace.Composed.manifests(for: selection.repositories, at: root)
+            try Workspace.Composed.Root.write(manifests, swift: swift, at: root.checkout)
+            return Workspace.Composed.Root.expectedTargetCount(in: manifests)
+        }
+    }
+
+    static func realComposedBuild(
+        _ root: Workspace.Root,
+        _ selection: Workspace.Selection.Resolved
+    ) throws(Workspace.Error) -> Build_Coordinator.Build.Coordinator.Result {
+        try Workspace.Composed.Root.build(
+            at: root.checkout,
+            fresh: false,
+            arguments: [],
+            capturingDiagnostics: true
+        )
+    }
+
+    /// Selects the real `graph` stage for `buildPath`, capturing `swift`
+    /// (the declared tools-version floor) for the composed-root path's
+    /// generated manifest header.
+    static func realGraph(
+        for buildPath: Workspace.Coherence.BuildPath,
+        swift: Swift.String
+    ) -> @Sendable (Workspace.Root, Workspace.Selection.Resolved) throws(Workspace.Error) -> Swift.Int {
+        switch buildPath {
+        case .xcodebuildMerged: Self.realGraph
+        case .swiftPMComposedRoot: Self.realComposedGraph(swift: swift)
+        }
+    }
+
+    /// Selects the real `build` stage for `buildPath`.
+    static func realBuild(
+        for buildPath: Workspace.Coherence.BuildPath
+    ) -> @Sendable (Workspace.Root, Workspace.Selection.Resolved) throws(Workspace.Error) ->
+        Build_Coordinator.Build.Coordinator.Result
+    {
+        switch buildPath {
+        case .xcodebuildMerged: Self.realBuild
+        case .swiftPMComposedRoot: Self.realComposedBuild
+        }
     }
 }
 
@@ -293,10 +357,10 @@ extension Workspace.Coherence.Run {
                     )
                 ),
                 selection: selectionField,
-                buildPath: "xcodebuild-merged"
+                buildPath: buildPath.rawValue
             ),
             environment: .init(
-                platform: "macos",
+                platform: Self.currentPlatform,
                 swift: configuration.swift,
                 xcode: configuration.xcode,
                 runner: Self.runnerDescription(),
@@ -354,6 +418,22 @@ extension Workspace.Coherence.Run {
     /// product here at all.
     private static func runnerDescription() -> Swift.String {
         Workspace.Doctor.variable("GITHUB_ACTIONS") != nil ? "github-hosted" : "local"
+    }
+
+    /// The platform this run actually measures on — literal `"macos"`
+    /// under Phase 1 today, but the `swiftpm-composed-root` build path
+    /// (issue #81) is Ubuntu-capable, so the receipt must not hardcode a
+    /// single platform regardless of what compiled it.
+    static var currentPlatform: Swift.String {
+        #if os(macOS)
+            "macos"
+        #elseif os(Linux)
+            "linux"
+        #elseif os(Windows)
+            "windows"
+        #else
+            "unknown"
+        #endif
     }
 
     /// The first line of a spawned tool's output, or `"unknown"` when the

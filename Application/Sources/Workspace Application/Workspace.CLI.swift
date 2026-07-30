@@ -21,6 +21,7 @@ extension Workspace {
         public var output: Workspace.Dependency.Output?
         public var sanctionedExceptions: [Swift.String]
         public var arguments: [Swift.String]
+        public var buildPath: Workspace.Coherence.BuildPath?
 
         public init(
             operation: Operation = .sync,
@@ -35,7 +36,8 @@ extension Workspace {
             institute: Bool = false,
             output: Workspace.Dependency.Output? = nil,
             sanctionedExceptions: [Swift.String] = [],
-            arguments: [Swift.String] = []
+            arguments: [Swift.String] = [],
+            buildPath: Workspace.Coherence.BuildPath? = nil
         ) {
             self.operation = operation
             self.dry = dry
@@ -50,6 +52,7 @@ extension Workspace {
             self.output = output
             self.sanctionedExceptions = sanctionedExceptions
             self.arguments = arguments
+            self.buildPath = buildPath
         }
     }
 }
@@ -182,6 +185,17 @@ extension Workspace.CLI {
                         + "package operation, xcodebuild for the workspace build."
                 )
             )
+            Command.Option(
+                \.buildPath,
+                name: .long(.literal("build-path")),
+                placeholder: "xcodebuild-merged|swiftpm-composed-root",
+                help: .init(
+                    abstract:
+                        "Which build path measures coherence (defaults to xcodebuild-merged, "
+                        + "issue #80); swiftpm-composed-root is the Ubuntu-capable Phase 2 path "
+                        + "(issue #81)."
+                )
+            )
         }
     }
 
@@ -194,6 +208,9 @@ extension Workspace.CLI {
         // that measured, which is the defect `--institute` exists to fix.
         guard operation == .doctor || !institute else {
             throw .validationFailed(reason: "--institute is valid only with doctor.")
+        }
+        guard operation == .coherence || buildPath == nil else {
+            throw .validationFailed(reason: "--build-path is valid only with coherence.")
         }
         guard operation == .dependencies || (output == nil && sanctionedExceptions.isEmpty) else {
             throw .validationFailed(
@@ -450,6 +467,36 @@ extension Workspace.CLI {
             guard workspacePath.isEmpty else {
                 throw .validationFailed(reason: "--workspace-path is valid only with navigation or lint.")
             }
+        } else if operation == .coherence {
+            guard modes.isEmpty else {
+                throw .validationFailed(
+                    reason: "coherence takes no mode; it measures the whole selection."
+                )
+            }
+            guard consumer.isEmpty, dependency.isEmpty else {
+                throw .validationFailed(
+                    reason: "--consumer and --dependency are not valid with coherence."
+                )
+            }
+            guard !dry else {
+                throw .validationFailed(
+                    reason: "--dry-run is valid only with sync or inventory regenerate."
+                )
+            }
+            guard !fresh else {
+                throw .validationFailed(reason: "--fresh is valid only with package build or test.")
+            }
+            guard packagePath.isEmpty else {
+                throw .validationFailed(
+                    reason: "--package-path is valid only with package; coherence measures the selection."
+                )
+            }
+            guard workspacePath.isEmpty else {
+                throw .validationFailed(reason: "--workspace-path is valid only with navigation or lint.")
+            }
+            guard arguments.isEmpty else {
+                throw .validationFailed(reason: "--argument is valid only with package.")
+            }
         } else {
             guard consumer.isEmpty, dependency.isEmpty else {
                 throw .validationFailed(
@@ -654,7 +701,8 @@ extension Workspace.CLI {
             let receipt = await Workspace.Coherence.Run(
                 root: root,
                 configuration: configuration,
-                selection: selection
+                selection: selection,
+                buildPath: buildPath ?? .xcodebuildMerged
             ).run()
             print(receipt.canonical)
             let digest = try? receipt.digest(at: root)

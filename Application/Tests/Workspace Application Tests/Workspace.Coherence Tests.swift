@@ -104,6 +104,29 @@ extension Workspace.Coherence.Test.Unit {
         #expect(receipt.population.builtTargetCount == receipt.population.expectedTargetCount)
         #expect(receipt.stages.map(\.stage) == [.bootstrap, .sync, .doctor, .graph, .build, .population])
         #expect(receipt.stages.allSatisfy { $0.outcome == .success })
+        #expect(receipt.instrument.buildPath == "xcodebuild-merged")
+    }
+
+    @Test
+    func `A run selecting swiftpm-composed-root records that build path on the receipt`() async throws {
+        let fixture = try Workspace.Doctor.Fixture(repositories: Workspace.Coherence.Test.repositories())
+        defer { fixture.remove() }
+
+        let run = Workspace.Coherence.Run(
+            root: fixture.root,
+            configuration: fixture.configuration,
+            selection: fixture.selection,
+            buildPath: .swiftPMComposedRoot,
+            sync: Workspace.Coherence.Test.noop,
+            doctor: { _, _, _ in Workspace.Coherence.Test.report(status: 0) },
+            graph: Workspace.Coherence.Test.succeed,
+            build: Workspace.Coherence.Test.build(exitCode: 0)
+        )
+
+        let receipt = await run.run()
+
+        #expect(receipt.verdict == .coherent)
+        #expect(receipt.instrument.buildPath == "swiftpm-composed-root")
     }
 
     @Test

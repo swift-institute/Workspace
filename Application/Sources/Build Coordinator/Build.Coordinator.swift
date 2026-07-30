@@ -44,6 +44,28 @@ extension Build.Coordinator {
         fresh: Swift.Bool = false,
         arguments: [Swift.String] = []
     ) throws(Build.Error) -> Swift.Int32 {
+        try run(action, at: path, fresh: fresh, arguments: arguments, capturingDiagnostics: false)
+            .exitCode
+    }
+
+    /// Runs one operation at a Swift package root, optionally capturing the
+    /// child's `stdout`/`stderr` so a caller can extract the first compiler
+    /// diagnostic mechanically — the ecosystem coherence instrument's
+    /// swiftpm-composed-root `build`-stage attribution, the SwiftPM analogue
+    /// of ``run(_:fresh:arguments:capturingDiagnostics:)`` on the `xcodebuild`
+    /// path.
+    ///
+    /// The plain ``run(_:at:fresh:arguments:)`` above stays the default for
+    /// every interactive caller — streaming straight to the parent's own
+    /// streams is the point of a potentially long-running build. A caller
+    /// that needs the first diagnostic's text opts in here explicitly.
+    public func run(
+        _ action: Build.Action,
+        at path: Swift.String,
+        fresh: Swift.Bool = false,
+        arguments: [Swift.String] = [],
+        capturingDiagnostics: Swift.Bool
+    ) throws(Build.Error) -> Build.Coordinator.Result {
         let candidate: File.Directory
         do throws(File.Path.Error) {
             candidate = try File.Directory(validating: path)
@@ -78,7 +100,8 @@ extension Build.Coordinator {
         let output = try coordinated(
             invocation,
             in: package.description,
-            describing: "\(action.rawValue) at \(package)"
+            describing: "\(action.rawValue) at \(package)",
+            capture: capturingDiagnostics
         ) { failure in
             do throws(Build.Error) {
                 try remove(scratch, after: failure)
@@ -87,7 +110,11 @@ extension Build.Coordinator {
                 return error
             }
         }
-        return output.exitCode
+        return .init(
+            exitCode: output.exitCode,
+            standardOutput: capturingDiagnostics ? output.stdout : nil,
+            standardError: capturingDiagnostics ? output.stderr : nil
+        )
     }
 
     /// Internal rather than private so the workspace operation removes its
