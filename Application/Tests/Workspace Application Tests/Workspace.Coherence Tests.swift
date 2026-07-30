@@ -1,8 +1,54 @@
 import Build_Coordinator
+import File_System
 import Foundation
 import Testing
 
 @testable import Workspace_Application
+
+extension Workspace.Coherence.Receipt {
+    /// A verbatim, test-only copy of ``canonical``/``digest(at:)`` exactly
+    /// as they read on this type before issue #83 Part 1 extracted
+    /// ``Workspace/Receipt/Sealed`` and deleted these two members from
+    /// here. Kept only as an independent reference implementation so the
+    /// golden-digest test below can prove the migration is byte-identical
+    /// without needing a pre-migration commit checked out — the same
+    /// scratch-file-and-`shasum` discipline, computed by code that was
+    /// never touched by the migration itself.
+    fileprivate var legacyCanonical: Swift.String {
+        json.serialize(sortKeys: true)
+    }
+
+    fileprivate func legacyDigest(at root: Workspace.Root) throws(Workspace.Error) -> Swift.String {
+        let path: File.Path
+        do throws(File.Path.Temporary.Error) {
+            path = try File.Path.Temporary.sibling(
+                of: root.checkout.path,
+                prefix: ".workspace-coherence-receipt-legacy-",
+                suffix: ".json"
+            )
+        } catch {
+            throw .filesystem("cannot allocate a scratch path for the legacy receipt digest: \(error)")
+        }
+        let file = File(path)
+        do throws(File.System.Write.Atomic.Error) {
+            try file.write.atomic(legacyCanonical)
+        } catch {
+            throw .filesystem("cannot write a scratch legacy receipt for digesting: \(error)")
+        }
+        defer {
+            do { try file.delete() } catch {}
+        }
+        let output = try Workspace.Doctor.spawn("shasum", arguments: ["-a", "256", file.description])
+        guard
+            let field = output.split(separator: " ", omittingEmptySubsequences: true).first,
+            field.count == 64,
+            field.allSatisfy(\.isHexDigit)
+        else {
+            throw .process("cannot read a SHA-256 digest for the legacy receipt out of: \(output)")
+        }
+        return Swift.String(field).lowercased()
+    }
+}
 
 extension Workspace.Coherence {
     @Suite
@@ -153,6 +199,34 @@ extension Workspace.Coherence.Test.Unit {
         #expect(first == second)
         #expect(first.count == 64)
         #expect(first.allSatisfy(\.isHexDigit))
+    }
+
+    @Test
+    func `Issue 83 Part 1 — the migration to Workspace Receipt Sealed changed neither canonical text nor digest`()
+        async throws
+    {
+        let fixture = try Workspace.Doctor.Fixture(repositories: Workspace.Coherence.Test.repositories())
+        defer { fixture.remove() }
+
+        let run = Workspace.Coherence.Run(
+            root: fixture.root,
+            configuration: fixture.configuration,
+            selection: fixture.selection,
+            sync: Workspace.Coherence.Test.noop,
+            doctor: { _, _, _ in Workspace.Coherence.Test.report(status: 0) },
+            graph: Workspace.Coherence.Test.succeed,
+            build: Workspace.Coherence.Test.build(exitCode: 0)
+        )
+        let receipt = await run.run()
+
+        // `legacyCanonical`/`legacyDigest(at:)` are a frozen, test-only copy
+        // of exactly what `Workspace.Coherence.Receipt.canonical` and
+        // `.digest(at:)` read before issue #83 Part 1 deleted them in favor
+        // of `Workspace.Receipt.Sealed`. A migration that changed either
+        // computation is a regression, not a refactor (issue #83's Part 1
+        // acceptance criterion) — this fails the instant the two disagree.
+        #expect(receipt.canonical == receipt.legacyCanonical)
+        #expect(try receipt.digest(at: fixture.root) == receipt.legacyDigest(at: fixture.root))
     }
 
     @Test
