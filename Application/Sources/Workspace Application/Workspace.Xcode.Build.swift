@@ -101,6 +101,17 @@ extension Workspace.Xcode.Build {
         fresh: Swift.Bool,
         arguments: [Swift.String]
     ) throws(Workspace.Error) -> Swift.Int32 {
+        try run(fresh: fresh, arguments: arguments, capturingDiagnostics: false).exitCode
+    }
+
+    /// Runs the build, optionally capturing `xcodebuild`'s `stdout`/`stderr`
+    /// so a caller can extract the first compiler diagnostic mechanically —
+    /// the ecosystem coherence instrument's `build`-stage attribution.
+    public func run(
+        fresh: Swift.Bool,
+        arguments: [Swift.String],
+        capturingDiagnostics: Swift.Bool
+    ) throws(Workspace.Error) -> Build_Coordinator.Build.Coordinator.Result {
         let preflight = try preflight()
         guard preflight.diagnostics.isEmpty else {
             throw .configuration(preflight.diagnostics.joined(separator: "\n"))
@@ -118,7 +129,8 @@ extension Workspace.Xcode.Build {
             return try Build_Coordinator.Build.Coordinator().run(
                 operation,
                 fresh: fresh,
-                arguments: arguments
+                arguments: arguments,
+                capturingDiagnostics: capturingDiagnostics
             )
         } catch {
             throw .process("\(error)")

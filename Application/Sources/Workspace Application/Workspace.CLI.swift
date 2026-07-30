@@ -68,7 +68,8 @@ extension Workspace.CLI {
                 \.operation,
                 name: "operation",
                 placeholder:
-                    "install|sync|build|doctor|inventory|dependencies|compose|restore|verify|context|navigation|package|lint",
+                    "install|sync|build|doctor|inventory|dependencies|compose|restore|verify|context"
+                        + "|navigation|package|lint|coherence",
                 help: .init(abstract: "Operation to perform.")
             )
             Command.Positional<Self, Mode>.Many(
@@ -647,6 +648,21 @@ extension Workspace.CLI {
             ).run(access: institute ? .institute() : .contributor)
             print(report)
             Process.Exit.normal(report.status)
+        case .coherence:
+            let selection = try Workspace.Selection.effective(at: root.checkout, in: configuration)
+            print(selection.origin)
+            let receipt = await Workspace.Coherence.Run(
+                root: root,
+                configuration: configuration,
+                selection: selection
+            ).run()
+            print(receipt.canonical)
+            let digest = try? receipt.digest(at: root)
+            print(
+                "coherence: verdict \(receipt.verdict.rawValue)"
+                    + (digest.map { ", digest \($0)" } ?? " (digest unavailable)")
+            )
+            Process.Exit.normal(receipt.verdict.status)
         case .inventory:
             switch modes.first {
             case nil:

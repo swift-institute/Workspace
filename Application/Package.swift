@@ -94,6 +94,7 @@ let package = Package(
         .testTarget(
             name: "Workspace Application Tests",
             dependencies: [
+                "Build Coordinator",
                 "Skill Validation",
                 "Workspace Application",
                 .product(name: "File System", package: "swift-file-system"),

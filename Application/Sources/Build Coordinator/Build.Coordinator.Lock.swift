@@ -37,6 +37,13 @@ extension Build.Coordinator {
     ///   - invocation: The argument vector, run through `/usr/bin/env`.
     ///   - directory: The child's working directory.
     ///   - description: How the operation is named in failure messages.
+    ///   - capture: When `true`, the child's `stdout`/`stderr` are piped and
+    ///     returned in the result instead of inherited. Every existing entry
+    ///     point defaults this to `false` and keeps streaming live to the
+    ///     parent's own streams — the point of an interactive, potentially
+    ///     multi-hour build. A caller that needs the first diagnostic's text
+    ///     (mechanical failure attribution, not human progress) opts in
+    ///     explicitly; see ``Build/Coordinator/run(_:fresh:arguments:capturingDiagnostics:)``.
     ///   - cleanup: Removes any state the caller generated for this run. Runs
     ///     after the child exits and before the lock is released, and on every
     ///     failure path including a failure to acquire. Returns the error to
@@ -45,8 +52,9 @@ extension Build.Coordinator {
         _ invocation: [Swift.String],
         in directory: Swift.String,
         describing description: Swift.String,
+        capture: Swift.Bool = false,
         cleanup: (Build.Error?) -> Build.Error?
-    ) throws(Build.Error) -> Swift.Int32 {
+    ) throws(Build.Error) -> Process.Output {
         let path: File.Path
         do throws(File.Path.Error) {
             path = try File.Path.Temporary.deterministic(
@@ -88,6 +96,8 @@ extension Build.Coordinator {
                 .init(
                     executable: "/usr/bin/env",
                     arguments: invocation,
+                    stdout: capture ? .pipe : .inherit,
+                    stderr: capture ? .pipe : .inherit,
                     workingDirectory: directory
                 )
             )
@@ -113,12 +123,28 @@ extension Build.Coordinator {
         }
 
         switch output.status {
-        case .exited(let code):
-            return code
+        case .exited:
+            return output
         case .signaled(let signal):
             throw .process("\(description) terminated by signal \(signal)")
         case .stopped(let signal):
             throw .process("\(description) stopped by signal \(signal)")
         }
+    }
+}
+
+extension Process.Output {
+    /// The exit code of a process that has already been proven ``exited``.
+    ///
+    /// A coordinated run only ever returns here after ``coordinated``'s own
+    /// switch has ruled out `signaled`/`stopped`, so the force-unwrap is
+    /// total in practice; it stays a precondition rather than a silent `0`
+    /// so a future caller that skips that switch fails loudly instead of
+    /// reporting a fabricated success.
+    var exitCode: Swift.Int32 {
+        guard case .exited(let code) = status else {
+            preconditionFailure("Process.Output.exitCode read before status was proven .exited")
+        }
+        return code
     }
 }

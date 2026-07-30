@@ -1,4 +1,5 @@
 private import File_System
+internal import Process
 
 extension Build.Coordinator {
     /// Runs one `xcodebuild` operation over a generated Xcode workspace.
@@ -26,6 +27,29 @@ extension Build.Coordinator {
         fresh: Swift.Bool = false,
         arguments: [Swift.String] = []
     ) throws(Build.Error) -> Swift.Int32 {
+        try run(
+            workspace,
+            fresh: fresh,
+            arguments: arguments,
+            capturingDiagnostics: false
+        ).exitCode
+    }
+
+    /// Runs one `xcodebuild` operation, optionally capturing the child's
+    /// `stdout`/`stderr` for mechanical failure attribution.
+    ///
+    /// The plain ``run(_:fresh:arguments:)`` above stays the default for
+    /// every interactive caller — streaming straight to the parent's own
+    /// streams is the point of a potentially multi-hour build. A caller
+    /// that needs the first compiler diagnostic's text (the ecosystem
+    /// coherence instrument's `build`-stage attribution, not human
+    /// progress) opts in here explicitly.
+    public func run(
+        _ workspace: Build.Workspace,
+        fresh: Swift.Bool,
+        arguments: [Swift.String],
+        capturingDiagnostics: Swift.Bool
+    ) throws(Build.Error) -> Build.Coordinator.Result {
         let candidate: File.Directory
         do throws(File.Path.Error) {
             candidate = try File.Directory(validating: workspace.bundle)
@@ -57,12 +81,13 @@ extension Build.Coordinator {
         }
         let invocation = try described.invocation(jobs: jobs, arguments: arguments)
 
-        return try coordinated(
+        let output = try coordinated(
             invocation,
             // The bundle's containing directory, because the workspace's
             // references are relative to it.
             in: parent.description,
-            describing: "xcodebuild \(described.operation.rawValue) on \(bundle)"
+            describing: "xcodebuild \(described.operation.rawValue) on \(bundle)",
+            capture: capturingDiagnostics
         ) { failure in
             do throws(Build.Error) {
                 try remove(derived, after: failure)
@@ -71,6 +96,11 @@ extension Build.Coordinator {
                 return error
             }
         }
+        return .init(
+            exitCode: output.exitCode,
+            standardOutput: capturingDiagnostics ? output.stdout : nil,
+            standardError: capturingDiagnostics ? output.stderr : nil
+        )
     }
 
     private func freshDerivedData(

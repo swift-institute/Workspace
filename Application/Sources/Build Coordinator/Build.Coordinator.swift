@@ -3,6 +3,7 @@
 internal import File_System
 private import Kernel_System
 private import Kernel_Thread
+internal import Process
 
 extension Build {
     /// Runs SwiftPM operations with one owned interface and isolated evidence builds.
@@ -74,7 +75,7 @@ extension Build.Coordinator {
             arguments: arguments
         )
 
-        return try coordinated(
+        let output = try coordinated(
             invocation,
             in: package.description,
             describing: "\(action.rawValue) at \(package)"
@@ -86,6 +87,7 @@ extension Build.Coordinator {
                 return error
             }
         }
+        return output.exitCode
     }
 
     /// Internal rather than private so the workspace operation removes its
