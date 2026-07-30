@@ -57,6 +57,42 @@ extension Workspace.Inventory.Policy {
     /// were emptied — so discovering into them would have re-materialized the
     /// very roots the ruling removed, the moment this ran. They are absent
     /// deliberately; do not restore them without a new ruling.
+    ///
+    /// ## Membership is declared here, not discovered live (Workspace#85)
+    ///
+    /// This function is the *only* place the Institute's org roster is
+    /// declared, and the rule for what belongs in it is: an organization
+    /// is added when the principal designates it to host a layer root or
+    /// a specification authority's/vendor's/jurisdiction's repositories
+    /// under one — a governance fact, not a GitHub API property. An org
+    /// joining or leaving therefore needs this list edited; nothing
+    /// currently detects the gap between an edit and the org's real
+    /// membership.
+    ///
+    /// A live check — "does the token see an org this list doesn't
+    /// name?" — was evaluated and rejected, not merely deferred.
+    /// Measured 2026-07-30: `GET /user/orgs` for the account this token
+    /// authenticates as returns dozens of organizations beyond these
+    /// seventeen — the sibling Rule Institute ecosystem's own org-per-
+    /// jurisdiction roster, the retired L4/L5 roots named above,
+    /// `repotraffic` and `swift-foundry` (both confirmed personal, 0
+    /// public repositories), and others — with no field a query can
+    /// filter on. A `swift-`-prefix heuristic fails on contact:
+    /// `swift-foundry` *is* swift-prefixed and is not an Institute org.
+    /// Without a qualifying signal GitHub actually exposes, a live
+    /// membership diff would report every one of those as drift on every
+    /// run — a permanent false positive noisier than the silence it
+    /// replaces, not a currency check. `repotraffic` and `swift-foundry`
+    /// are recorded here, by name, as the confirmed negative case rather
+    /// than left for the next person to re-derive.
+    ///
+    /// Manual curation is therefore the accepted design for *this* list,
+    /// on this evidence — distinct from `vacant` below, which records a
+    /// dated claim about a *declared* org's contents and stays
+    /// machine-checked (`Client.discover` requires every non-vacant org
+    /// to list something). A future qualifying signal (an org topic, a
+    /// team membership, a metadata file this token can read) would
+    /// change this conclusion; none exists today.
     public static func institute() -> Self {
         guard
             let pages = GitHub.Organization.Repositories.Traversal.Limit.Pages(rawValue: 100),
