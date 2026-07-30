@@ -16,6 +16,7 @@ extension Workspace.CLI {
         case clean
         case dumpPackage
         case lint
+        case pages
 
         public init?(argument: Swift.String) {
             switch argument {
@@ -31,6 +32,7 @@ extension Workspace.CLI {
             case "clean": self = .clean
             case "dump-package": self = .dumpPackage
             case "lint": self = .lint
+            case "pages": self = .pages
             default: return nil
             }
         }
@@ -49,6 +51,7 @@ extension Workspace.CLI {
             case .clean: "clean"
             case .dumpPackage: "dump-package"
             case .lint: "lint"
+            case .pages: "pages"
             }
         }
     }
@@ -57,7 +60,7 @@ extension Workspace.CLI {
 extension Workspace.CLI.Mode {
     var buildAction: Build.Action? {
         switch self {
-        case .install, .check, .serve, .regenerate, .lint: nil
+        case .install, .check, .serve, .regenerate, .lint, .pages: nil
         case .build: .build
         case .test: .test
         case .run: .run

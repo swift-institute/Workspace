@@ -114,6 +114,30 @@ extension Workspace.CLI.Test.Unit {
     }
 
     @Test
+    func `inventory pages selects the read-only page enumeration`() throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: ["inventory", "pages"],
+            initial: .init()
+        )
+
+        #expect(command.operation == .inventory)
+        #expect(command.modes == [.pages])
+        #expect(!command.dry)
+    }
+
+    @Test
+    func `inventory pages rejects dry run because enumeration is already read-only`() {
+        #expect(throws: Command.Error.self) {
+            try Command.parse(
+                Workspace.CLI.self,
+                from: ["inventory", "pages", "--dry-run"],
+                initial: .init()
+            )
+        }
+    }
+
+    @Test
     func `dependencies parses deterministic output and policy exception inputs`() throws {
         let command = try Command.parse(
             Workspace.CLI.self,

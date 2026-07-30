@@ -5,6 +5,13 @@ private import Environment
 private import File_System
 private import Git_Foundation
 private import Process
+#if canImport(Darwin)
+private import Darwin
+#elseif canImport(Glibc)
+private import Glibc
+#elseif canImport(Musl)
+private import Musl
+#endif
 
 extension Workspace {
     public struct CLI: Sendable, Command.`Protocol` {
@@ -79,7 +86,8 @@ extension Workspace.CLI {
                 \.modes,
                 name: "mode",
                 placeholder:
-                    "install|check|serve|build|test|run|resolve|update|regenerate|clean|dump-package|lint",
+                    "install|check|serve|build|test|run|resolve|update|regenerate|clean|dump-package|lint"
+                        + "|pages",
                 arity: .atMost(1),
                 help: .init(
                     abstract:
@@ -418,9 +426,12 @@ extension Workspace.CLI {
                 throw .validationFailed(reason: "--argument is valid only with package.")
             }
         } else if operation == .inventory {
-            guard modes.isEmpty || (modes.count == 1 && modes.first == .regenerate) else {
+            guard
+                modes.isEmpty
+                    || (modes.count == 1 && (modes.first == .regenerate || modes.first == .pages))
+            else {
                 throw .validationFailed(
-                    reason: "inventory takes regenerate or no mode (the read-only register)."
+                    reason: "inventory takes regenerate, pages, or no mode (the read-only register)."
                 )
             }
             guard consumer.isEmpty, dependency.isEmpty else {
@@ -754,8 +765,25 @@ extension Workspace.CLI {
                             : "inventory regenerate: replaced Workspace.json"
                     )
                 }
+            case .some(.pages):
+                let selection = try Workspace.Selection.effective(at: root.checkout, in: configuration)
+                let inventory = await Workspace.Pages.enumerate(root: root, selection: selection)
+                print(inventory.canonical)
+                let digest = try? inventory.digest(at: root)
+                let counts = inventory.nonCanonicalCounts
+                let countsDescription =
+                    counts.isEmpty
+                    ? "0 non-canonical"
+                    : counts.sorted { $0.key < $1.key }.map { "\($1) \($0)" }.joined(separator: ", ")
+                        + " non-canonical"
+                let summaryLine =
+                    "inventory pages: \(inventory.repositories.count) repositories, "
+                    + "\(countsDescription)"
+                    + (digest.map { ", digest \($0)" } ?? ", digest unavailable") + "\n"
+                unsafe fputs(summaryLine, stderr)
+                Process.Exit.normal(inventory.isFullyCanonical ? 0 : 1)
             default:
-                throw .configuration("inventory operation must be regenerate or absent")
+                throw .configuration("inventory operation must be regenerate, pages, or absent")
             }
         case .dependencies:
             let git = Git.Client()

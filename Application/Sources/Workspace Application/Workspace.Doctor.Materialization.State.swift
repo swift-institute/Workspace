@@ -12,3 +12,18 @@ extension Workspace.Doctor.Materialization {
         case invalid(Swift.String)
     }
 }
+
+extension Workspace.Doctor.Materialization.State {
+    /// The verbatim rendering `Workspace.Pages.Repository.materialization`
+    /// carries (issue #82) — a string rather than a re-exported typed
+    /// field, matching that type's doc-comment discipline.
+    public var rendered: Swift.String {
+        switch self {
+        case .canonical: "canonical"
+        case .legacy: "legacy"
+        case .both: "both"
+        case .absent: "absent"
+        case .invalid(let message): "invalid: \(message)"
+        }
+    }
+}
