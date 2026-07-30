@@ -93,6 +93,8 @@ extension Workspace.Doctor {
         switch access {
         case .contributor:
             outcomes.append(record(Self.currency.omitted))
+            outcomes.append(record(Self.resolutionCurrency.omitted))
+            outcomes.append(record(Self.lintConfigCurrency.omitted))
         case .institute(let inventory):
             do throws(Workspace.Error) {
                 outcomes.append(record(currency(try await inventory())))
@@ -101,6 +103,8 @@ extension Workspace.Doctor {
                     record(Self.currency.unmeasured(reason: "inventory discovery failed: \(error)"))
                 )
             }
+            outcomes.append(record(await resolutionCurrency(checkouts)))
+            outcomes.append(record(await lintConfigCurrency(checkouts)))
         }
         return .init(outcomes: outcomes, origin: selection.origin)
     }
