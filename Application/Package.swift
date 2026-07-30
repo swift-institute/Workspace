@@ -100,6 +100,7 @@ let package = Package(
                 .product(name: "GitHub", package: "swift-github"),
                 .product(name: "GitHub HTTP", package: "swift-github-http"),
                 .product(name: "JSON", package: "swift-json"),
+                .product(name: "Byte Primitives", package: "swift-byte-primitives"),
                 .product(name: "Byte Primitives Standard Library Integration", package: "swift-byte-primitives"),
             ],
             path: "Tests/Workspace Application Tests"
