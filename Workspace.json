@@ -1730,9 +1730,9 @@
     },
     {
       "layer": "standards",
-      "name": "swift-mailgun-types",
+      "name": "swift-mailgun-standard",
       "organization": "swift-standards",
-      "url": "https://github.com/swift-standards/swift-mailgun-types.git"
+      "url": "https://github.com/swift-standards/swift-mailgun-standard.git"
     },
     {
       "layer": "standards",
@@ -1778,9 +1778,9 @@
     },
     {
       "layer": "standards",
-      "name": "swift-stripe-types",
+      "name": "swift-stripe-standard",
       "organization": "swift-standards",
-      "url": "https://github.com/swift-standards/swift-stripe-types.git"
+      "url": "https://github.com/swift-standards/swift-stripe-standard.git"
     },
     {
       "layer": "standards",
@@ -2252,9 +2252,9 @@
     },
     {
       "layer": "foundations",
-      "name": "swift-mailgun-live",
+      "name": "swift-mailgun-http",
       "organization": "swift-foundations",
-      "url": "https://github.com/swift-foundations/swift-mailgun-live.git"
+      "url": "https://github.com/swift-foundations/swift-mailgun-http.git"
     },
     {
       "layer": "foundations",
@@ -2468,9 +2468,9 @@
     },
     {
       "layer": "foundations",
-      "name": "swift-stripe-live",
+      "name": "swift-stripe-http",
       "organization": "swift-foundations",
-      "url": "https://github.com/swift-foundations/swift-stripe-live.git"
+      "url": "https://github.com/swift-foundations/swift-stripe-http.git"
     },
     {
       "layer": "foundations",
