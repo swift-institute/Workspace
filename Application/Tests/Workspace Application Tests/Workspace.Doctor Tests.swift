@@ -456,6 +456,89 @@ extension Workspace.Doctor.Test.Integration {
     }
 
     @Test
+    func `a cross-org move is reported as an organization mismatch, not silently current`()
+        async throws
+    {
+        // Workspace#84, shape (a): the bare-name join used to consider
+        // this current because "swift-example" matches on both sides —
+        // hiding that the organization moved from swift-foundations to
+        // swift-primitives.
+        let fixture = try Workspace.Doctor.Fixture(repositories: [
+            .init(
+                name: "swift-example",
+                url: "https://github.com/swift-foundations/swift-example.git",
+                organization: "swift-foundations",
+                layer: .foundations
+            )
+        ])
+        defer { fixture.remove() }
+        let discovery = Workspace.Inventory.Discovery(
+            repositories: [
+                .init(
+                    id: .init(1),
+                    key: .init(owner: .init("swift-primitives"), name: .init("swift-example")),
+                    layer: .primitives
+                )
+            ],
+            exclusions: []
+        )
+
+        let report = await fixture.doctor().run(access: .institute(inventory: { discovery }))
+
+        let currency = report.outcomes.first { $0.check == "inventory-currency" }
+        #expect(currency?.result == .finding(severity: .error, population: 1))
+        #expect(
+            currency?.findings.contains {
+                $0.message.contains("swift-example")
+                    && $0.message.contains("organization mismatch")
+                    && $0.message.contains("swift-foundations")
+                    && $0.message.contains("swift-primitives")
+            } == true
+        )
+    }
+
+    @Test
+    func `a wrong layer field with a correct name and organization is a named field mismatch`()
+        async throws
+    {
+        // Workspace#84, shape (b): same coordinate on both sides, so the
+        // bare-name (and now coordinate) join alone reports this as
+        // current — only an explicit field comparison catches it.
+        let fixture = try Workspace.Doctor.Fixture(repositories: [
+            .init(
+                name: "swift-example",
+                url: "https://github.com/swift-foundations/swift-example.git",
+                organization: "swift-foundations",
+                layer: .primitives
+            )
+        ])
+        defer { fixture.remove() }
+        let discovery = Workspace.Inventory.Discovery(
+            repositories: [
+                .init(
+                    id: .init(1),
+                    key: .init(owner: .init("swift-foundations"), name: .init("swift-example")),
+                    layer: .foundations
+                )
+            ],
+            exclusions: []
+        )
+
+        let report = await fixture.doctor().run(access: .institute(inventory: { discovery }))
+
+        let currency = report.outcomes.first { $0.check == "inventory-currency" }
+        #expect(currency?.result == .finding(severity: .error, population: 1))
+        #expect(
+            currency?.findings.contains {
+                $0.message.contains("swift-example")
+                    && $0.message.contains("layer mismatch")
+                    && $0.message.contains("primitives")
+                    && $0.message.contains("foundations")
+            } == true
+        )
+    }
+
+    @Test
     func `a failed discovery is unmeasured, not a clean result`() async throws {
         let fixture = try Workspace.Doctor.Fixture(repositories: [])
         defer { fixture.remove() }
