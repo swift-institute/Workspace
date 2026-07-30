@@ -2,8 +2,10 @@
 
 The Swift Institute front door: the public package inventory, machine-checked facts about a
 checkout, and an isolated local development checkout for Xcode. Read `README.md` first for
-orientation. Nothing here needs Institute access — if a step wants credentials or a repository
-you cannot read, that is a defect worth reporting.
+orientation. Nothing here needs Institute access. The one exception is explicit and opt-in:
+`workspace doctor --institute` asks for the roster-currency check and needs an authenticated
+`gh`. No other step does — if one wants credentials or a repository you cannot read, that is a
+defect worth reporting.
 
 ## Commands
 
