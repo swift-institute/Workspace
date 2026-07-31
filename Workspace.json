@@ -2300,6 +2300,12 @@
     },
     {
       "layer": "foundations",
+      "name": "swift-navigation",
+      "organization": "swift-foundations",
+      "url": "https://github.com/swift-foundations/swift-navigation.git"
+    },
+    {
+      "layer": "foundations",
       "name": "swift-observations",
       "organization": "swift-foundations",
       "url": "https://github.com/swift-foundations/swift-observations.git"
