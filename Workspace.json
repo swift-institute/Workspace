@@ -2486,6 +2486,12 @@
     },
     {
       "layer": "foundations",
+      "name": "swift-stores",
+      "organization": "swift-foundations",
+      "url": "https://github.com/swift-foundations/swift-stores.git"
+    },
+    {
+      "layer": "foundations",
       "name": "swift-strings",
       "organization": "swift-foundations",
       "url": "https://github.com/swift-foundations/swift-strings.git"
