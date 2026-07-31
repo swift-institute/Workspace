@@ -104,7 +104,7 @@ extension Workspace.Doctor {
     ) async -> Outcome {
         let gathered: (population: [(pin: Pin, location: Swift.String)], documents: Swift.Int)
         switch await pinPopulation(materialized) {
-        case .failure(let reason): return Self.resolutionCurrency.unmeasured(reason: reason)
+        case .failure(let reason): return Self.resolutionCurrency.unmeasured(reason: "\(reason)")
         case .success(let value): gathered = value
         }
 

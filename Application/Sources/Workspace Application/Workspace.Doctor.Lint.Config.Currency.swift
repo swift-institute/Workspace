@@ -78,7 +78,7 @@ extension Workspace.Doctor {
                 directory: "v1"
             ]
             guard cache.stat.exists else { continue }
-            guard let files = try? cache.files() else { continue }
+            guard let files = try? await cache.files() else { continue }
             for file in files {
                 guard file.name.description.hasSuffix(".yml") else { continue }
                 guard let text = try? contents(of: file) else { continue }

@@ -72,7 +72,7 @@ extension Workspace.Doctor {
     /// unmeasured — never fresh — while the census can still be `ok`.
     func pins(_ materialized: [(Workspace.Repository, File.Directory)]) async -> Outcome {
         switch await pinPopulation(materialized) {
-        case .failure(let reason): return Self.pins.unmeasured(reason: reason)
+        case .failure(let reason): return Self.pins.unmeasured(reason: "\(reason)")
         case .success(let gathered):
             return Self.pins.run(
                 population: gathered.population.map(\.pin),
@@ -118,11 +118,11 @@ extension Workspace.Doctor {
     func pinPopulation(
         _ materialized: [(Workspace.Repository, File.Directory)]
     ) async -> Swift.Result<
-        (population: [(pin: Pin, location: Swift.String)], documents: Swift.Int), Swift.String
+        (population: [(pin: Pin, location: Swift.String)], documents: Swift.Int), Workspace.Error
     > {
         var documents = 0
         var read = [(package: Swift.String, records: [Pin.Record])]()
-        var failure: Swift.String?
+        var failure: Workspace.Error?
         for (repository, path) in materialized {
             let file = path[file: "Package.resolved"]
             guard file.stat.exists else { continue }
@@ -130,7 +130,9 @@ extension Workspace.Doctor {
             do throws(Workspace.Error) {
                 read.append((repository.name, try Pin.Record.parse(contents(of: file))))
             } catch {
-                failure = "\(repository.name): cannot read its resolved state: \(error)"
+                failure = .repository(
+                    "\(repository.name): cannot read its resolved state: \(error)"
+                )
                 break
             }
         }
@@ -163,10 +165,12 @@ extension Workspace.Doctor {
             for record in document.records {
                 guard case .success(let tip) = tips[Self.key(record)] else {
                     return .failure(
-                        "cannot read the \(record.branch) tip of "
-                            + "\(record.dependency) — pins are unmeasured without the "
-                            + "network, never fresh: "
-                            + Self.diagnostic(tips[Self.key(record)])
+                        .process(
+                            "cannot read the \(record.branch) tip of "
+                                + "\(record.dependency) — pins are unmeasured without the "
+                                + "network, never fresh: "
+                                + Self.diagnostic(tips[Self.key(record)])
+                        )
                     )
                 }
                 population.append(
