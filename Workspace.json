@@ -32,6 +32,12 @@
     },
     {
       "layer": "primitives",
+      "name": "swift-application-primitives",
+      "organization": "swift-primitives",
+      "url": "https://github.com/swift-primitives/swift-application-primitives.git"
+    },
+    {
+      "layer": "primitives",
       "name": "swift-argument-primitives",
       "organization": "swift-primitives",
       "url": "https://github.com/swift-primitives/swift-argument-primitives.git"
