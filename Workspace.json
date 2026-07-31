@@ -1880,6 +1880,12 @@
     },
     {
       "layer": "foundations",
+      "name": "swift-application-server",
+      "organization": "swift-foundations",
+      "url": "https://github.com/swift-foundations/swift-application-server.git"
+    },
+    {
+      "layer": "foundations",
       "name": "swift-application-swiftui",
       "organization": "swift-foundations",
       "url": "https://github.com/swift-foundations/swift-application-swiftui.git"
