@@ -1100,6 +1100,12 @@
     },
     {
       "layer": "primitives",
+      "name": "swift-store-primitives",
+      "organization": "swift-primitives",
+      "url": "https://github.com/swift-primitives/swift-store-primitives.git"
+    },
+    {
+      "layer": "primitives",
       "name": "swift-string-primitives",
       "organization": "swift-primitives",
       "url": "https://github.com/swift-primitives/swift-string-primitives.git"
