@@ -770,6 +770,12 @@
     },
     {
       "layer": "primitives",
+      "name": "swift-navigation-primitives",
+      "organization": "swift-primitives",
+      "url": "https://github.com/swift-primitives/swift-navigation-primitives.git"
+    },
+    {
+      "layer": "primitives",
       "name": "swift-numeric-finite-primitives",
       "organization": "swift-primitives",
       "url": "https://github.com/swift-primitives/swift-numeric-finite-primitives.git"
