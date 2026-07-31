@@ -1,3 +1,4 @@
+import Build_Coordinator
 import Command
 import Testing
 
@@ -235,6 +236,49 @@ extension Workspace.CLI.Test.Unit {
         #expect(command.fresh)
     }
 
+    @Test(arguments: [
+        Workspace.CLI.Mode.build,
+        Workspace.CLI.Mode.test,
+    ])
+    func `jobs caps compile concurrency on package build or test`(
+        mode: Workspace.CLI.Mode
+    ) throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: ["package", mode.argumentDescription, "--jobs", "2"],
+            initial: .init()
+        )
+
+        #expect(command.jobs == 2)
+    }
+
+    @Test
+    func `jobs is nil by default, so the coordinator keeps choosing the machine's core count`() throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: ["package", "build"],
+            initial: .init()
+        )
+
+        #expect(command.jobs == nil)
+    }
+
+    @Test
+    func `the parsed jobs cap reaches the coordinator constructor unchanged`() throws {
+        // Plumbing only: `run()` passes `jobs` straight into
+        // `Build.Coordinator(jobs:)` without transforming it, so asserting
+        // the constructor echoes the parsed value is the whole contract —
+        // `Build.Coordinator` and `Build.Action` already prove the rest of
+        // the chain (jobs reaching SwiftPM's `-j`) independently.
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: ["package", "test", "--jobs", "5"],
+            initial: .init()
+        )
+
+        #expect(Build.Coordinator(jobs: command.jobs).jobs == 5)
+    }
+
     @Test
     func `package forwards repeated SwiftPM arguments`() throws {
         let command = try Command.parse(
@@ -425,6 +469,28 @@ extension Workspace.CLI.Test.`Edge Case` {
             _ = try Command.parse(
                 Workspace.CLI.self,
                 from: ["package", "resolve", "--fresh"],
+                initial: .init()
+            )
+        }
+    }
+
+    // `Build.Action.acceptsJobs` covers run too, but the CLI surface stays
+    // narrower than the API: build and test are the coordinated-build entry
+    // points issue #88 asks for, and widening silently to `run` later is a
+    // deliberate choice, not a side effect of this guard's shape.
+    @Test(arguments: [
+        ["package", "resolve"],
+        ["package", "run"],
+        ["package", "lint"],
+        ["build"],
+        ["sync"],
+        ["doctor"],
+    ])
+    func `jobs is rejected outside package build or test`(argument: [Swift.String]) {
+        #expect(throws: Command.Error.self) {
+            _ = try Command.parse(
+                Workspace.CLI.self,
+                from: argument + ["--jobs", "2"],
                 initial: .init()
             )
         }

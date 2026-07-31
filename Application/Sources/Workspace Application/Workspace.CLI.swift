@@ -31,6 +31,7 @@ extension Workspace {
         public var arguments: [Swift.String]
         public var buildPath: Workspace.Coherence.BuildPath?
         public var receiptPath: Swift.String
+        public var jobs: Swift.Int?
 
         public init(
             operation: Operation = .sync,
@@ -47,7 +48,8 @@ extension Workspace {
             sanctionedExceptions: [Swift.String] = [],
             arguments: [Swift.String] = [],
             buildPath: Workspace.Coherence.BuildPath? = nil,
-            receiptPath: Swift.String = ""
+            receiptPath: Swift.String = "",
+            jobs: Swift.Int? = nil
         ) {
             self.operation = operation
             self.dry = dry
@@ -64,6 +66,7 @@ extension Workspace {
             self.arguments = arguments
             self.buildPath = buildPath
             self.receiptPath = receiptPath
+            self.jobs = jobs
         }
     }
 }
@@ -198,6 +201,16 @@ extension Workspace.CLI {
                 )
             )
             Command.Option(
+                \.jobs,
+                name: .long(.literal("jobs")),
+                placeholder: "n",
+                help: .init(
+                    abstract:
+                        "Cap compile jobs the coordinator gives SwiftPM (package build or test "
+                        + "only); defaults to the machine's processor count."
+                )
+            )
+            Command.Option(
                 \.buildPath,
                 name: .long(.literal("build-path")),
                 placeholder: "xcodebuild-merged|swiftpm-composed-root",
@@ -231,6 +244,15 @@ extension Workspace.CLI {
         }
         guard operation == .coherence || buildPath == nil else {
             throw .validationFailed(reason: "--build-path is valid only with coherence.")
+        }
+        // Only build and test ever reach `Build.Action.acceptsJobs`; a cap
+        // silently accepted anywhere else would look like it did something.
+        guard
+            jobs == nil
+                || (operation == .package
+                    && (modes.first?.buildAction == .build || modes.first?.buildAction == .test))
+        else {
+            throw .validationFailed(reason: "--jobs is valid only with package build or test.")
         }
         guard operation == .dependencies || (output == nil && sanctionedExceptions.isEmpty) else {
             throw .validationFailed(
@@ -625,7 +647,7 @@ extension Workspace.CLI {
             }
             let status: Swift.Int32
             do throws(Build.Error) {
-                status = try Build.Coordinator().run(
+                status = try Build.Coordinator(jobs: jobs).run(
                     action,
                     at: packagePath.isEmpty ? working : packagePath,
                     fresh: fresh,
