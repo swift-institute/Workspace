@@ -103,3 +103,67 @@ extension Workspace.CLI.Test.Lint {
         }
     }
 }
+
+extension Workspace.CLI.Test.Lint {
+    @Test
+    func `the sweep accepts a fix request`() throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: ["lint", "--fix"],
+            initial: .init()
+        )
+        #expect(command.operation == .lint)
+        #expect(command.fix)
+        #expect(!command.dry)
+    }
+
+    /// `--dry-run` is otherwise rejected here; with `--fix` it is the
+    /// preview of the rewrite, which is the one plan a lint run has to show.
+    @Test
+    func `a fix accepts a dry run`() throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: ["lint", "--fix", "--dry-run"],
+            initial: .init()
+        )
+        #expect(command.fix)
+        #expect(command.dry)
+    }
+
+    @Test
+    func `a dry run without a fix is still rejected`() {
+        #expect(throws: (any Swift.Error).self) {
+            _ = try Command.parse(
+                Workspace.CLI.self,
+                from: ["lint", "--dry-run"],
+                initial: .init()
+            )
+        }
+    }
+
+    /// A fix is a rewrite, and the operations that cannot rewrite must say
+    /// so rather than drop the flag — a silently ignored `--fix` leaves the
+    /// caller reading findings and believing they are a repair record.
+    @Test
+    func `a fix outside lint is rejected`() {
+        #expect(throws: (any Swift.Error).self) {
+            _ = try Command.parse(
+                Workspace.CLI.self,
+                from: ["doctor", "--fix"],
+                initial: .init()
+            )
+        }
+    }
+
+    @Test
+    func `package lint accepts a fix`() throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: ["package", "lint", "--fix"],
+            initial: .init()
+        )
+        #expect(command.operation == .package)
+        #expect(command.modes == [.lint])
+        #expect(command.fix)
+    }
+}

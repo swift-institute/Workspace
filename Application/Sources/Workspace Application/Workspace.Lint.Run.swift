@@ -98,14 +98,25 @@ extension Workspace.Lint {
     ///   with. `nil` means the caller could not determine one, and the
     ///   package is reported unmeasured rather than linted against a
     ///   guess.
+    ///
+    /// - Parameter fix: When non-`nil`, the run applies (or previews) the
+    ///   canonical fixes rewriter-backed rules declare instead of reporting
+    ///   findings. The engine reads the mode from its own environment
+    ///   channel; ``Workspace/Lint/supportsFix(_:)`` is what keeps an older
+    ///   installation — which ignores that channel and would lint silently
+    ///   instead — from being handed the request at all.
     public func measure(
         _ target: Target,
         using installation: Installation,
-        default bundle: Bundle?
+        default bundle: Bundle?,
+        fix: Fix? = nil
     ) -> Measurement {
         let package = target.package.description
 
         var environment = Environment.Snapshot.current()
+        if let fix {
+            environment[Workspace.Lint.Fix.variable] = fix.rawValue
+        }
         let executable: Swift.String
         let arguments: [Swift.String]
         if target.isConfigured {

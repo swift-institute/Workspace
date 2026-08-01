@@ -1,0 +1,77 @@
+public import File_System
+private import Process
+
+extension Workspace.Lint {
+    /// What a `--fix` run does to the files it rewrites.
+    ///
+    /// Mirrors the engine's own vocabulary exactly, and carries the wire
+    /// token the engine reads, because a second spelling of the same two
+    /// choices is a second thing to keep in agreement.
+    public enum Fix: Swift.String, Sendable, Hashable, CaseIterable {
+        /// Rewrite the source files in place.
+        case apply
+
+        /// Compute the rewrites and print them as unified diffs, changing
+        /// nothing on disk.
+        case dryRun = "dry-run"
+    }
+}
+
+extension Workspace.Lint.Fix {
+    /// The environment channel the engine reads the mode from.
+    ///
+    /// Duplicated here rather than imported: Workspace depends on the
+    /// linter's *binaries*, never on its library, which is the whole point
+    /// of the installation boundary. The channel name is part of the
+    /// binaries' command-line contract, and ``Workspace/Lint/supportsFix(_:)``
+    /// is what keeps this side from talking to a build that does not
+    /// understand it.
+    static let variable = "SWIFT_LINTER_FIX"
+}
+
+extension Workspace.Lint {
+    /// Whether the installed binaries understand `--fix`.
+    ///
+    /// Asked before every fix run, and the reason this capability is safe to
+    /// ship ahead of the `ci-binaries` release that carries it. The mode
+    /// rides an environment channel, and an older engine does not read that
+    /// channel at all: it would lint, report findings, exit zero, and change
+    /// nothing — while the caller believed it had applied fixes and was
+    /// looking at a report of what remained. A silent no-op that looks like
+    /// a successful run is exactly the failure this whole capability's
+    /// measurement discipline exists to prevent, so it is refused up front
+    /// instead.
+    ///
+    /// The probe is the dispatcher's own `--help`, which is free, offline,
+    /// and cannot be wrong about its own option vocabulary.
+    public static func supportsFix(_ installation: Installation) -> Swift.Bool {
+        let output: Process.Output
+        do throws(Process.Error) {
+            output = try Process.Spawn.run(
+                .init(
+                    executable: installation.executable.description,
+                    arguments: ["--help"],
+                    stdout: .pipe,
+                    stderr: .pipe
+                )
+            )
+        } catch {
+            return false
+        }
+        let text =
+            Swift.String(decoding: output.stdout ?? [], as: Swift.UTF8.self)
+            + Swift.String(decoding: output.stderr ?? [], as: Swift.UTF8.self)
+        return text.contains("--fix")
+    }
+}
+
+extension Workspace.Lint {
+    /// What to say when a fix is asked of binaries that cannot perform one.
+    ///
+    /// Names the remedy rather than the mechanism: the installed build
+    /// predates `--fix`, and the fix is to install a newer one, not to
+    /// understand environment channels.
+    static let fixUnsupported =
+        "the installed swift-linter predates --fix and would silently lint instead of "
+        + "fixing; run `workspace lint install` once the ci-binaries release carries it"
+}

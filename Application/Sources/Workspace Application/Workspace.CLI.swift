@@ -25,6 +25,7 @@ extension Workspace {
         public var workspacePath: Swift.String
         public var fresh: Bool
         public var changed: Bool
+        public var fix: Bool
         public var institute: Bool
         public var output: Workspace.Dependency.Output?
         public var sanctionedExceptions: [Swift.String]
@@ -47,6 +48,7 @@ extension Workspace {
             workspacePath: Swift.String = "",
             fresh: Bool = false,
             changed: Bool = false,
+            fix: Bool = false,
             institute: Bool = false,
             output: Workspace.Dependency.Output? = nil,
             sanctionedExceptions: [Swift.String] = [],
@@ -68,6 +70,7 @@ extension Workspace {
             self.workspacePath = workspacePath
             self.fresh = fresh
             self.changed = changed
+            self.fix = fix
             self.institute = institute
             self.output = output
             self.sanctionedExceptions = sanctionedExceptions
@@ -139,6 +142,16 @@ extension Workspace.CLI {
                     abstract:
                         "Sweep only packages with local work — an unclean worktree, or commits not "
                         + "yet in the tracked upstream (lint sweep only)."
+                )
+            )
+            Command.Flag(
+                \.fix,
+                name: .long(.literal("fix")),
+                help: .init(
+                    abstract:
+                        "Apply the canonical fix of every rewriter-backed rule instead of "
+                        + "reporting findings (lint sweep or package lint). Add --dry-run to "
+                        + "print the diffs without writing."
                 )
             )
             Command.Flag(
@@ -298,6 +311,15 @@ extension Workspace.CLI {
         guard operation == .lint || !changed else {
             throw .validationFailed(reason: "--changed is valid only with the lint sweep.")
         }
+        // Rejected rather than ignored, for the reason every flag here is:
+        // a `--fix` that was silently dropped would leave the caller reading
+        // a findings report and believing it was a record of what had just
+        // been repaired.
+        guard operation == .lint || (operation == .package && modes.first == .lint) || !fix else {
+            throw .validationFailed(
+                reason: "--fix is valid only with the lint sweep or `package lint`."
+            )
+        }
         // Rejected rather than ignored: a flag that asks for a measurement
         // and is silently dropped produces a report that looks like the one
         // that measured, which is the defect `--institute` exists to fix.
@@ -452,7 +474,9 @@ extension Workspace.CLI {
                     reason: "--consumer and --dependency are not valid with lint."
                 )
             }
-            guard !dry else {
+            // `--fix --dry-run` is the preview of a fix run — the one place
+            // `--dry-run` means something here, and the only place it does.
+            guard !dry || fix else {
                 throw .validationFailed(
                     reason: "--dry-run is valid only with sync or inventory regenerate."
                 )
@@ -487,7 +511,9 @@ extension Workspace.CLI {
                     reason: "--consumer and --dependency are not valid with package."
                 )
             }
-            guard !dry else {
+            // `--fix --dry-run` previews a `package lint --fix`; nothing else
+            // in this branch has a plan to show.
+            guard !dry || (fix && mode == .lint) else {
                 throw .validationFailed(
                     reason: "--dry-run is valid only with sync or inventory regenerate."
                 )
@@ -748,13 +774,19 @@ extension Workspace.CLI {
             // the hierarchy the installation was found in — the same
             // ascent, no extra reads. It is used only when the package
             // carries no `Lint.swift`.
+            let installation = try lint.installation()
+            let mode: Workspace.Lint.Fix? = fix ? (dry ? .dryRun : .apply) : nil
+            if mode != nil, !Workspace.Lint.supportsFix(installation) {
+                throw .configuration(Workspace.Lint.fixUnsupported)
+            }
             let measurement = lint.measure(
                 target,
-                using: try lint.installation(),
+                using: installation,
                 default: Workspace.Lint.Bundle.resolve(
                     target.package,
                     under: lint.hierarchy
-                )
+                ),
+                fix: mode
             )
             print(measurement)
             Process.Exit.normal(measurement.verdict.fails ? (measurement.verdict.isUnmeasured ? 2 : 1) : 0)
@@ -805,12 +837,16 @@ extension Workspace.CLI {
                 }
                 print("lint: current — digest \(try lint.installedManifest().digest) matches CI")
             case nil:
+                let fixMode: Workspace.Lint.Fix? = fix ? (dry ? .dryRun : .apply) : nil
+                if fixMode != nil, !Workspace.Lint.supportsFix(try lint.installation()) {
+                    throw .configuration(Workspace.Lint.fixUnsupported)
+                }
                 let configuration = try Workspace.Configuration.load(at: root.checkout)
                 let report = try await Workspace.Lint.Sweep(
                     lint: lint,
                     root: root,
                     repositories: configuration.repositories
-                ).run(scope: changed ? .changed : .all)
+                ).run(scope: changed ? .changed : .all, fix: fixMode)
                 print(report)
                 Process.Exit.normal(report.status)
             default:

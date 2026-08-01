@@ -90,7 +90,10 @@ extension Workspace.Lint.Sweep {
     /// enumerated an inventory and then found nothing on disk has not
     /// established that the ecosystem is clean; it has established that
     /// it is looking in the wrong place.
-    public func run(scope: Scope = .all) async throws(Workspace.Error) -> Workspace.Lint.Report {
+    public func run(
+        scope: Scope = .all,
+        fix: Workspace.Lint.Fix? = nil
+    ) async throws(Workspace.Error) -> Workspace.Lint.Report {
         let installation = try lint.installation()
         let inventory = repositories
 
@@ -145,7 +148,8 @@ extension Workspace.Lint.Sweep {
                     bundle: Workspace.Lint.Bundle(entry.repository.layer)
                 )
             },
-            using: installation
+            using: installation,
+            fix: fix
         )
         return .init(
             scope: scope,
@@ -159,14 +163,16 @@ extension Workspace.Lint.Sweep {
     /// Measures every target, `jobs` at a time.
     func measure(
         _ targets: [(target: Workspace.Lint.Target, bundle: Workspace.Lint.Bundle)],
-        using installation: Workspace.Lint.Installation
+        using installation: Workspace.Lint.Installation,
+        fix: Workspace.Lint.Fix?
     ) async -> [Workspace.Lint.Measurement] {
         let lint = self.lint
         return await concurrently(targets) { entry in
             lint.measure(
                 entry.target,
                 using: installation,
-                default: entry.bundle
+                default: entry.bundle,
+                fix: fix
             )
         }
     }
