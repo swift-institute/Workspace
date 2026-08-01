@@ -40,6 +40,7 @@ let package = Package(
         .package(url: "https://github.com/swift-ietf/swift-rfc-3986.git", branch: "main"),
         .package(url: "https://github.com/swift-ietf/swift-rfc-4648.git", branch: "main"),
         .package(url: "https://github.com/swift-primitives/swift-byte-primitives.git", branch: "main"),
+        .package(url: "https://github.com/swift-standards/swift-spm-standard.git", branch: "main"),
         .package(
             url: "https://github.com/swift-primitives/swift-standard-library-extensions.git",
             branch: "main"
@@ -105,6 +106,7 @@ let package = Package(
                 .product(name: "GitHub", package: "swift-github"),
                 .product(name: "GitHub HTTP", package: "swift-github-http"),
                 .product(name: "JSON", package: "swift-json"),
+                .product(name: "SPM Standard", package: "swift-spm-standard"),
                 .product(name: "Byte Primitives", package: "swift-byte-primitives"),
                 .product(name: "Byte Primitives Standard Library Integration", package: "swift-byte-primitives"),
                 .product(
