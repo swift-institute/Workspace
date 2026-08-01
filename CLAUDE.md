@@ -25,6 +25,10 @@ Application/.build/debug/workspace lint check                   # parity with CI
 Application/.build/debug/workspace lint                         # sweep the ecosystem
 Application/.build/debug/workspace package lint                 # one package, no arguments
 
+# per-organization GitHub App installation token, for high-volume machine reads
+GH_TOKEN=$(workspace github token --org <org>) gh api rate_limit
+workspace github token --org <org> --permission contents=read   # narrowed
+
 # local-source composition, for changing a package and its consumer together
 swift run --package-path Application workspace compose --consumer <c> --dependency <d>
 swift run --package-path Application workspace verify  --consumer <c> --dependency <d>
@@ -109,6 +113,21 @@ authenticated `gh` never changes what a plain `doctor` does.
   to run on a mismatch. Never hand-edit the scheme, and never soften that pre-flight check into a
   warning — a build path that can report success having compiled a fraction of the selection is
   the exact failure this gate exists to prevent.
+- **`github token` mints a credential, so it prints one thing and logs nothing.** The token is
+  the whole of stdout, with no trailing commentary, so `GH_TOKEN=$(workspace github token --org
+  X)` captures a credential and nothing else; whether it was minted or served from cache goes to
+  stderr. It needs a GitHub App private key the operator installed themselves under
+  `~/.config/swift-institute-bot/`, alongside a file naming the application identity — neither
+  the identity nor the key location is compiled in, and no diagnostic names the resolved key
+  path, because that path identifies a machine and the key is fleet-password-equivalent. Tokens
+  are cached mode-600 per organization *and per permission set*: a token narrowed to
+  `contents=read` and one carrying the installation's full grant are different credentials, and
+  a shared cache entry would silently widen the first. Preserve both properties in any change
+  here — a mint path that can print a token into a log, or hand back a wider credential than was
+  asked for, is the failure this capability exists to avoid. The point of it is rate pools: each
+  installation carries its own, so high-volume machine reads under an installation token do not
+  spend the principal's single shared one. Judgment writes stay on the principal identity, and a
+  read that guards a mutation uses the same identity as the mutation.
 - **Roster drift is detected by CI, not by anyone remembering.** `inventory-currency`
   compares `Workspace.json` against a live discovery in both directions. It needs an
   authenticated `gh`, so no contributor command reaches it and none should: `doctor` is

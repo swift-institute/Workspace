@@ -18,6 +18,7 @@ extension Workspace.CLI {
         case lint
         case pages
         case seal
+        case token
 
         public init?(argument: Swift.String) {
             switch argument {
@@ -35,6 +36,7 @@ extension Workspace.CLI {
             case "lint": self = .lint
             case "pages": self = .pages
             case "seal": self = .seal
+            case "token": self = .token
             default: return nil
             }
         }
@@ -55,6 +57,7 @@ extension Workspace.CLI {
             case .lint: "lint"
             case .pages: "pages"
             case .seal: "seal"
+            case .token: "token"
             }
         }
     }
@@ -63,7 +66,7 @@ extension Workspace.CLI {
 extension Workspace.CLI.Mode {
     var buildAction: Build.Action? {
         switch self {
-        case .install, .check, .serve, .regenerate, .lint, .pages, .seal: nil
+        case .install, .check, .serve, .regenerate, .lint, .pages, .seal, .token: nil
         case .build: .build
         case .test: .test
         case .run: .run

@@ -32,6 +32,10 @@ extension Workspace {
         public var buildPath: Workspace.Coherence.BuildPath?
         public var receiptPath: Swift.String
         public var jobs: Swift.Int?
+        public var organization: Swift.String
+        public var permissions: [Swift.String]
+        public var applicationIdentity: Swift.String
+        public var keyPath: Swift.String
 
         public init(
             operation: Operation = .sync,
@@ -49,7 +53,11 @@ extension Workspace {
             arguments: [Swift.String] = [],
             buildPath: Workspace.Coherence.BuildPath? = nil,
             receiptPath: Swift.String = "",
-            jobs: Swift.Int? = nil
+            jobs: Swift.Int? = nil,
+            organization: Swift.String = "",
+            permissions: [Swift.String] = [],
+            applicationIdentity: Swift.String = "",
+            keyPath: Swift.String = ""
         ) {
             self.operation = operation
             self.dry = dry
@@ -67,6 +75,10 @@ extension Workspace {
             self.buildPath = buildPath
             self.receiptPath = receiptPath
             self.jobs = jobs
+            self.organization = organization
+            self.permissions = permissions
+            self.applicationIdentity = applicationIdentity
+            self.keyPath = keyPath
         }
     }
 }
@@ -86,7 +98,7 @@ extension Workspace.CLI {
                 name: "operation",
                 placeholder:
                     "install|sync|build|doctor|inventory|dependencies|compose|restore|verify|context"
-                        + "|navigation|package|lint|coherence|conversion",
+                        + "|navigation|package|lint|coherence|conversion|github",
                 help: .init(abstract: "Operation to perform.")
             )
             Command.Positional<Self, Mode>.Many(
@@ -94,12 +106,12 @@ extension Workspace.CLI {
                 name: "mode",
                 placeholder:
                     "install|check|serve|build|test|run|resolve|update|regenerate|clean|dump-package|lint"
-                        + "|pages|seal",
+                        + "|pages|seal|token",
                 arity: .atMost(1),
                 help: .init(
                     abstract:
-                        "Required after context, navigation, package, or conversion; optional "
-                        + "after inventory or lint."
+                        "Required after context, navigation, package, conversion, or github; "
+                        + "optional after inventory or lint."
                 )
             )
             Command.Flag(
@@ -229,10 +241,60 @@ extension Workspace.CLI {
                     abstract: "Conversion receipt file `conversion check` re-reads (issue #83)."
                 )
             )
+            Command.Option(
+                \.organization,
+                name: .long(.literal("org")),
+                placeholder: "organization",
+                help: .init(
+                    abstract: "GitHub organization whose installation token is minted (github token)."
+                )
+            )
+            Command.Option<Self, Swift.String>.Many(
+                \.permissions,
+                name: .long(.literal("permission")),
+                placeholder: "name=level",
+                help: .init(
+                    abstract:
+                        "Narrow the minted token to this permission (github token; repeatable). "
+                        + "Without one the token carries the installation's whole grant."
+                )
+            )
+            Command.Option(
+                \.applicationIdentity,
+                name: .long(.literal("app-id")),
+                placeholder: "identity",
+                help: .init(
+                    abstract:
+                        "GitHub App identity to mint as; defaults to GITHUB_APP_ID, then the "
+                        + "identity file in the configuration directory."
+                )
+            )
+            Command.Option(
+                \.keyPath,
+                name: .long(.literal("key")),
+                placeholder: "path",
+                help: .init(
+                    abstract:
+                        "Signing key to use; defaults to GITHUB_APP_PRIVATE_KEY_PATH, then the "
+                        + "sole .pem in the configuration directory."
+                )
+            )
         }
     }
 
     public mutating func validate() throws(Command.Error) {
+        // Rejected rather than ignored, for the same reason `--institute` is:
+        // a credential flag silently dropped mints a *wider* token than the
+        // caller asked for, and nothing downstream can tell the difference.
+        guard
+            operation == .github
+                || (organization.isEmpty && permissions.isEmpty && applicationIdentity.isEmpty
+                    && keyPath.isEmpty)
+        else {
+            throw .validationFailed(
+                reason: "--org, --permission, --app-id, and --key are valid only with github token."
+            )
+        }
         guard operation == .lint || !changed else {
             throw .validationFailed(reason: "--changed is valid only with the lint sweep.")
         }
@@ -522,6 +584,29 @@ extension Workspace.CLI {
             guard modes.first != .check || !receiptPath.isEmpty else {
                 throw .validationFailed(reason: "conversion check requires --receipt.")
             }
+        } else if operation == .github {
+            guard modes.count == 1, modes.first == .token else {
+                throw .validationFailed(reason: "github requires token.")
+            }
+            guard !organization.isEmpty else {
+                throw .validationFailed(reason: "github token requires --org.")
+            }
+            guard consumer.isEmpty, dependency.isEmpty else {
+                throw .validationFailed(
+                    reason: "--consumer and --dependency are not valid with github."
+                )
+            }
+            guard !dry, !fresh else {
+                throw .validationFailed(
+                    reason: "--dry-run and --fresh are not valid with github."
+                )
+            }
+            guard packagePath.isEmpty, workspacePath.isEmpty, arguments.isEmpty else {
+                throw .validationFailed(
+                    reason:
+                        "--package-path, --workspace-path, and --argument are not valid with github."
+                )
+            }
         } else if operation == .build {
             guard modes.isEmpty else {
                 throw .validationFailed(
@@ -608,6 +693,40 @@ extension Workspace.CLI {
             print("workspace: installed and verified")
             print("workspace command: \(installation.command)")
             print("workspace executable: \(installation.executable)")
+            return
+        }
+
+        if case .github = operation, modes.first == .token {
+            // Minting a credential has nothing to do with a Workspace
+            // checkout, so this returns before any root is resolved: the
+            // command works from any directory on the machine, which is what
+            // makes `GH_TOKEN=$(workspace github token --org X)` usable in a
+            // lane standing inside a package.
+            let app: Workspace.GitHub.App
+            let result: (token: Workspace.GitHub.App.Token, cached: Swift.Bool)
+            do throws(Workspace.GitHub.App.Error) {
+                app = try .resolve(
+                    identity: applicationIdentity.isEmpty ? nil : applicationIdentity,
+                    keyPath: keyPath.isEmpty ? nil : keyPath
+                )
+                result = try app.token(
+                    organization: organization,
+                    permissions: try permissions.map { (value) throws(Workspace.GitHub.App.Error) in
+                        try .init(argument: value)
+                    }
+                )
+            } catch {
+                throw .configuration("github token: \(error)")
+            }
+            // The token is the whole of stdout, with no trailing commentary,
+            // so command substitution captures a credential and nothing else.
+            // Everything a human wants to know goes to stderr, where it cannot
+            // end up inside an Authorization header.
+            print(result.token.value)
+            unsafe fputs(
+                "github token: \(result.cached ? "cache hit" : "minted") for \(organization)\n",
+                stderr
+            )
             return
         }
 
@@ -949,6 +1068,8 @@ extension Workspace.CLI {
         case .package:
             return
         case .lint:
+            return
+        case .github:
             return
         }
     }
