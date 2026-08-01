@@ -115,7 +115,35 @@ extension Workspace.Lint {
 
         var environment = Environment.Snapshot.current()
         if let fix {
+            let roots: [File.Directory]
+            do throws(Workspace.Error) {
+                roots = try target.roots()
+            } catch {
+                return .init(
+                    package: package,
+                    verdict: .unmeasured(
+                        reason: "cannot resolve declared SwiftPM target roots for --fix: \(error)"
+                    ),
+                    summary: nil,
+                    findings: [],
+                    diagnostics: "",
+                    status: -1
+                )
+            }
+            guard !roots.isEmpty else {
+                return .init(
+                    package: package,
+                    verdict: .unmeasured(
+                        reason: "--fix requires at least one declared SwiftPM target root"
+                    ),
+                    summary: nil,
+                    findings: [],
+                    diagnostics: "",
+                    status: -1
+                )
+            }
             environment[Workspace.Lint.Fix.variable] = fix.rawValue
+            environment[Workspace.Lint.Fix.targetsVariable] = Workspace.Lint.Fix.targets(roots)
         }
         let executable: Swift.String
         let arguments: [Swift.String]

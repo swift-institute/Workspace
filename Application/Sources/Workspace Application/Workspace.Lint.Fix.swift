@@ -1,4 +1,5 @@
 public import File_System
+internal import JSON
 private import Process
 
 extension Workspace.Lint {
@@ -27,6 +28,25 @@ extension Workspace.Lint.Fix {
     /// is what keeps this side from talking to a build that does not
     /// understand it.
     static let variable = "SWIFT_LINTER_FIX"
+
+    /// The environment channel carrying exact SwiftPM target roots to a
+    /// fix-capable linter process.
+    ///
+    /// The linter keeps detection rooted at the package so configuration,
+    /// manifests, scripts, and fixtures remain observable. Application is a
+    /// separate concern: it receives only this manifest-derived vector and
+    /// must not infer membership from directory spelling.
+    static let targetsVariable = "SWIFT_LINTER_FIX_TARGETS"
+
+    /// Encodes declared target roots for the linter's fix channel.
+    ///
+    /// JSON preserves paths containing spaces and makes the boundary's
+    /// ordered-vector semantics explicit. The string is part of the binary
+    /// contract; Workspace intentionally does not depend on the linter
+    /// library just to share this transport type.
+    static func targets(_ roots: [File.Directory]) -> Swift.String {
+        JSON.array(roots.map { .string($0.description) }).jsonString()
+    }
 }
 
 extension Workspace.Lint {
