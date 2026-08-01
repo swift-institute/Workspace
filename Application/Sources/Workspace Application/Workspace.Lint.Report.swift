@@ -29,6 +29,37 @@ extension Workspace.Lint {
 
         /// One measurement per package actually linted.
         public let measurements: [Measurement]
+
+        /// Packages a `--fix` run withheld rewrites from, and why.
+        ///
+        /// Empty on every read-only sweep — there is nothing to withhold
+        /// from a run that writes nothing — and never folded into the
+        /// tallies above. A withheld package was not measured and was not
+        /// found clean; it was deliberately not rewritten, which is a
+        /// third thing, and the reason it is reported by name with a
+        /// declaring site rather than counted.
+        ///
+        /// It does not fail the run. The gate is the safe outcome, not an
+        /// error: a fleet fix that exited non-zero because it correctly
+        /// declined to retarget 141 packages' references would be a gate
+        /// nobody could leave switched on.
+        public let withheld: [Shadow.Withholding]
+
+        public init(
+            scope: Sweep.Scope,
+            inventory: Swift.Int,
+            unmaterialized: [Swift.String],
+            considered: Swift.Int,
+            measurements: [Measurement],
+            withheld: [Shadow.Withholding] = []
+        ) {
+            self.scope = scope
+            self.inventory = inventory
+            self.unmaterialized = unmaterialized
+            self.considered = considered
+            self.measurements = measurements
+            self.withheld = withheld
+        }
     }
 }
 
@@ -120,6 +151,17 @@ extension Workspace.Lint.Report: CustomStringConvertible {
             lines.append("\(measurement.verdict.text)  \(measurement.package)")
         }
 
+        if !withheld.isEmpty {
+            lines.append("")
+            lines.append(
+                "withheld from --fix (\(withheld.count)) — PLAT-ARCH-022 qualification is "
+                    + "unsound where a standard-library name is shadowed:"
+            )
+            for entry in withheld {
+                lines.append("\(entry)")
+            }
+        }
+
         if !unmaterialized.isEmpty {
             lines.append("")
             lines.append(
@@ -152,6 +194,7 @@ extension Workspace.Lint.Report: CustomStringConvertible {
             "lint \(scope.text): \(measurements.count) packages linted · \(filesLinted) files · "
                 + "\(clean.count) clean · \(violations.count) with violations · "
                 + "\(unmeasured.count) UNMEASURED"
+                + (withheld.isEmpty ? "" : " · \(withheld.count) withheld from --fix")
         )
         lines.append("engine time \(Self.seconds(engineTime)) summed across packages")
         lines.append(

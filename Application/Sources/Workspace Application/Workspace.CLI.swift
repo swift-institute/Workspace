@@ -784,6 +784,22 @@ extension Workspace.CLI {
                 guard stale.isEmpty else {
                     throw .configuration(stale.joined(separator: "\n"))
                 }
+                // The shadow gate, first tier only. The inner loop stands
+                // inside one package and reads no inventory, so the
+                // re-export tier — which needs the population to resolve a
+                // module to the package providing it — has nothing to
+                // resolve against and is not attempted. The sweep is where
+                // it runs, and the sweep is what dispatches the fleet.
+                if let withholding = Workspace.Lint.Shadow.withholding(
+                    for: Workspace.Lint.Shadow.scan(target.package)
+                ) {
+                    print("\(withholding)")
+                    print(
+                        "          PLAT-ARCH-022 qualification is unsound here; "
+                            + "no fixes were applied to this package"
+                    )
+                    Process.Exit.normal(0)
+                }
             }
             let measurement = lint.measure(
                 target,

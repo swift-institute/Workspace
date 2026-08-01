@@ -135,6 +135,31 @@ extension Workspace.Lint.Sweep {
             selected = zip(targets, local).filter(\.1).map(\.0)
         }
 
+        // The shadow gate applies only to a fix run: it withholds
+        // rewrites, and a read-only lint run has none to withhold.
+        // Detection is untouched in both modes — a package skipped here
+        // still reports its PLAT-ARCH-022 findings on the next ordinary
+        // sweep, which is what keeps the gate from becoming an excuse.
+        //
+        // The scan population is every materialized package, not the
+        // selected slice. Tier (b) resolves a re-exported module to the
+        // package providing it, and a `--changed` sweep selects a handful
+        // — resolving against that handful would report almost every
+        // re-export unresolvable and withhold almost everything.
+        var withheld = [Workspace.Lint.Shadow.Withholding]()
+        var fixable = selected
+        if fix != nil {
+            let scans = await concurrently(targets) { entry in
+                Workspace.Lint.Shadow.scan(entry.target.package)
+            }
+            withheld = Workspace.Lint.Shadow.withholdings(across: scans)
+            let gated = Swift.Set(withheld.map(\.package))
+            fixable = selected.filter { !gated.contains($0.target.package.description) }
+            withheld = withheld.filter { entry in
+                selected.contains { $0.target.package.description == entry.package }
+            }
+        }
+
         // The bundle comes from the inventory entry's layer, which is
         // authoritative — the sweep never has to derive it from where a
         // package happens to sit on disk. It is passed for every package,
@@ -142,7 +167,7 @@ extension Workspace.Lint.Sweep {
         // `Lint.swift`, and a configured package's own manifest always
         // wins.
         let measurements = await measure(
-            selected.map { entry in
+            fixable.map { entry in
                 (
                     target: entry.target,
                     bundle: Workspace.Lint.Bundle(entry.repository.layer)
@@ -156,7 +181,8 @@ extension Workspace.Lint.Sweep {
             inventory: inventory.count,
             unmaterialized: absent,
             considered: targets.count,
-            measurements: measurements
+            measurements: measurements,
+            withheld: withheld
         )
     }
 
