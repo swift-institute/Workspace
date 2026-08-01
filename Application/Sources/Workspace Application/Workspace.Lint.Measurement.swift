@@ -16,6 +16,13 @@ extension Workspace.Lint {
         /// The engine's summary, when it emitted one.
         public let summary: Summary?
 
+        /// The exact safe rewrite plan, present only for a fix invocation.
+        ///
+        /// A non-empty fix result has no usable remediation value without
+        /// rule-attributed sites, so fix-mode adjudication refuses a summary
+        /// whose reported rewrite count cannot be matched to this plan.
+        public let plan: Fix.Plan?
+
         /// Diagnostic lines the engine wrote to standard output.
         public let findings: [Swift.String]
 
@@ -124,7 +131,8 @@ extension Workspace.Lint {
         package: Swift.String,
         status: Swift.Int32,
         standardOutput: Swift.String,
-        standardError: Swift.String
+        standardError: Swift.String,
+        fix: Fix? = nil
     ) -> Measurement {
         let summary = Summary.parse(standardError)
         let findings =
@@ -141,6 +149,7 @@ extension Workspace.Lint {
                         + "were scanned; exit status \(status) attests only that a process ran"
                 ),
                 summary: nil,
+                plan: nil,
                 findings: findings,
                 diagnostics: standardError,
                 status: status
@@ -153,6 +162,7 @@ extension Workspace.Lint {
                     reason: "the engine loaded zero active rules, so nothing could be found"
                 ),
                 summary: summary,
+                plan: nil,
                 findings: findings,
                 diagnostics: standardError,
                 status: status
@@ -167,10 +177,32 @@ extension Workspace.Lint {
                         + "ran over an empty population"
                 ),
                 summary: summary,
+                plan: nil,
                 findings: findings,
                 diagnostics: standardError,
                 status: status
             )
+        }
+
+        let plan: Fix.Plan?
+        if fix != nil {
+            guard let parsed = Fix.Plan.parse(standardOutput, changes: summary.violations) else {
+                return .init(
+                    package: package,
+                    verdict: .unmeasured(
+                        reason: "the engine reported \(summary.violations) rewrite sites but did not "
+                            + "publish one complete rule-attributed plan"
+                    ),
+                    summary: summary,
+                    plan: nil,
+                    findings: findings,
+                    diagnostics: standardError,
+                    status: status
+                )
+            }
+            plan = parsed
+        } else {
+            plan = nil
         }
 
         let verdict: Measurement.Verdict =
@@ -181,6 +213,7 @@ extension Workspace.Lint {
             package: package,
             verdict: verdict,
             summary: summary,
+            plan: plan,
             findings: findings,
             diagnostics: standardError,
             status: status
@@ -203,6 +236,7 @@ extension Workspace.Lint.Measurement {
             package: package,
             verdict: verdict,
             summary: summary,
+            plan: plan,
             findings: findings.filter { $0.contains(needle) },
             diagnostics: diagnostics,
             status: status

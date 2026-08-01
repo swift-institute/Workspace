@@ -30,6 +30,9 @@ extension Workspace.Lint {
         /// One measurement per package actually linted.
         public let measurements: [Measurement]
 
+        /// The requested rewrite mode, if this was a fix sweep.
+        public let fix: Fix?
+
         /// Packages whose shadow risk excluded PLAT-ARCH-022 from `--fix`, and why.
         ///
         /// Empty on every read-only sweep — there is no fixer to exclude
@@ -50,6 +53,7 @@ extension Workspace.Lint {
             unmaterialized: [Swift.String],
             considered: Swift.Int,
             measurements: [Measurement],
+            fix: Fix? = nil,
             excluded: [Shadow.Exclusion] = []
         ) {
             self.scope = scope
@@ -57,6 +61,7 @@ extension Workspace.Lint {
             self.unmaterialized = unmaterialized
             self.considered = considered
             self.measurements = measurements
+            self.fix = fix
             self.excluded = excluded
         }
     }
@@ -148,6 +153,35 @@ extension Workspace.Lint.Report: CustomStringConvertible {
         }
         for measurement in violations {
             lines.append("\(measurement.verdict.text)  \(measurement.package)")
+        }
+
+        if let fix {
+            lines.append("")
+            lines.append("fix \(fix.rawValue) measurement:")
+            for measurement in measurements {
+                guard let summary = measurement.summary else {
+                    lines.append("  UNMEASURED  \(measurement.package)")
+                    continue
+                }
+                let siteLabel = summary.violations == 1 ? "site" : "sites"
+                lines.append(
+                    "  \(measurement.package) · \(summary.activeRules) active rules · "
+                        + "\(summary.filesLinted) files linted · \(summary.violations) rewrite "
+                        + siteLabel
+                )
+                guard let plan = measurement.plan else { continue }
+                if plan.sites.isEmpty {
+                    lines.append("    rewrite plan: no eligible changes")
+                    continue
+                }
+                lines.append("    rewrite plan:")
+                for rule in plan.rules {
+                    lines.append("      \(rule)")
+                    for site in plan.sites(for: rule) {
+                        lines.append("        \(site)")
+                    }
+                }
+            }
         }
 
         if !excluded.isEmpty {

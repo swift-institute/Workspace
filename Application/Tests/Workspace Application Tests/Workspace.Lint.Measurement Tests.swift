@@ -94,6 +94,44 @@ struct `Workspace Lint Measurement Tests` {
         #expect(measurement.verdict.fails)
     }
 
+    @Test
+    func `a fix summary retains its active-rule file control and exact rule plan`() throws {
+        let measurement = Workspace.Lint.adjudicate(
+            package: "/tmp/pkg",
+            status: 0,
+            standardOutput: """
+                --- /tmp/pkg/Sources/Feature.swift
+                +++ /tmp/pkg/Sources/Feature.swift
+                @@ -1,1 +1,1 @@ IMPL-033, PLAT-ARCH-021
+                -let old = 1
+                +let new = 1
+                """,
+            standardError: "swift-pkg · 93 active rules · 12 files linted · 1 violation",
+            fix: .dryRun
+        )
+
+        let plan = try #require(measurement.plan)
+        #expect(measurement.summary?.activeRules == 93)
+        #expect(measurement.summary?.filesLinted == 12)
+        #expect(plan.rules == ["IMPL-033", "PLAT-ARCH-021"])
+        #expect(plan.sites(for: "IMPL-033") == ["/tmp/pkg/Sources/Feature.swift"])
+        #expect(plan.sites(for: "PLAT-ARCH-021") == ["/tmp/pkg/Sources/Feature.swift"])
+    }
+
+    @Test
+    func `a fix summary without every reported rewrite site is unmeasured`() {
+        let measurement = Workspace.Lint.adjudicate(
+            package: "/tmp/pkg",
+            status: 0,
+            standardOutput: "",
+            standardError: "swift-pkg · 93 active rules · 12 files linted · 1 violation",
+            fix: .dryRun
+        )
+
+        #expect(measurement.verdict.isUnmeasured)
+        #expect(measurement.plan == nil)
+    }
+
     /// A file's findings are narrowed out of the package's; the
     /// package's verdict is not recomputed. A file with no findings
     /// inside a failing package has not been shown to be clean, and
@@ -128,6 +166,7 @@ struct `Workspace Lint Report Tests` {
                 filesLinted: 10,
                 violations: 0
             ),
+            plan: nil,
             findings: [],
             diagnostics: "",
             status: 0
@@ -197,5 +236,39 @@ struct `Workspace Lint Report Tests` {
             measurements: [Self.measurement(.clean), Self.measurement(.clean)]
         )
         #expect(report.filesLinted == 20)
+    }
+
+    @Test
+    func `a fix report renders every active-rule file summary and groups sites by rule`() {
+        let measured = Workspace.Lint.Measurement(
+            package: "/tmp/pkg",
+            verdict: .violations(count: 1, failing: false),
+            summary: .init(
+                package: "pkg",
+                activeRules: 93,
+                excludedRules: 0,
+                filesLinted: 12,
+                violations: 1
+            ),
+            plan: .init(sites: [
+                .init(path: "/tmp/pkg/Sources/Feature.swift", rules: ["IMPL-033", "PLAT-ARCH-021"])
+            ]),
+            findings: [],
+            diagnostics: "",
+            status: 0
+        )
+        let report = Workspace.Lint.Report(
+            scope: .all,
+            inventory: 1,
+            unmaterialized: [],
+            considered: 1,
+            measurements: [measured],
+            fix: .dryRun
+        )
+
+        let text = report.description
+        #expect(text.contains("/tmp/pkg · 93 active rules · 12 files linted · 1 rewrite site"))
+        #expect(text.contains("      IMPL-033\n        /tmp/pkg/Sources/Feature.swift"))
+        #expect(text.contains("      PLAT-ARCH-021\n        /tmp/pkg/Sources/Feature.swift"))
     }
 }

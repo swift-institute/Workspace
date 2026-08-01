@@ -182,6 +182,7 @@ extension Workspace.Lint.Sweep {
             unmaterialized: absent,
             considered: targets.count,
             measurements: measurements,
+            fix: fix,
             excluded: excluded
         )
     }

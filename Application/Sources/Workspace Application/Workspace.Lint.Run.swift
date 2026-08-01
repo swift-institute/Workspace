@@ -126,6 +126,7 @@ extension Workspace.Lint {
                         reason: "cannot resolve declared SwiftPM target roots for --fix: \(error)"
                     ),
                     summary: nil,
+                    plan: nil,
                     findings: [],
                     diagnostics: "",
                     status: -1
@@ -138,6 +139,7 @@ extension Workspace.Lint {
                         reason: "--fix requires at least one declared SwiftPM target root"
                     ),
                     summary: nil,
+                    plan: nil,
                     findings: [],
                     diagnostics: "",
                     status: -1
@@ -154,17 +156,16 @@ extension Workspace.Lint {
             arguments = [package, "--exit-policy", Self.exitPolicy]
         } else {
             guard let bundle else {
+                let reason =
+                    "no Lint.swift at \(package), and no default rule bundle could be resolved for it: "
+                        + "the package does not sit under a layer root in \(hierarchy), so which rule set "
+                        + "its peers use is not established. Linting it against a guessed bundle would "
+                        + "publish a number nobody can interpret"
                 return .init(
                     package: package,
-                    verdict: .unmeasured(
-                        reason:
-                            "no Lint.swift at \(package), and no default rule bundle could be "
-                            + "resolved for it: the package does not sit under a layer root in "
-                            + "\(hierarchy), so which rule set its peers use is not established. "
-                            + "Linting it against a guessed bundle would publish a number nobody "
-                            + "can interpret"
-                    ),
+                    verdict: .unmeasured(reason: reason),
                     summary: nil,
+                    plan: nil,
                     findings: [],
                     diagnostics: "",
                     status: 0
@@ -198,6 +199,7 @@ extension Workspace.Lint {
                 package: package,
                 verdict: .unmeasured(reason: "cannot execute swift-linter: \(error)"),
                 summary: nil,
+                plan: nil,
                 findings: [],
                 diagnostics: "\(error)",
                 status: -1
@@ -214,7 +216,8 @@ extension Workspace.Lint {
                 package: package,
                 status: code,
                 standardOutput: standardOutput,
-                standardError: standardError
+                standardError: standardError,
+                fix: fix
             )
             measurement.duration = elapsed
             guard let file = target.file else { return measurement }
@@ -224,6 +227,7 @@ extension Workspace.Lint {
                 package: package,
                 verdict: .unmeasured(reason: "swift-linter terminated by signal \(signal)"),
                 summary: nil,
+                plan: nil,
                 findings: [],
                 diagnostics: standardError,
                 status: -1
@@ -233,6 +237,7 @@ extension Workspace.Lint {
                 package: package,
                 verdict: .unmeasured(reason: "swift-linter stopped by signal \(signal)"),
                 summary: nil,
+                plan: nil,
                 findings: [],
                 diagnostics: standardError,
                 status: -1
