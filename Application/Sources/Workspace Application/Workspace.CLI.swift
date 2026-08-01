@@ -776,8 +776,14 @@ extension Workspace.CLI {
             // carries no `Lint.swift`.
             let installation = try lint.installation()
             let mode: Workspace.Lint.Fix? = fix ? (dry ? .dryRun : .apply) : nil
-            if mode != nil, !Workspace.Lint.supportsFix(installation) {
-                throw .configuration(Workspace.Lint.fixUnsupported)
+            if mode != nil {
+                guard Workspace.Lint.supportsFix(installation) else {
+                    throw .configuration(Workspace.Lint.fixUnsupported)
+                }
+                let stale = try lint.currency()
+                guard stale.isEmpty else {
+                    throw .configuration(stale.joined(separator: "\n"))
+                }
             }
             let measurement = lint.measure(
                 target,
@@ -838,8 +844,14 @@ extension Workspace.CLI {
                 print("lint: current — digest \(try lint.installedManifest().digest) matches CI")
             case nil:
                 let fixMode: Workspace.Lint.Fix? = fix ? (dry ? .dryRun : .apply) : nil
-                if fixMode != nil, !Workspace.Lint.supportsFix(try lint.installation()) {
-                    throw .configuration(Workspace.Lint.fixUnsupported)
+                if fixMode != nil {
+                    guard Workspace.Lint.supportsFix(try lint.installation()) else {
+                        throw .configuration(Workspace.Lint.fixUnsupported)
+                    }
+                    let stale = try lint.currency()
+                    guard stale.isEmpty else {
+                        throw .configuration(stale.joined(separator: "\n"))
+                    }
                 }
                 let configuration = try Workspace.Configuration.load(at: root.checkout)
                 let report = try await Workspace.Lint.Sweep(
