@@ -790,16 +790,33 @@ extension Workspace.CLI {
                 // module to the package providing it — has nothing to
                 // resolve against and is not attempted. The sweep is where
                 // it runs, and the sweep is what dispatches the fleet.
-                if let withholding = Workspace.Lint.Shadow.withholding(
+                let exclusions: [Swift.String]
+                if let exclusion = Workspace.Lint.Shadow.exclusion(
                     for: Workspace.Lint.Shadow.scan(target.package)
                 ) {
-                    print("\(withholding)")
+                    print("\(exclusion)")
                     print(
                         "          PLAT-ARCH-022 qualification is unsound here; "
-                            + "no fixes were applied to this package"
+                            + "it is excluded while other safe fixes proceed"
                     )
-                    Process.Exit.normal(0)
+                    exclusions = [Workspace.Lint.Fix.shadowedStandardLibraryQualification]
+                } else {
+                    exclusions = []
                 }
+                let measurement = lint.measure(
+                    target,
+                    using: installation,
+                    default: Workspace.Lint.Bundle.resolve(
+                        target.package,
+                        under: lint.hierarchy
+                    ),
+                    fix: mode,
+                    excluding: exclusions
+                )
+                print(measurement)
+                Process.Exit.normal(
+                    measurement.verdict.fails ? (measurement.verdict.isUnmeasured ? 2 : 1) : 0
+                )
             }
             let measurement = lint.measure(
                 target,

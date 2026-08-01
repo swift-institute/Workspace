@@ -131,49 +131,49 @@ struct `Workspace Lint Shadow Tests` {
     }
 
     @Test
-    func `a declaring package is withheld and names its site`() {
-        let withholding = Shadow.withholding(
+    func `a declaring package excludes the unsafe fixer and names its site`() {
+        let exclusion = Shadow.exclusion(
             for: Self.scan("/p/declares", declaring: [.error])
         )
-        #expect(withholding?.package == "/p/declares")
-        #expect(withholding?.reason.contains("`Error`") == true)
-        #expect(withholding?.reason.contains("Sources/M/F.swift:1") == true)
+        #expect(exclusion?.package == "/p/declares")
+        #expect(exclusion?.reason.contains("`Error`") == true)
+        #expect(exclusion?.reason.contains("Sources/M/F.swift:1") == true)
     }
 
     @Test
     func `a clean package proceeds`() {
-        #expect(Shadow.withholding(for: Self.scan("/p/clean")) == nil)
+        #expect(Shadow.exclusion(for: Self.scan("/p/clean")) == nil)
     }
 
     @Test
-    func `a re-export of a declaring module is withheld`() {
-        let withheld = Shadow.withholdings(across: [
+    func `a re-export of a declaring module excludes the unsafe fixer`() {
+        let excluded = Shadow.exclusions(across: [
             Self.scan("/p/source", declaring: [.error], providing: ["Records"]),
             Self.scan("/p/consumer", reexporting: ["Records"], providing: ["Server"]),
             Self.scan("/p/other", providing: ["Other"]),
         ])
-        #expect(withheld.map(\.package) == ["/p/source", "/p/consumer"])
-        #expect(withheld[1].reason.contains("re-exports `Records`") == true)
-        #expect(withheld[1].reason.contains("/p/source") == true)
+        #expect(excluded.map(\.package) == ["/p/source", "/p/consumer"])
+        #expect(excluded[1].reason.contains("re-exports `Records`") == true)
+        #expect(excluded[1].reason.contains("/p/source") == true)
     }
 
     @Test
     func `a re-export chain is closed transitively`() {
-        let withheld = Shadow.withholdings(across: [
+        let excluded = Shadow.exclusions(across: [
             Self.scan("/p/consumer", reexporting: ["Middle"], providing: ["Top"]),
             Self.scan("/p/middle", reexporting: ["Records"], providing: ["Middle"]),
             Self.scan("/p/source", declaring: [.collection], providing: ["Records"]),
         ])
-        #expect(Swift.Set(withheld.map(\.package)) == ["/p/consumer", "/p/middle", "/p/source"])
+        #expect(Swift.Set(excluded.map(\.package)) == ["/p/consumer", "/p/middle", "/p/source"])
     }
 
     @Test
-    func `an unresolvable re-export is withheld, not waived`() {
-        let withheld = Shadow.withholdings(across: [
+    func `an unresolvable re-export excludes the unsafe fixer, not detection`() {
+        let excluded = Shadow.exclusions(across: [
             Self.scan("/p/consumer", reexporting: ["Testing"], providing: ["Top"])
         ])
-        #expect(withheld.map(\.package) == ["/p/consumer"])
-        #expect(withheld[0].reason.contains("resolves to no package") == true)
+        #expect(excluded.map(\.package) == ["/p/consumer"])
+        #expect(excluded[0].reason.contains("resolves to no package") == true)
     }
 
     @Test(arguments: [
@@ -191,10 +191,10 @@ struct `Workspace Lint Shadow Tests` {
 
     @Test
     func `a package re-exporting only clean modules proceeds`() {
-        let withheld = Shadow.withholdings(across: [
+        let excluded = Shadow.exclusions(across: [
             Self.scan("/p/consumer", reexporting: ["Records"], providing: ["Top"]),
             Self.scan("/p/source", providing: ["Records"]),
         ])
-        #expect(withheld.isEmpty)
+        #expect(excluded.isEmpty)
     }
 }

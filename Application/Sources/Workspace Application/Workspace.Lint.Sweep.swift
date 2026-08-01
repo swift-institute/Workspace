@@ -135,27 +135,24 @@ extension Workspace.Lint.Sweep {
             selected = zip(targets, local).filter(\.1).map(\.0)
         }
 
-        // The shadow gate applies only to a fix run: it withholds
-        // rewrites, and a read-only lint run has none to withhold.
-        // Detection is untouched in both modes — a package skipped here
-        // still reports its PLAT-ARCH-022 findings on the next ordinary
-        // sweep, which is what keeps the gate from becoming an excuse.
+        // The shadow gate applies only to a fix run: it excludes the one
+        // unsafe rewriter, while leaving detection and unrelated safe
+        // rewriters in that package intact.
         //
         // The scan population is every materialized package, not the
         // selected slice. Tier (b) resolves a re-exported module to the
         // package providing it, and a `--changed` sweep selects a handful
         // — resolving against that handful would report almost every
-        // re-export unresolvable and withhold almost everything.
-        var withheld = [Workspace.Lint.Shadow.Withholding]()
-        var fixable = selected
+        // re-export unresolvable and exclude the unsafe rule almost everywhere.
+        var excluded = [Workspace.Lint.Shadow.Exclusion]()
+        var shadowed = Swift.Set<Swift.String>()
         if fix != nil {
             let scans = await concurrently(targets) { entry in
                 Workspace.Lint.Shadow.scan(entry.target.package)
             }
-            withheld = Workspace.Lint.Shadow.withholdings(across: scans)
-            let gated = Swift.Set(withheld.map(\.package))
-            fixable = selected.filter { !gated.contains($0.target.package.description) }
-            withheld = withheld.filter { entry in
+            excluded = Workspace.Lint.Shadow.exclusions(across: scans)
+            shadowed = Swift.Set(excluded.map(\.package))
+            excluded = excluded.filter { entry in
                 selected.contains { $0.target.package.description == entry.package }
             }
         }
@@ -167,10 +164,13 @@ extension Workspace.Lint.Sweep {
         // `Lint.swift`, and a configured package's own manifest always
         // wins.
         let measurements = await measure(
-            fixable.map { entry in
+            selected.map { entry in
                 (
                     target: entry.target,
-                    bundle: Workspace.Lint.Bundle(entry.repository.layer)
+                    bundle: Workspace.Lint.Bundle(entry.repository.layer),
+                    excluding: shadowed.contains(entry.target.package.description)
+                        ? [Workspace.Lint.Fix.shadowedStandardLibraryQualification]
+                        : []
                 )
             },
             using: installation,
@@ -182,13 +182,17 @@ extension Workspace.Lint.Sweep {
             unmaterialized: absent,
             considered: targets.count,
             measurements: measurements,
-            withheld: withheld
+            excluded: excluded
         )
     }
 
     /// Measures every target, `jobs` at a time.
     func measure(
-        _ targets: [(target: Workspace.Lint.Target, bundle: Workspace.Lint.Bundle)],
+        _ targets: [(
+            target: Workspace.Lint.Target,
+            bundle: Workspace.Lint.Bundle,
+            excluding: [Swift.String]
+        )],
         using installation: Workspace.Lint.Installation,
         fix: Workspace.Lint.Fix?
     ) async -> [Workspace.Lint.Measurement] {
@@ -198,7 +202,8 @@ extension Workspace.Lint.Sweep {
                 entry.target,
                 using: installation,
                 default: entry.bundle,
-                fix: fix
+                fix: fix,
+                excluding: entry.excluding
             )
         }
     }

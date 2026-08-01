@@ -109,7 +109,8 @@ extension Workspace.Lint {
         _ target: Target,
         using installation: Installation,
         default bundle: Bundle?,
-        fix: Fix? = nil
+        fix: Fix? = nil,
+        excluding excludedFixes: [Swift.String] = []
     ) -> Measurement {
         let package = target.package.description
 
@@ -146,7 +147,7 @@ extension Workspace.Lint {
             environment[Workspace.Lint.Fix.targetsVariable] = Workspace.Lint.Fix.targets(roots)
         }
         let executable: Swift.String
-        let arguments: [Swift.String]
+        var arguments: [Swift.String]
         if target.isConfigured {
             environment[Self.runnerVariable] = installation.runner.description
             executable = installation.executable.description
@@ -173,6 +174,9 @@ extension Workspace.Lint {
             environment[Self.policyVariable] = Self.exitPolicy
             executable = installation.runner.description
             arguments = [package]
+        }
+        if fix != nil {
+            arguments += Fix.exclusionArguments(excludedFixes)
         }
 
         let clock = ContinuousClock()

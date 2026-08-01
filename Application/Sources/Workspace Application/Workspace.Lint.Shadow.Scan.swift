@@ -163,12 +163,12 @@ extension Workspace.Lint.Shadow {
 }
 
 extension Workspace.Lint.Shadow {
-    /// A package withheld from PLAT-ARCH-022 fix application, and why.
-    public struct Withholding: Sendable, Hashable {
+    /// A package where PLAT-ARCH-022 is excluded from fix application, and why.
+    public struct Exclusion: Sendable, Hashable {
         /// The package root, as an absolute path.
         public let package: Swift.String
 
-        /// Why it was withheld, naming the shadowed name and the site.
+        /// Why that rule is excluded, naming the shadowed name and the site.
         public let reason: Swift.String
 
         public init(package: Swift.String, reason: Swift.String) {
@@ -178,20 +178,20 @@ extension Workspace.Lint.Shadow {
     }
 }
 
-extension Workspace.Lint.Shadow.Withholding: CustomStringConvertible {
+extension Workspace.Lint.Shadow.Exclusion: CustomStringConvertible {
     public var description: Swift.String {
-        "WITHHELD  \(package)\n          \(reason)"
+        "EXCLUDED  \(package)\n          \(reason)"
     }
 }
 
 extension Workspace.Lint.Shadow {
     /// Tier (a): the package's own declarations.
     ///
-    /// The whole package is withheld on the first declaration found, and
-    /// the site is named. There is no per-file narrowing here on purpose
+    /// The unsafe rule is excluded on the first declaration found, and the
+    /// site is named. There is no per-file narrowing here on purpose
     /// — narrowing to the declaring file is precisely the guard that was
     /// measured insufficient.
-    public static func withholding(for scan: Scan) -> Withholding? {
+    public static func exclusion(for scan: Scan) -> Exclusion? {
         guard let site = scan.declarations.first else { return nil }
         let names = Swift.Set(scan.declarations.map(\.name.rawValue)).sorted()
         return .init(
@@ -226,19 +226,19 @@ extension Workspace.Lint.Shadow {
     /// "not in the population" as "not a shadow" would wave through
     /// exactly the case that motivated tier (b).
     ///
-    /// - Returns: One withholding per gated package, in the input order,
+    /// - Returns: One exclusion per gated package, in the input order,
     ///   so a fleet log reads in the order the sweep enumerated.
-    public static func withholdings(across scans: [Scan]) -> [Withholding] {
+    public static func exclusions(across scans: [Scan]) -> [Exclusion] {
         var owner = [Swift.String: Swift.Int]()
         for (index, scan) in scans.enumerated() {
             for module in scan.modules { owner[module] = index }
         }
 
         // Seed: tier (a). Then close over re-exports until stable.
-        var direct = [Withholding?](repeating: nil, count: scans.count)
+        var direct = [Exclusion?](repeating: nil, count: scans.count)
         var shadowed = [Swift.Bool](repeating: false, count: scans.count)
         for (index, scan) in scans.enumerated() {
-            direct[index] = Self.withholding(for: scan)
+            direct[index] = Self.exclusion(for: scan)
             shadowed[index] = direct[index] != nil
         }
 
@@ -268,14 +268,14 @@ extension Workspace.Lint.Shadow {
             }
         }
 
-        var withheld = [Withholding]()
+        var excluded = [Exclusion]()
         for (index, scan) in scans.enumerated() {
             if let direct = direct[index] {
-                withheld.append(direct)
+                excluded.append(direct)
             } else if let reason = inherited[index] {
-                withheld.append(.init(package: scan.package, reason: reason))
+                excluded.append(.init(package: scan.package, reason: reason))
             }
         }
-        return withheld
+        return excluded
     }
 }

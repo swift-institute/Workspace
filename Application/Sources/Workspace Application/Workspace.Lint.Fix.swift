@@ -19,6 +19,28 @@ extension Workspace.Lint {
 }
 
 extension Workspace.Lint.Fix {
+    /// The engine option that excludes one canonical rule from a fix run.
+    ///
+    /// This belongs on the linter command line rather than in consumer
+    /// configuration: exclusions change only which rewriters apply, never
+    /// which rules detect and report violations.
+    static let exclusionOption = "--fix-excluding"
+
+    /// The one canonical fixer a standard-library shadow makes unsafe.
+    ///
+    /// Keep the engine's canonical identifier verbatim. Workspace does not
+    /// validate, coalesce, or otherwise reinterpret exclusion identifiers;
+    /// duplicate and unknown identifiers remain the engine's contract.
+    static let shadowedStandardLibraryQualification = "PLAT-ARCH-022"
+
+    /// The engine arguments for a per-rule fix exclusion.
+    ///
+    /// One option-value pair is emitted for every supplied identifier. That
+    /// preserves the engine's repeated-option semantics exactly.
+    static func exclusionArguments(_ identifiers: [Swift.String]) -> [Swift.String] {
+        identifiers.flatMap { [Self.exclusionOption, $0] }
+    }
+
     /// The environment channel the engine reads the mode from.
     ///
     /// Duplicated here rather than imported: Workspace depends on the

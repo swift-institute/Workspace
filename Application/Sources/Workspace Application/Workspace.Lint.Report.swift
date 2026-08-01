@@ -30,20 +30,19 @@ extension Workspace.Lint {
         /// One measurement per package actually linted.
         public let measurements: [Measurement]
 
-        /// Packages a `--fix` run withheld rewrites from, and why.
+        /// Packages whose shadow risk excluded PLAT-ARCH-022 from `--fix`, and why.
         ///
-        /// Empty on every read-only sweep — there is nothing to withhold
+        /// Empty on every read-only sweep — there is no fixer to exclude
         /// from a run that writes nothing — and never folded into the
-        /// tallies above. A withheld package was not measured and was not
-        /// found clean; it was deliberately not rewritten, which is a
-        /// third thing, and the reason it is reported by name with a
-        /// declaring site rather than counted.
+        /// tallies above. The package is still measured and may receive
+        /// every other safe canonical fix; the named exclusion is reported
+        /// with its declaring site rather than hidden in a package count.
         ///
         /// It does not fail the run. The gate is the safe outcome, not an
         /// error: a fleet fix that exited non-zero because it correctly
         /// declined to retarget 141 packages' references would be a gate
         /// nobody could leave switched on.
-        public let withheld: [Shadow.Withholding]
+        public let excluded: [Shadow.Exclusion]
 
         public init(
             scope: Sweep.Scope,
@@ -51,14 +50,14 @@ extension Workspace.Lint {
             unmaterialized: [Swift.String],
             considered: Swift.Int,
             measurements: [Measurement],
-            withheld: [Shadow.Withholding] = []
+            excluded: [Shadow.Exclusion] = []
         ) {
             self.scope = scope
             self.inventory = inventory
             self.unmaterialized = unmaterialized
             self.considered = considered
             self.measurements = measurements
-            self.withheld = withheld
+            self.excluded = excluded
         }
     }
 }
@@ -151,13 +150,13 @@ extension Workspace.Lint.Report: CustomStringConvertible {
             lines.append("\(measurement.verdict.text)  \(measurement.package)")
         }
 
-        if !withheld.isEmpty {
+        if !excluded.isEmpty {
             lines.append("")
             lines.append(
-                "withheld from --fix (\(withheld.count)) — PLAT-ARCH-022 qualification is "
-                    + "unsound where a standard-library name is shadowed:"
+                "PLAT-ARCH-022 excluded from --fix (\(excluded.count)) — qualification is "
+                    + "unsound where a standard-library name is shadowed; other safe fixes proceed:"
             )
-            for entry in withheld {
+            for entry in excluded {
                 lines.append("\(entry)")
             }
         }
@@ -194,7 +193,7 @@ extension Workspace.Lint.Report: CustomStringConvertible {
             "lint \(scope.text): \(measurements.count) packages linted · \(filesLinted) files · "
                 + "\(clean.count) clean · \(violations.count) with violations · "
                 + "\(unmeasured.count) UNMEASURED"
-                + (withheld.isEmpty ? "" : " · \(withheld.count) withheld from --fix")
+                + (excluded.isEmpty ? "" : " · \(excluded.count) PLAT-ARCH-022 exclusions")
         )
         lines.append("engine time \(Self.seconds(engineTime)) summed across packages")
         lines.append(
