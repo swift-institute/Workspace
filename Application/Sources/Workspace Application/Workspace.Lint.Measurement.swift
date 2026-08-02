@@ -282,7 +282,7 @@ extension Workspace.Lint {
                 let normalized = try parsed.map { (finding) throws(Finding.Error) in
                     try finding.relative(to: package)
                 }
-                let carriesError = normalized.contains(\.severity.isError)
+                let carriesError = normalized.contains(where: \.severity.isError)
                 guard carriesError == (status != 0) else {
                     return .init(
                         package: package,
