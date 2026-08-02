@@ -55,6 +55,27 @@ extension Workspace.Context.Packet.Test {
     }
 
     @Test
+    func `human packet truncation preserves a non ASCII scalar boundary`() {
+        let record = Record(
+            key: Key(argument: "swift-institute/Workspace#100")!,
+            title: Swift.String(repeating: "é", count: 400),
+            state: "open",
+            type: "Task",
+            stateReason: nil,
+            url: "https://github.com/swift-institute/Workspace/issues/100",
+            body: "",
+            assignees: [], labels: [], parent: nil, children: [], comments: [],
+            divergences: [], diagnostics: []
+        )
+
+        let rendered = Report(record: record, diagnostics: [], maxBytes: 512).render(.human)
+
+        #expect(rendered.utf8.count <= 512)
+        #expect(!rendered.contains("\u{FFFD}"))
+        #expect(rendered.contains("continuation:"))
+    }
+
+    @Test
     func `measured comment mismatch exits one`() {
         let record = Record(
             key: Key(argument: "swift-institute/Workspace#100")!,

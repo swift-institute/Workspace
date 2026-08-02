@@ -86,15 +86,25 @@ extension Workspace.Context.Packet {
             var marker = "\ncontinuation: 0 byte(s) withheld\n"
             var allowance = Swift.max(0, maxBytes - marker.utf8.count)
             while true {
-                let next = "\ncontinuation: \(bytes.count - allowance) byte(s) withheld\n"
+                let prefix = scalarBounded(value, to: allowance)
+                let next = "\ncontinuation: \(bytes.count - prefix.utf8.count) byte(s) withheld\n"
                 let nextAllowance = Swift.max(0, maxBytes - next.utf8.count)
                 if nextAllowance == allowance {
                     marker = next
-                    break
+                    return prefix + marker
                 }
                 allowance = nextAllowance
             }
-            return Swift.String(decoding: bytes.prefix(allowance), as: Swift.UTF8.self) + marker
+        }
+
+        private func scalarBounded(_ value: Swift.String, to limit: Swift.Int) -> Swift.String {
+            var result = ""
+            for scalar in value.unicodeScalars {
+                let next = result + Swift.String(scalar)
+                guard next.utf8.count <= limit else { break }
+                result = next
+            }
+            return result
         }
 
         private func boundedJSON() -> Swift.String {
