@@ -97,7 +97,7 @@ extension Workspace.Lint.Ledger.Test.Unit {
     }
 
     @Test
-    func `JSON is deterministic across input order`() throws {
+    func `human and JSON encodings are deterministic across input order`() throws {
         let repositories = Workspace.Lint.Ledger.Test.repositories
         let disposition = try #require(
             Workspace.Lint.Ledger.Disposition(
@@ -125,10 +125,32 @@ extension Workspace.Lint.Ledger.Test.Unit {
         )
 
         #expect(forward.json == reverse.json)
+        #expect(forward.description == reverse.description)
     }
 }
 
 extension Workspace.Lint.Ledger.Test.`Edge Case` {
+    @Test
+    func `an empty inventory is incomplete and exits nonzero`() throws {
+        let report = try Workspace.Lint.Ledger.Report(
+            repositories: [],
+            report: .init(
+                scope: .all,
+                inventory: 0,
+                unmaterialized: [],
+                considered: 0,
+                measurements: []
+            ),
+            dispositions: [],
+            verifications: []
+        )
+
+        #expect(report.status == 2)
+        #expect(report.json.contains(#""status" : "incomplete""#))
+        #expect(report.description.contains("lint residual ledger: incomplete — 0"))
+        #expect(!report.description.contains("lint residual ledger: compliant"))
+    }
+
     @Test
     func `a wholly unmaterialized inventory still emits every row`() throws {
         let repositories = Array(Workspace.Lint.Ledger.Test.repositories.prefix(2))
@@ -187,8 +209,36 @@ extension Workspace.Lint.Ledger.Test.`Edge Case` {
 
         #expect(report.packages[0].state == .unmeasured)
         #expect(report.packages[0].reason?.contains("swift-linter/issues/20") == true)
+        #expect(report.packages[0].prerequisite == .sarif)
         #expect(report.blocked)
         #expect(report.status == 2)
+    }
+
+    @Test
+    func `typed prerequisite state is independent of arbitrary reason prose`() throws {
+        let typed = try Workspace.Lint.Ledger.Test.unmeasured(
+            reason: "wording can change without changing machine state",
+            prerequisite: .sarif
+        )
+        let prose = try Workspace.Lint.Ledger.Test.unmeasured(
+            reason:
+                "structured findings and \(Workspace.Lint.Ledger.Report.prerequisite) appear only "
+                + "in arbitrary human prose",
+            prerequisite: nil
+        )
+
+        #expect(typed.blocked)
+        #expect(typed.packages[0].prerequisite == .sarif)
+        #expect(typed.json.contains(#""kind" : "sarif""#))
+        #expect(typed.json.contains(#""state" : "blocked""#))
+        #expect(
+            typed.description.contains(
+                "prerequisite: sarif · \(Workspace.Lint.Ledger.Report.prerequisite)"
+            )
+        )
+        #expect(!prose.blocked)
+        #expect(prose.packages[0].prerequisite == nil)
+        #expect(prose.json.contains(#""state" : "satisfied""#))
     }
 
     @Test
@@ -289,6 +339,39 @@ extension Workspace.Lint.Ledger.Test {
             },
             considered: materialized.count,
             measurements: measurements
+        )
+    }
+
+    fileprivate static func unmeasured(
+        reason: Swift.String,
+        prerequisite: Workspace.Lint.Prerequisite?
+    ) throws -> Workspace.Lint.Ledger.Report {
+        let repository = repositories[0]
+        guard let key = Workspace.Repository.Key(repository: repository) else {
+            preconditionFailure("invalid repository fixture")
+        }
+        let measurement = Workspace.Lint.Measurement(
+            repository: key,
+            package: "/tmp/swift-alpha",
+            verdict: .unmeasured(reason: reason),
+            summary: nil,
+            plan: nil,
+            findings: [],
+            prerequisite: prerequisite,
+            diagnostics: "",
+            status: 2
+        )
+        return try .init(
+            repositories: [repository],
+            report: .init(
+                scope: .all,
+                inventory: 1,
+                unmaterialized: [],
+                considered: 1,
+                measurements: [measurement]
+            ),
+            dispositions: [],
+            verifications: []
         )
     }
 }

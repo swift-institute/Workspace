@@ -6,6 +6,7 @@ extension Workspace.Lint.Ledger {
         public let layer: Workspace.Layer
         public let state: State
         public let reason: Swift.String?
+        public let prerequisite: Workspace.Lint.Prerequisite?
         public let summary: Workspace.Lint.Summary?
         public let errors: Swift.Int?
         public let advisories: [Advisory]
@@ -17,6 +18,7 @@ extension Workspace.Lint.Ledger {
             layer: Workspace.Layer,
             state: State,
             reason: Swift.String?,
+            prerequisite: Workspace.Lint.Prerequisite?,
             summary: Workspace.Lint.Summary?,
             errors: Swift.Int?,
             advisories: [Advisory],
@@ -27,6 +29,7 @@ extension Workspace.Lint.Ledger {
             self.layer = layer
             self.state = state
             self.reason = reason
+            self.prerequisite = prerequisite
             self.summary = summary
             self.errors = errors
             self.advisories = advisories.sorted { $0.rule < $1.rule }

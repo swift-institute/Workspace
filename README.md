@@ -378,10 +378,12 @@ implementation, so a package's verdict cannot depend on which one asked for it.
 `lint ledger` is the read-only machine evidence entry point for the complete
 inventory. Its human and JSON forms come from the same typed report. Every
 `Workspace.json` repository appears exactly once with its canonical identity,
-owning organization, layer, measured or `UNMEASURED` state and reason, exact
-unsuppressed error count, advisory findings grouped by rule, and a known or
-explicitly unknown verification coordinate. JSON object keys, package rows,
-findings, and remediation batches are deterministically ordered.
+owning organization, layer, measured or `UNMEASURED` state and reason, typed
+prerequisite cause when one blocks measurement, exact unsuppressed error count,
+advisory findings grouped by rule, and a known or explicitly unknown verification
+coordinate. JSON object keys, package rows, findings, and remediation batches are
+deterministically ordered. A validated inventory containing zero repositories is
+incomplete and exits `2`; it can never render a compliant ledger.
 
 Terminal advisory decisions and qualifying exact-head GitHub Actions runs are
 explicit inputs; Workspace does not infer them from Issue prose, comments, or
@@ -405,6 +407,8 @@ diagnostic format or reclassifies findings. Until configured-package and
 prebuilt-runner dispatch propagate that structured-output request, affected
 rows fail closed as `UNMEASURED` and name
 [swift-linter issue #20](https://github.com/swift-foundations/swift-linter/issues/20).
+The typed `sarif` prerequisite field owns that blocked state; human reason prose
+is rendered alongside it but is never parsed to derive machine output.
 Exit `0` means a complete compliant ledger, `1` means complete evidence with
 error-severity findings, and `2` means incomplete evidence or unresolved
 advisory disposition.

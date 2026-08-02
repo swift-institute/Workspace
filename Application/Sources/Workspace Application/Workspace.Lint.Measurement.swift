@@ -38,6 +38,12 @@ extension Workspace.Lint {
         /// available. An empty array is a measured clean result.
         public let structured: [Finding]?
 
+        /// The typed prerequisite blocking structured evidence, when known.
+        ///
+        /// This is deliberately independent of the human-readable verdict
+        /// reason, so copy changes cannot alter machine state.
+        public let prerequisite: Prerequisite?
+
         /// Whatever the engine wrote to standard error, verbatim.
         ///
         /// Retained so an `unmeasured` verdict can show what the tool
@@ -65,6 +71,7 @@ extension Workspace.Lint {
             plan: Fix.Plan?,
             findings: [Swift.String],
             structured: [Finding]? = nil,
+            prerequisite: Prerequisite? = nil,
             diagnostics: Swift.String,
             status: Swift.Int32,
             duration: Duration = .zero
@@ -76,6 +83,7 @@ extension Workspace.Lint {
             self.plan = plan
             self.findings = findings
             self.structured = structured
+            self.prerequisite = prerequisite
             self.diagnostics = diagnostics
             self.status = status
             self.duration = duration
@@ -293,18 +301,19 @@ extension Workspace.Lint {
                 }
                 structured = normalized
             } catch {
+                let prerequisite = Workspace.Lint.Prerequisite.sarif
                 return .init(
                     package: package,
                     verdict: .unmeasured(
                         reason:
-                            "structured findings are unavailable: \(error). The configured and "
-                            + "prebuilt dispatch prerequisite is "
-                            + "https://github.com/swift-foundations/swift-linter/issues/20"
+                            "structured findings are unavailable: \(error). "
+                            + prerequisite.reason
                     ),
                     summary: summary,
                     plan: plan,
                     findings: [],
                     structured: nil,
+                    prerequisite: prerequisite,
                     diagnostics: standardError,
                     status: status
                 )
@@ -349,6 +358,7 @@ extension Workspace.Lint.Measurement {
             structured: structured?.filter {
                 needle.hasSuffix("/\($0.path)") || $0.path == needle
             },
+            prerequisite: prerequisite,
             diagnostics: diagnostics,
             status: status
         )

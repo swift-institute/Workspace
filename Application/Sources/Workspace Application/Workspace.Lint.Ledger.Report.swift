@@ -98,6 +98,7 @@ extension Workspace.Lint.Ledger {
                             layer: repository.layer,
                             state: .unmeasured,
                             reason: reason,
+                            prerequisite: nil,
                             summary: nil,
                             errors: nil,
                             advisories: [],
@@ -115,6 +116,7 @@ extension Workspace.Lint.Ledger {
                             layer: repository.layer,
                             state: .unmeasured,
                             reason: reason,
+                            prerequisite: measurement.prerequisite,
                             summary: measurement.summary,
                             errors: nil,
                             advisories: [],
@@ -127,15 +129,15 @@ extension Workspace.Lint.Ledger {
                     let summary = measurement.summary,
                     let findings = measurement.structured
                 else {
+                    let prerequisite = Workspace.Lint.Prerequisite.sarif
                     packages.append(
                         .init(
                             repository: key,
                             owner: repository.organization,
                             layer: repository.layer,
                             state: .unmeasured,
-                            reason:
-                                "structured findings are unavailable; prerequisite "
-                                + "https://github.com/swift-foundations/swift-linter/issues/20",
+                            reason: prerequisite.reason,
+                            prerequisite: prerequisite,
                             summary: measurement.summary,
                             errors: nil,
                             advisories: [],
@@ -154,6 +156,7 @@ extension Workspace.Lint.Ledger {
                             reason:
                                 "run summary reports \(summary.violations) findings but structured "
                                 + "evidence contains \(findings.count)",
+                            prerequisite: nil,
                             summary: summary,
                             errors: nil,
                             advisories: [],
@@ -181,6 +184,7 @@ extension Workspace.Lint.Ledger {
                         layer: repository.layer,
                         state: .measured,
                         reason: nil,
+                        prerequisite: nil,
                         summary: summary,
                         errors: findings.filter(\.severity.isError).count,
                         advisories: advisories,
@@ -237,8 +241,7 @@ extension Workspace.Lint.Ledger {
 
 extension Workspace.Lint.Ledger.Report {
     /// The engine structured-output prerequisite.
-    public static let prerequisite =
-        "https://github.com/swift-foundations/swift-linter/issues/20"
+    public static let prerequisite = Workspace.Lint.Prerequisite.sarif.issue
 
     public var measured: [Workspace.Lint.Ledger.Package] {
         packages.filter { $0.state == .measured }
@@ -265,15 +268,12 @@ extension Workspace.Lint.Ledger.Report {
     }
 
     public var blocked: Swift.Bool {
-        unmeasured.contains {
-            $0.reason?.contains(Self.prerequisite) == true
-                || $0.reason?.contains("structured findings") == true
-        }
+        unmeasured.contains { $0.prerequisite == .sarif }
     }
 
     /// Exit 2 for incomplete evidence, 1 for measured errors, 0 otherwise.
     public var status: Swift.Int32 {
-        if !unmeasured.isEmpty || unresolved > 0 { return 2 }
+        if packages.isEmpty || !unmeasured.isEmpty || unresolved > 0 { return 2 }
         return errors > 0 ? 1 : 0
     }
 
@@ -282,6 +282,7 @@ extension Workspace.Lint.Ledger.Report {
             "schemaVersion": 1.json,
             "status": statusText.json,
             "prerequisite": [
+                "kind": Workspace.Lint.Prerequisite.sarif.token.json,
                 "issue": Self.prerequisite.json,
                 "state": (blocked ? "blocked" : "satisfied").json,
             ] as JSON,
@@ -315,6 +316,9 @@ extension Workspace.Lint.Ledger.Report {
                         + package.layer.token
                 )
                 lines.append("            \(package.reason ?? "reason unavailable")")
+                if let prerequisite = package.prerequisite {
+                    lines.append("  prerequisite: \(prerequisite.token) · \(prerequisite.issue)")
+                }
             case .measured:
                 lines.append(
                     "MEASURED    \(package.repository.identity) · owner \(package.owner) · layer "
@@ -425,6 +429,13 @@ extension Workspace.Lint.Ledger.Report {
         ]
     }
 
+    private static func json(_ prerequisite: Workspace.Lint.Prerequisite) -> JSON {
+        [
+            "kind": prerequisite.token.json,
+            "issue": prerequisite.issue.json,
+        ]
+    }
+
     private static func json(_ finding: Workspace.Lint.Finding) -> JSON {
         [
             "rule": finding.rule.json,
@@ -471,6 +482,7 @@ extension Workspace.Lint.Ledger.Report {
             "layer": Workspace.Layer.serialize(package.layer),
             "state": package.state.token.json,
             "reason": package.reason.json,
+            "prerequisite": package.prerequisite.map(Self.json) ?? JSON.null,
             "activeRules": package.summary?.activeRules.json,
             "filesLinted": package.summary?.filesLinted.json,
             "findings": package.summary?.violations.json,

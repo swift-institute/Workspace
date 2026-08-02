@@ -89,6 +89,7 @@ extension Workspace.Lint.Finding.Test.`Edge Case` {
 
         #expect(measurement.verdict.isUnmeasured)
         #expect(measurement.structured == nil)
+        #expect(measurement.prerequisite == .sarif)
     }
 
     @Test
