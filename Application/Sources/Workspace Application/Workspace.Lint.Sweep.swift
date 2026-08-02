@@ -94,19 +94,42 @@ extension Workspace.Lint.Sweep {
         scope: Scope = .all,
         fix: Workspace.Lint.Fix? = nil
     ) async throws(Workspace.Error) -> Workspace.Lint.Report {
-        let installation = try lint.installation()
+        try await run(scope: scope, fix: fix, format: .text)
+    }
+
+    /// Runs the complete inventory in structured-evidence mode and composes
+    /// the authoritative residual ledger.
+    public func ledger(
+        dispositions: [Workspace.Lint.Ledger.Disposition] = [],
+        verifications: [Workspace.Lint.Ledger.Verification] = []
+    ) async throws(Workspace.Error) -> Workspace.Lint.Ledger.Report {
+        let report = try await run(scope: .all, fix: nil, format: .sarif)
+        return try .init(
+            repositories: repositories,
+            report: report,
+            dispositions: dispositions,
+            verifications: verifications
+        )
+    }
+
+    private func run(
+        scope: Scope,
+        fix: Workspace.Lint.Fix?,
+        format: Workspace.Lint.Format
+    ) async throws(Workspace.Error) -> Workspace.Lint.Report {
         let inventory = repositories
 
         var targets = [(repository: Workspace.Repository, target: Workspace.Lint.Target)]()
         var absent = [Swift.String]()
         for repository in inventory {
             let directory = try root.materialization(for: repository)
+            let identity = Workspace.Repository.Key(repository: repository)?.identity ?? repository.name
             guard File(directory.path).stat.isDirectory else {
-                absent.append(repository.name)
+                absent.append(identity)
                 continue
             }
             guard directory[file: "Package.swift"].stat.isFile else {
-                absent.append(repository.name)
+                absent.append(identity)
                 continue
             }
             targets.append(
@@ -114,7 +137,10 @@ extension Workspace.Lint.Sweep {
             )
         }
 
-        guard !targets.isEmpty || inventory.isEmpty else {
+        // Ordinary lint keeps the historical empty-ecosystem hard failure.
+        // Ledger mode must instead return one explicit unmaterialized row for
+        // every inventory repository, even when none are present locally.
+        guard format == .sarif || !targets.isEmpty || inventory.isEmpty else {
             throw .configuration(
                 "UNMEASURED: \(inventory.count) packages in the inventory, none materialized under "
                     + "\(lint.hierarchy). Nothing was linted. This is very likely the wrong "
@@ -133,6 +159,33 @@ extension Workspace.Lint.Sweep {
                 Self.hasLocalWork(entry.target.package, using: git)
             }
             selected = zip(targets, local).filter(\.1).map(\.0)
+        }
+
+        let installation: Workspace.Lint.Installation
+        do throws(Workspace.Error) {
+            installation = try lint.installation()
+        } catch {
+            guard format == .sarif else { throw error }
+            return .init(
+                scope: scope,
+                inventory: inventory.count,
+                unmaterialized: absent,
+                considered: selected.count,
+                measurements: selected.map { entry in
+                    .init(
+                        repository: Workspace.Repository.Key(repository: entry.repository),
+                        package: entry.target.package.description,
+                        verdict: .unmeasured(
+                            reason: "swift-linter installation is unavailable: \(error)"
+                        ),
+                        summary: nil,
+                        plan: nil,
+                        findings: [],
+                        diagnostics: "",
+                        status: -1
+                    )
+                }
+            )
         }
 
         // The shadow gate applies only to a fix run: it excludes the one
@@ -166,6 +219,7 @@ extension Workspace.Lint.Sweep {
         let measurements = await measure(
             selected.map { entry in
                 (
+                    repository: Workspace.Repository.Key(repository: entry.repository),
                     target: entry.target,
                     bundle: Workspace.Lint.Bundle(entry.repository.layer),
                     excluding: shadowed.contains(entry.target.package.description)
@@ -174,7 +228,8 @@ extension Workspace.Lint.Sweep {
                 )
             },
             using: installation,
-            fix: fix
+            fix: fix,
+            format: format
         )
         return .init(
             scope: scope,
@@ -190,22 +245,27 @@ extension Workspace.Lint.Sweep {
     /// Measures every target, `jobs` at a time.
     func measure(
         _ targets: [(
+            repository: Workspace.Repository.Key?,
             target: Workspace.Lint.Target,
             bundle: Workspace.Lint.Bundle,
             excluding: [Swift.String]
         )],
         using installation: Workspace.Lint.Installation,
-        fix: Workspace.Lint.Fix?
+        fix: Workspace.Lint.Fix?,
+        format: Workspace.Lint.Format = .text
     ) async -> [Workspace.Lint.Measurement] {
         let lint = self.lint
         return await concurrently(targets) { entry in
-            lint.measure(
+            var measurement = lint.measure(
                 entry.target,
                 using: installation,
                 default: entry.bundle,
                 fix: fix,
-                excluding: entry.excluding
+                excluding: entry.excluding,
+                format: format
             )
+            measurement.repository = entry.repository
+            return measurement
         }
     }
 

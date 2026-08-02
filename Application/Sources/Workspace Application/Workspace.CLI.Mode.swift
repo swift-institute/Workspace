@@ -16,6 +16,7 @@ extension Workspace.CLI {
         case clean
         case dumpPackage
         case lint
+        case ledger
         case pages
         case seal
         case token
@@ -35,6 +36,7 @@ extension Workspace.CLI {
             case "clean": self = .clean
             case "dump-package": self = .dumpPackage
             case "lint": self = .lint
+            case "ledger": self = .ledger
             case "pages": self = .pages
             case "seal": self = .seal
             case "token": self = .token
@@ -57,6 +59,7 @@ extension Workspace.CLI {
             case .clean: "clean"
             case .dumpPackage: "dump-package"
             case .lint: "lint"
+            case .ledger: "ledger"
             case .pages: "pages"
             case .seal: "seal"
             case .token: "token"
@@ -69,7 +72,9 @@ extension Workspace.CLI {
 extension Workspace.CLI.Mode {
     var buildAction: Build.Action? {
         switch self {
-        case .install, .check, .serve, .regenerate, .lint, .pages, .seal, .token, .packet: nil
+        case .install, .check, .serve, .regenerate, .lint, .ledger, .pages, .seal, .token,
+            .packet:
+            nil
         case .build: .build
         case .test: .test
         case .run: .run

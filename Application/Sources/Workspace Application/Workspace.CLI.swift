@@ -1,17 +1,18 @@
 private import Build_Coordinator
 public import Command
-private import GitHub_HTTP
 private import Environment
 private import File_System
+private import GitHub_HTTP
 private import Git_Foundation
 private import JSON
 private import Process
+
 #if canImport(Darwin)
-private import Darwin
+    private import Darwin
 #elseif canImport(Glibc)
-private import Glibc
+    private import Glibc
 #elseif canImport(Musl)
-private import Musl
+    private import Musl
 #endif
 
 extension Workspace {
@@ -40,6 +41,8 @@ extension Workspace {
         public var issue: Swift.String
         public var maxBytes: Swift.Int
         public var includedComments: [Swift.String]
+        public var dispositions: [Swift.String]
+        public var verifications: [Swift.String]
 
         public init(
             operation: Operation = .sync,
@@ -65,7 +68,9 @@ extension Workspace {
             keyPath: Swift.String = "",
             issue: Swift.String = "",
             maxBytes: Swift.Int = 24_000,
-            includedComments: [Swift.String] = []
+            includedComments: [Swift.String] = [],
+            dispositions: [Swift.String] = [],
+            verifications: [Swift.String] = []
         ) {
             self.operation = operation
             self.dry = dry
@@ -91,6 +96,8 @@ extension Workspace {
             self.issue = issue
             self.maxBytes = maxBytes
             self.includedComments = includedComments
+            self.dispositions = dispositions
+            self.verifications = verifications
         }
     }
 }
@@ -110,20 +117,21 @@ extension Workspace.CLI {
                 name: "operation",
                 placeholder:
                     "install|sync|build|doctor|inventory|dependencies|compose|restore|verify|context"
-                        + "|navigation|package|lint|coherence|conversion|github",
+                    + "|navigation|package|lint|coherence|conversion|github",
                 help: .init(abstract: "Operation to perform.")
             )
             Command.Positional<Self, Mode>.Many(
                 \.modes,
                 name: "mode",
                 placeholder:
-                    "install|check|packet|serve|build|test|run|resolve|update|regenerate|clean|dump-package|lint"
-                        + "|pages|seal|token",
+                    "install|check|packet|serve|build|test|run|resolve|update|regenerate|clean|dump-package|lint|ledger"
+                    + "|pages|seal|token",
                 arity: .atMost(1),
                 help: .init(
                     abstract:
                         "Required after context, navigation, package, conversion, or github; "
-                        + "optional after inventory or lint."
+                        + "optional after inventory or lint. Use lint ledger for the complete "
+                        + "residual compliance report."
                 )
             )
             Command.Flag(
@@ -179,7 +187,7 @@ extension Workspace.CLI {
                 help: .init(
                     abstract:
                         "Render a concise human summary or deterministic JSON "
-                        + "(dependencies or context packet; defaults to human)."
+                        + "(dependencies, context packet, or lint ledger; defaults to human)."
                 )
             )
             Command.Option(
@@ -199,6 +207,26 @@ extension Workspace.CLI {
                 name: .long(.literal("include-comment")),
                 placeholder: "URL",
                 help: .init(abstract: "Explicit Issue comment URL to include (context packet only; repeatable).")
+            )
+            Command.Option<Self, Swift.String>.Many(
+                \.dispositions,
+                name: .long(.literal("disposition")),
+                placeholder: "rule=state@owner/repository#N",
+                help: .init(
+                    abstract:
+                        "Supply one terminal advisory disposition and exact owner Issue "
+                        + "(lint ledger only; repeatable)."
+                )
+            )
+            Command.Option<Self, Swift.String>.Many(
+                \.verifications,
+                name: .long(.literal("verification")),
+                placeholder: "owner/repository@sha=actions-run-url",
+                help: .init(
+                    abstract:
+                        "Supply one exact-head successful GitHub Actions coordinate "
+                        + "(lint ledger only; repeatable)."
+                )
             )
             Command.Option<Self, Swift.String>.Many(
                 \.sanctionedExceptions,
@@ -373,17 +401,26 @@ extension Workspace.CLI {
         else {
             throw .validationFailed(reason: "--jobs is valid only with package build or test.")
         }
+        let ledger = operation == .lint && modes.first == .ledger
         guard
             operation == .dependencies
                 || (operation == .context && modes.first == .packet)
+                || ledger
                 || (output == nil && sanctionedExceptions.isEmpty)
         else {
             throw .validationFailed(
-                reason: "--format is valid only with dependencies or context packet; --sanctioned-exception is valid only with dependencies."
+                reason:
+                    "--format is valid only with dependencies, context packet, or lint ledger; "
+                    + "--sanctioned-exception is valid only with dependencies."
             )
         }
         guard operation == .dependencies || sanctionedExceptions.isEmpty else {
             throw .validationFailed(reason: "--sanctioned-exception is valid only with dependencies.")
+        }
+        guard ledger || (dispositions.isEmpty && verifications.isEmpty) else {
+            throw .validationFailed(
+                reason: "--disposition and --verification are valid only with lint ledger."
+            )
         }
         if operation == .dependencies {
             guard modes.isEmpty else {
@@ -516,9 +553,13 @@ extension Workspace.CLI {
                 throw .validationFailed(reason: "--argument is valid only with package.")
             }
         } else if operation == .lint {
-            guard modes.isEmpty || modes.first == .install || modes.first == .check else {
+            guard
+                modes.isEmpty || modes.first == .install || modes.first == .check
+                    || modes.first == .ledger
+            else {
                 throw .validationFailed(
-                    reason: "lint takes install, check, or no mode (the ecosystem sweep)."
+                    reason:
+                        "lint takes install, check, ledger, or no mode (the ecosystem sweep)."
                 )
             }
             guard modes.isEmpty || !changed else {
@@ -538,6 +579,47 @@ extension Workspace.CLI {
             }
             guard !fresh else {
                 throw .validationFailed(reason: "--fresh is valid only with package build or test.")
+            }
+            guard modes.first != .ledger || (!fix && !dry) else {
+                throw .validationFailed(
+                    reason: "lint ledger is read-only; --fix and --dry-run are not valid."
+                )
+            }
+            if modes.first == .ledger {
+                var dispositionRules = Swift.Set<Swift.String>()
+                for value in dispositions {
+                    guard let disposition = Workspace.Lint.Ledger.Disposition(argument: value)
+                    else {
+                        throw .validationFailed(
+                            reason:
+                                "invalid disposition \(value); expected "
+                                + "rule=state@owner/repository#N."
+                        )
+                    }
+                    guard dispositionRules.insert(disposition.rule).inserted else {
+                        throw .validationFailed(
+                            reason: "duplicate disposition for rule \(disposition.rule)."
+                        )
+                    }
+                }
+                var verificationRepositories = Swift.Set<Workspace.Repository.Key>()
+                for value in verifications {
+                    guard let verification = Workspace.Lint.Ledger.Verification(argument: value)
+                    else {
+                        throw .validationFailed(
+                            reason:
+                                "invalid verification \(value); expected "
+                                + "owner/repository@<40-hex-sha>=<actions-run-url>."
+                        )
+                    }
+                    guard verificationRepositories.insert(verification.repository).inserted else {
+                        throw .validationFailed(
+                            reason:
+                                "duplicate verification for "
+                                + "\(verification.repository.identity)."
+                        )
+                    }
+                }
             }
             guard packagePath.isEmpty else {
                 throw .validationFailed(
@@ -930,6 +1012,24 @@ extension Workspace.CLI {
                     throw .configuration(diagnostics.joined(separator: "\n"))
                 }
                 print("lint: current — digest \(try lint.installedManifest().digest) matches CI")
+            case .some(.ledger):
+                let dispositions = self.dispositions.compactMap(
+                    Workspace.Lint.Ledger.Disposition.init(argument:)
+                )
+                let verifications = self.verifications.compactMap(
+                    Workspace.Lint.Ledger.Verification.init(argument:)
+                )
+                let configuration = try Workspace.Configuration.load(at: root.checkout)
+                let report = try await Workspace.Lint.Sweep(
+                    lint: lint,
+                    root: root,
+                    repositories: configuration.repositories
+                ).ledger(dispositions: dispositions, verifications: verifications)
+                switch output ?? .human {
+                case .human: print(report.description, terminator: "")
+                case .json: print(report.json, terminator: "")
+                }
+                Process.Exit.normal(report.status)
             case nil:
                 let fixMode: Workspace.Lint.Fix? = fix ? (dry ? .dryRun : .apply) : nil
                 if fixMode != nil {
@@ -950,7 +1050,7 @@ extension Workspace.CLI {
                 print(report)
                 Process.Exit.normal(report.status)
             default:
-                throw .configuration("lint operation must be install, check, or absent")
+                throw .configuration("lint operation must be install, check, ledger, or absent")
             }
             return
         }

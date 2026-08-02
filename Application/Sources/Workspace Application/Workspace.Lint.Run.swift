@@ -110,11 +110,16 @@ extension Workspace.Lint {
         using installation: Installation,
         default bundle: Bundle?,
         fix: Fix? = nil,
-        excluding excludedFixes: [Swift.String] = []
+        excluding excludedFixes: [Swift.String] = [],
+        format: Format = .text
     ) -> Measurement {
         let package = target.package.description
 
         var environment = Environment.Snapshot.current()
+        // Workspace's selection is authoritative even when the parent shell
+        // carries a different token. Writing text too prevents an ambient
+        // SARIF request from changing the ordinary developer-facing command.
+        environment[Format.variable] = format.token
         var roots = [File.Directory]()
         if let fix {
             do throws(Workspace.Error) {
@@ -154,6 +159,9 @@ extension Workspace.Lint {
             environment[Self.runnerVariable] = installation.runner.description
             executable = installation.executable.description
             arguments = [package, "--exit-policy", Self.exitPolicy]
+            if format == .sarif {
+                arguments += ["--format", format.token]
+            }
             if let fix {
                 arguments.append("--fix")
                 if fix == .dryRun {
@@ -165,9 +173,9 @@ extension Workspace.Lint {
             guard let bundle else {
                 let reason =
                     "no Lint.swift at \(package), and no default rule bundle could be resolved for it: "
-                        + "the package does not sit under a layer root in \(hierarchy), so which rule set "
-                        + "its peers use is not established. Linting it against a guessed bundle would "
-                        + "publish a number nobody can interpret"
+                    + "the package does not sit under a layer root in \(hierarchy), so which rule set "
+                    + "its peers use is not established. Linting it against a guessed bundle would "
+                    + "publish a number nobody can interpret"
                 return .init(
                     package: package,
                     verdict: .unmeasured(reason: reason),
@@ -224,7 +232,8 @@ extension Workspace.Lint {
                 status: code,
                 standardOutput: standardOutput,
                 standardError: standardError,
-                fix: fix
+                fix: fix,
+                format: format
             )
             measurement.duration = elapsed
             guard let file = target.file else { return measurement }

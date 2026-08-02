@@ -40,6 +40,59 @@ extension Workspace.CLI.Test.Lint {
     }
 
     @Test
+    func `ledger accepts deterministic output and supplied coordinates`() throws {
+        let revision = Swift.String(repeating: "a", count: 40)
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: [
+                "lint", "ledger",
+                "--format", "json",
+                "--disposition", "PLAT-ARCH-022=remediation@swift-foundations/swift-linter#20",
+                "--verification",
+                "swift-primitives/swift-bytes@\(revision)="
+                    + "https://github.com/swift-primitives/swift-bytes/actions/runs/42",
+            ],
+            initial: .init()
+        )
+
+        #expect(command.operation == .lint)
+        #expect(command.modes == [.ledger])
+        #expect(command.output == .json)
+        #expect(command.dispositions.count == 1)
+        #expect(command.verifications.count == 1)
+    }
+
+    @Test(arguments: [
+        ["lint", "ledger", "--changed"],
+        ["lint", "ledger", "--fix"],
+        ["lint", "ledger", "--dry-run"],
+        ["lint", "ledger", "--disposition", "not-a-coordinate"],
+        ["lint", "ledger", "--verification", "not-a-coordinate"],
+        ["lint", "--format", "json"],
+        ["doctor", "--disposition", "RULE=remediation@owner/repository#1"],
+    ])
+    func `ledger rejects narrowing mutation and misplaced inputs`(arguments: [Swift.String]) {
+        #expect(throws: Command.Error.self) {
+            try Command.parse(Workspace.CLI.self, from: arguments, initial: .init())
+        }
+    }
+
+    @Test
+    func `ledger rejects duplicate rule ownership before measuring`() {
+        #expect(throws: Command.Error.self) {
+            try Command.parse(
+                Workspace.CLI.self,
+                from: [
+                    "lint", "ledger",
+                    "--disposition", "RULE=retention@owner/repository#1",
+                    "--disposition", "RULE=remediation@owner/repository#2",
+                ],
+                initial: .init()
+            )
+        }
+    }
+
+    @Test
     func `the sweep accepts a changed scope`() throws {
         let command = try Command.parse(
             Workspace.CLI.self,

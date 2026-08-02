@@ -7,6 +7,12 @@ extension Workspace.Lint {
     /// so there is no path by which a caller can assemble a clean
     /// verdict out of a run that loaded no rules.
     public struct Measurement: Equatable, Sendable {
+        /// The inventory coordinate, attached by the ecosystem sweep.
+        ///
+        /// Single-package mode has no inventory in scope and leaves this
+        /// `nil`; ledger mode requires it for every measured repository.
+        package var repository: Workspace.Repository.Key?
+
         /// The package root that was linted, as an absolute path.
         public let package: Swift.String
 
@@ -26,6 +32,12 @@ extension Workspace.Lint {
         /// Diagnostic lines the engine wrote to standard output.
         public let findings: [Swift.String]
 
+        /// Structured, unsuppressed findings from swift-linter's SARIF reporter.
+        ///
+        /// `nil` means structured evidence was not requested or was not
+        /// available. An empty array is a measured clean result.
+        public let structured: [Finding]?
+
         /// Whatever the engine wrote to standard error, verbatim.
         ///
         /// Retained so an `unmeasured` verdict can show what the tool
@@ -44,6 +56,30 @@ extension Workspace.Lint {
         /// first. Without this, a sweep that is slow for two packages
         /// looks like a sweep that is slow.
         public var duration: Duration = .zero
+
+        package init(
+            repository: Workspace.Repository.Key? = nil,
+            package: Swift.String,
+            verdict: Verdict,
+            summary: Summary?,
+            plan: Fix.Plan?,
+            findings: [Swift.String],
+            structured: [Finding]? = nil,
+            diagnostics: Swift.String,
+            status: Swift.Int32,
+            duration: Duration = .zero
+        ) {
+            self.repository = repository
+            self.package = package
+            self.verdict = verdict
+            self.summary = summary
+            self.plan = plan
+            self.findings = findings
+            self.structured = structured
+            self.diagnostics = diagnostics
+            self.status = status
+            self.duration = duration
+        }
     }
 }
 
@@ -132,13 +168,16 @@ extension Workspace.Lint {
         status: Swift.Int32,
         standardOutput: Swift.String,
         standardError: Swift.String,
-        fix: Fix? = nil
+        fix: Fix? = nil,
+        format: Format = .text
     ) -> Measurement {
         let summary = Summary.parse(standardError)
-        let findings =
-            standardOutput
-            .split(separator: "\n", omittingEmptySubsequences: true)
-            .map(Swift.String.init)
+        let findings: [Swift.String] =
+            format == .text
+            ? standardOutput
+                .split(separator: "\n", omittingEmptySubsequences: true)
+                .map(Swift.String.init)
+            : []
 
         guard let summary else {
             return .init(
@@ -151,6 +190,7 @@ extension Workspace.Lint {
                 summary: nil,
                 plan: nil,
                 findings: findings,
+                structured: nil,
                 diagnostics: standardError,
                 status: status
             )
@@ -164,6 +204,7 @@ extension Workspace.Lint {
                 summary: summary,
                 plan: nil,
                 findings: findings,
+                structured: nil,
                 diagnostics: standardError,
                 status: status
             )
@@ -179,6 +220,7 @@ extension Workspace.Lint {
                 summary: summary,
                 plan: nil,
                 findings: findings,
+                structured: nil,
                 diagnostics: standardError,
                 status: status
             )
@@ -196,6 +238,7 @@ extension Workspace.Lint {
                     summary: summary,
                     plan: nil,
                     findings: findings,
+                    structured: nil,
                     diagnostics: standardError,
                     status: status
                 )
@@ -203,6 +246,69 @@ extension Workspace.Lint {
             plan = parsed
         } else {
             plan = nil
+        }
+
+        let structured: [Finding]?
+        switch format {
+        case .text:
+            structured = nil
+        case .sarif:
+            do throws(Finding.Error) {
+                let parsed = try Finding.parse(sarif: standardOutput)
+                guard parsed.count == summary.violations else {
+                    return .init(
+                        package: package,
+                        verdict: .unmeasured(
+                            reason:
+                                "swift-linter reported \(summary.violations) findings in its run "
+                                + "summary but emitted \(parsed.count) SARIF results"
+                        ),
+                        summary: summary,
+                        plan: plan,
+                        findings: [],
+                        structured: nil,
+                        diagnostics: standardError,
+                        status: status
+                    )
+                }
+                let normalized = try parsed.map { (finding) throws(Finding.Error) in
+                    try finding.relative(to: package)
+                }
+                let carriesError = normalized.contains(\.severity.isError)
+                guard carriesError == (status != 0) else {
+                    return .init(
+                        package: package,
+                        verdict: .unmeasured(
+                            reason:
+                                "swift-linter's strict exit status and SARIF error severities "
+                                + "disagree"
+                        ),
+                        summary: summary,
+                        plan: plan,
+                        findings: [],
+                        structured: nil,
+                        diagnostics: standardError,
+                        status: status
+                    )
+                }
+                structured = normalized
+            } catch {
+                return .init(
+                    package: package,
+                    verdict: .unmeasured(
+                        reason:
+                            "structured findings are unavailable: \(error). The configured and "
+                            + "prebuilt dispatch prerequisite is "
+                            + "https://github.com/swift-foundations/swift-linter/issues/20"
+                    ),
+                    summary: summary,
+                    plan: plan,
+                    findings: [],
+                    structured: nil,
+                    diagnostics: standardError,
+                    status: status
+                )
+            }
         }
 
         let verdict: Measurement.Verdict =
@@ -215,6 +321,7 @@ extension Workspace.Lint {
             summary: summary,
             plan: plan,
             findings: findings,
+            structured: structured,
             diagnostics: standardError,
             status: status
         )
@@ -233,11 +340,15 @@ extension Workspace.Lint.Measurement {
     public func restricted(to file: File.Path) -> Self {
         let needle = file.description
         var narrowed = Self(
+            repository: repository,
             package: package,
             verdict: verdict,
             summary: summary,
             plan: plan,
             findings: findings.filter { $0.contains(needle) },
+            structured: structured?.filter {
+                needle.hasSuffix("/\($0.path)") || $0.path == needle
+            },
             diagnostics: diagnostics,
             status: status
         )

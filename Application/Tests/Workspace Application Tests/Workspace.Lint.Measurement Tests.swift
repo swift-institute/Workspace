@@ -160,6 +160,31 @@ struct `Workspace Lint Measurement Tests` {
                 "--fix-excluding", "PLAT-ARCH-022",
             ]
         )
+        #expect(try fixture.format() == "text")
+    }
+
+    @Test
+    func `a configured structured run passes SARIF through argv and environment`() throws {
+        let fixture = try FixProcessFixture()
+        defer { fixture.remove() }
+
+        let measurement = Workspace.Lint().measure(
+            try .resolve(fixture.package.description),
+            using: try fixture.installation(),
+            default: nil,
+            format: .sarif
+        )
+
+        #expect(measurement.verdict == .clean)
+        #expect(measurement.structured == [])
+        #expect(
+            try fixture.arguments() == [
+                fixture.package.description,
+                "--exit-policy", "strict",
+                "--format", "sarif",
+            ]
+        )
+        #expect(try fixture.format() == "sarif")
     }
 
     /// A file's findings are narrowed out of the package's; the
@@ -190,6 +215,7 @@ private struct FixProcessFixture {
     private let executable: File
     private let runner: File
     private let capture: File
+    private let formatCapture: File
 
     init() throws {
         base = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
@@ -200,6 +226,7 @@ private struct FixProcessFixture {
         executable = package[directory: ".fixture"][file: "swift-linter"]
         runner = package[directory: ".fixture"][file: "swift-linter-runner"]
         capture = package[file: ".swift-linter-arguments"]
+        formatCapture = package[file: ".swift-linter-format"]
 
         try sources.create.recursive()
         try package[file: "Package.swift"].write.atomic(
@@ -219,6 +246,10 @@ private struct FixProcessFixture {
             """
             #!/bin/sh
             printf '%s\\n' "$@" > .swift-linter-arguments
+            printf '%s' "${SWIFT_LINTER_FORMAT:-}" > .swift-linter-format
+            if [ "${SWIFT_LINTER_FORMAT:-}" = sarif ]; then
+              printf '%s\\n' '{"version":"2.1.0","runs":[{"results":[]}]}'
+            fi
             printf '%s\\n' 'swift-affine-algebra-primitives · 1 active rules · 1 files linted · 0 violations' >&2
             """
         )
@@ -238,6 +269,10 @@ private struct FixProcessFixture {
         try Swift.String(contentsOfFile: capture.description, encoding: .utf8)
             .split(separator: "\n", omittingEmptySubsequences: true)
             .map(Swift.String.init)
+    }
+
+    func format() throws -> Swift.String {
+        try Swift.String(contentsOfFile: formatCapture.description, encoding: .utf8)
     }
 
     func remove() {
