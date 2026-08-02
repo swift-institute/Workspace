@@ -179,6 +179,27 @@ extension Workspace.CLI.Test.Unit {
         #expect(command.modes == [expected])
     }
 
+    @Test
+    func `context packet parses its bounded current Issue contract`() throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: [
+                "context", "packet",
+                "--issue", "swift-institute/Workspace#100",
+                "--format", "json",
+                "--max-bytes", "512",
+                "--include-comment", "https://api.github.com/repos/swift-institute/Workspace/issues/comments/1",
+            ],
+            initial: .init()
+        )
+
+        #expect(command.modes == [.packet])
+        #expect(command.issue == "swift-institute/Workspace#100")
+        #expect(command.output == .json)
+        #expect(command.maxBytes == 512)
+        #expect(command.includedComments.count == 1)
+    }
+
     @Test(arguments: [
         ("install", Workspace.CLI.Mode.install),
         ("check", Workspace.CLI.Mode.check),

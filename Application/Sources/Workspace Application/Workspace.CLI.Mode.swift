@@ -19,6 +19,7 @@ extension Workspace.CLI {
         case pages
         case seal
         case token
+        case packet
 
         public init?(argument: Swift.String) {
             switch argument {
@@ -37,6 +38,7 @@ extension Workspace.CLI {
             case "pages": self = .pages
             case "seal": self = .seal
             case "token": self = .token
+            case "packet": self = .packet
             default: return nil
             }
         }
@@ -58,6 +60,7 @@ extension Workspace.CLI {
             case .pages: "pages"
             case .seal: "seal"
             case .token: "token"
+            case .packet: "packet"
             }
         }
     }
@@ -66,7 +69,7 @@ extension Workspace.CLI {
 extension Workspace.CLI.Mode {
     var buildAction: Build.Action? {
         switch self {
-        case .install, .check, .serve, .regenerate, .lint, .pages, .seal, .token: nil
+        case .install, .check, .serve, .regenerate, .lint, .pages, .seal, .token, .packet: nil
         case .build: .build
         case .test: .test
         case .run: .run

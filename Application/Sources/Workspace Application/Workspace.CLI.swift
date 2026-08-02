@@ -37,6 +37,9 @@ extension Workspace {
         public var permissions: [Swift.String]
         public var applicationIdentity: Swift.String
         public var keyPath: Swift.String
+        public var issue: Swift.String
+        public var maxBytes: Swift.Int
+        public var includedComments: [Swift.String]
 
         public init(
             operation: Operation = .sync,
@@ -59,7 +62,10 @@ extension Workspace {
             organization: Swift.String = "",
             permissions: [Swift.String] = [],
             applicationIdentity: Swift.String = "",
-            keyPath: Swift.String = ""
+            keyPath: Swift.String = "",
+            issue: Swift.String = "",
+            maxBytes: Swift.Int = 24_000,
+            includedComments: [Swift.String] = []
         ) {
             self.operation = operation
             self.dry = dry
@@ -82,6 +88,9 @@ extension Workspace {
             self.permissions = permissions
             self.applicationIdentity = applicationIdentity
             self.keyPath = keyPath
+            self.issue = issue
+            self.maxBytes = maxBytes
+            self.includedComments = includedComments
         }
     }
 }
@@ -108,7 +117,7 @@ extension Workspace.CLI {
                 \.modes,
                 name: "mode",
                 placeholder:
-                    "install|check|serve|build|test|run|resolve|update|regenerate|clean|dump-package|lint"
+                    "install|check|packet|serve|build|test|run|resolve|update|regenerate|clean|dump-package|lint"
                         + "|pages|seal|token",
                 arity: .atMost(1),
                 help: .init(
@@ -170,8 +179,26 @@ extension Workspace.CLI {
                 help: .init(
                     abstract:
                         "Render a concise human summary or deterministic JSON "
-                        + "(dependencies only; defaults to human)."
+                        + "(dependencies or context packet; defaults to human)."
                 )
+            )
+            Command.Option(
+                \.issue,
+                name: .long(.literal("issue")),
+                placeholder: "owner/repository#N",
+                help: .init(abstract: "Issue whose current context is rendered (context packet only).")
+            )
+            Command.Option(
+                \.maxBytes,
+                name: .long(.literal("max-bytes")),
+                placeholder: "n",
+                help: .init(abstract: "Maximum rendered packet bytes (context packet only; defaults to 24000).")
+            )
+            Command.Option<Self, Swift.String>.Many(
+                \.includedComments,
+                name: .long(.literal("include-comment")),
+                placeholder: "URL",
+                help: .init(abstract: "Explicit Issue comment URL to include (context packet only; repeatable).")
             )
             Command.Option<Self, Swift.String>.Many(
                 \.sanctionedExceptions,
@@ -308,6 +335,14 @@ extension Workspace.CLI {
                 reason: "--org, --permission, --app-id, and --key are valid only with github token."
             )
         }
+        guard
+            (operation == .context && modes.first == .packet)
+                || (issue.isEmpty && maxBytes == 24_000 && includedComments.isEmpty)
+        else {
+            throw .validationFailed(
+                reason: "--issue, --max-bytes, and --include-comment are valid only with context packet."
+            )
+        }
         guard operation == .lint || !changed else {
             throw .validationFailed(reason: "--changed is valid only with the lint sweep.")
         }
@@ -338,10 +373,17 @@ extension Workspace.CLI {
         else {
             throw .validationFailed(reason: "--jobs is valid only with package build or test.")
         }
-        guard operation == .dependencies || (output == nil && sanctionedExceptions.isEmpty) else {
+        guard
+            operation == .dependencies
+                || (operation == .context && modes.first == .packet)
+                || (output == nil && sanctionedExceptions.isEmpty)
+        else {
             throw .validationFailed(
-                reason: "--format and --sanctioned-exception are valid only with dependencies."
+                reason: "--format is valid only with dependencies or context packet; --sanctioned-exception is valid only with dependencies."
             )
+        }
+        guard operation == .dependencies || sanctionedExceptions.isEmpty else {
+            throw .validationFailed(reason: "--sanctioned-exception is valid only with dependencies.")
         }
         if operation == .dependencies {
             guard modes.isEmpty else {
@@ -408,9 +450,9 @@ extension Workspace.CLI {
         } else if operation == .context {
             guard
                 modes.count == 1,
-                modes.first == .install || modes.first == .check
+                modes.first == .install || modes.first == .check || modes.first == .packet
             else {
-                throw .validationFailed(reason: "context requires install or check.")
+                throw .validationFailed(reason: "context requires install, check, or packet.")
             }
             guard consumer.isEmpty, dependency.isEmpty else {
                 throw .validationFailed(
@@ -433,6 +475,19 @@ extension Workspace.CLI {
             }
             guard arguments.isEmpty else {
                 throw .validationFailed(reason: "--argument is valid only with package.")
+            }
+            guard modes.first == .packet || issue.isEmpty, includedComments.isEmpty, maxBytes == 24_000 else {
+                throw .validationFailed(
+                    reason: "--issue, --max-bytes, and --include-comment are valid only with context packet."
+                )
+            }
+            if modes.first == .packet {
+                guard Workspace.Context.Packet.Key(argument: issue) != nil else {
+                    throw .validationFailed(reason: "context packet requires --issue owner/repository#N.")
+                }
+                guard maxBytes >= 512 else {
+                    throw .validationFailed(reason: "context packet --max-bytes must be at least 512.")
+                }
             }
         } else if operation == .navigation {
             guard
@@ -943,10 +998,29 @@ extension Workspace.CLI {
                     throw .configuration(diagnostics.joined(separator: "\n"))
                 }
                 print("context: current")
+            case .some(.packet):
+                guard let key = Workspace.Context.Packet.Key(argument: issue) else {
+                    throw .configuration("context packet requires --issue owner/repository#N.")
+                }
+                let result = await Workspace.Context.Packet.Remote.client().record(key, includedComments)
+                let report: Workspace.Context.Packet.Report
+                switch result {
+                case .available(let record):
+                    report = .init(record: record, diagnostics: [], maxBytes: maxBytes)
+                case .unavailable(let reason), .malformed(let reason), .unmeasured(let reason):
+                    report = .init(record: nil, diagnostics: [reason], maxBytes: maxBytes)
+                }
+                let format: Workspace.Context.Packet.Output
+                switch output {
+                case .some(.json): format = .json
+                case .some(.human), nil: format = .human
+                }
+                print(report.render(format), terminator: "")
+                Process.Exit.normal(report.status)
             case nil:
                 throw .configuration("context operation was not provided")
             default:
-                throw .configuration("context operation must be install or check")
+                throw .configuration("context operation must be install, check, or packet")
             }
             return
         }
