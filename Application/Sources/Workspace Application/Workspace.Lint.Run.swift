@@ -115,8 +115,8 @@ extension Workspace.Lint {
         let package = target.package.description
 
         var environment = Environment.Snapshot.current()
+        var roots = [File.Directory]()
         if let fix {
-            let roots: [File.Directory]
             do throws(Workspace.Error) {
                 roots = try target.roots()
             } catch {
@@ -154,6 +154,13 @@ extension Workspace.Lint {
             environment[Self.runnerVariable] = installation.runner.description
             executable = installation.executable.description
             arguments = [package, "--exit-policy", Self.exitPolicy]
+            if let fix {
+                arguments.append("--fix")
+                if fix == .dryRun {
+                    arguments.append("--dry-run")
+                }
+                arguments += roots.flatMap { ["--target-root", $0.description] }
+            }
         } else {
             guard let bundle else {
                 let reason =

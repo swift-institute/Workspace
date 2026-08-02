@@ -1,4 +1,5 @@
 import File_System
+import Foundation
 import Testing
 
 @testable import Workspace_Application
@@ -132,6 +133,35 @@ struct `Workspace Lint Measurement Tests` {
         #expect(measurement.plan == nil)
     }
 
+    /// The configured dispatcher accepts exclusions only through its public
+    /// fix invocation. This fixture records the argv at the process boundary,
+    /// so a valid in-memory argument list cannot mask a rejected invocation.
+    @Test
+    func `a configured dry run passes target roots and exclusions through the fix CLI`() throws {
+        let fixture = try FixProcessFixture()
+        defer { fixture.remove() }
+
+        let measurement = Workspace.Lint().measure(
+            try .resolve(fixture.package.description),
+            using: try fixture.installation(),
+            default: nil,
+            fix: .dryRun,
+            excluding: ["PLAT-ARCH-022"]
+        )
+
+        #expect(measurement.verdict == .clean)
+        #expect(
+            try fixture.arguments() == [
+                fixture.package.description,
+                "--exit-policy", "strict",
+                "--fix",
+                "--dry-run",
+                "--target-root", fixture.sources.description,
+                "--fix-excluding", "PLAT-ARCH-022",
+            ]
+        )
+    }
+
     /// A file's findings are narrowed out of the package's; the
     /// package's verdict is not recomputed. A file with no findings
     /// inside a failing package has not been shown to be clean, and
@@ -150,6 +180,68 @@ struct `Workspace Lint Measurement Tests` {
         let narrowed = measurement.restricted(to: try File.Path("/tmp/pkg/Sources/A.swift"))
         #expect(narrowed.findings.count == 1)
         #expect(narrowed.verdict == measurement.verdict)
+    }
+}
+
+private struct FixProcessFixture {
+    let base: URL
+    let package: File.Directory
+    let sources: File.Directory
+    private let executable: File
+    private let runner: File
+    private let capture: File
+
+    init() throws {
+        base = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+
+        package = try File.Directory(validating: base.appending(path: "swift-affine-algebra-primitives").path)
+        sources = package[directory: "Sources"][directory: "Affine Algebra Primitives"]
+        executable = package[directory: ".fixture"][file: "swift-linter"]
+        runner = package[directory: ".fixture"][file: "swift-linter-runner"]
+        capture = package[file: ".swift-linter-arguments"]
+
+        try sources.create.recursive()
+        try package[file: "Package.swift"].write.atomic(
+            """
+            // swift-tools-version: 6.3
+            import PackageDescription
+
+            let package = Package(
+                name: "swift-affine-algebra-primitives",
+                targets: [.target(name: "Affine Algebra Primitives")]
+            )
+            """
+        )
+        try package[file: "Lint.swift"].write.atomic("// configured fixture\n")
+        try sources[file: "Affine.swift"].write.atomic("public enum Affine {}\n")
+        try executable.write.atomic(
+            """
+            #!/bin/sh
+            printf '%s\\n' "$@" > .swift-linter-arguments
+            printf '%s\\n' 'swift-affine-algebra-primitives · 1 active rules · 1 files linted · 0 violations' >&2
+            """
+        )
+        try File.System.Metadata.Permissions.set(.executable, at: executable.path)
+        try runner.write.atomic("runner\n")
+    }
+
+    func installation() throws -> Workspace.Lint.Installation {
+        .init(
+            manifest: try .parse("digest=96", label: "fixture"),
+            executable: executable,
+            runner: runner
+        )
+    }
+
+    func arguments() throws -> [Swift.String] {
+        try Swift.String(contentsOfFile: capture.description, encoding: .utf8)
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .map(Swift.String.init)
+    }
+
+    func remove() {
+        try? FileManager.default.removeItem(at: base)
     }
 }
 
