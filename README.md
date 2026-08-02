@@ -20,6 +20,7 @@ and local-source composition for cross-package work (`workspace compose` / `rest
 | `restore` | Undo a composition, returning the manifest to its declared form byte-for-byte. |
 | `verify` | Report which source a dependency actually compiled from, read from resolved state. |
 | `context install\|check` | Install or verify the checkout-root agent entry point and canonical skill projections. |
+| `context packet` | Render a bounded, read-only current-state packet for one GitHub Issue; ordinary history stays cold unless a comment URL is named explicitly. |
 | `navigation install\|check` | Install or verify the pinned cclsp/SourceKit-LSP integration for this checkout. |
 | `package <action>` | Run SwiftPM build, test, resolution, and administration through the Swift coordinator. |
 | `package lint` | Lint one package with the same binary, rules, and exit policy CI gates on. |
