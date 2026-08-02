@@ -126,7 +126,12 @@ extension Workspace.Context.Packet.Remote {
         guard let values = document.array else {
             throw .typeMismatch(expected: "array", got: "non-array")
         }
-        return try values.map { try Swift.String.deserialize($0[key]) }
+        var strings = [Swift.String]()
+        strings.reserveCapacity(values.count)
+        for value in values {
+            strings.append(try Swift.String.deserialize(value[key]))
+        }
+        return strings
     }
 
     private static func identity(_ document: JSON) throws(JSON.Error) -> Swift.String {

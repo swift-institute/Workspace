@@ -58,7 +58,7 @@ extension Workspace.Context.Packet.Test {
     func `human packet truncation preserves a non ASCII scalar boundary`() {
         let record = Record(
             key: Key(argument: "swift-institute/Workspace#100")!,
-            title: Swift.String(repeating: "é", count: 400),
+            title: Swift.String(repeating: "€", count: 400),
             state: "open",
             type: "Task",
             stateReason: nil,
@@ -69,10 +69,18 @@ extension Workspace.Context.Packet.Test {
         )
 
         let rendered = Report(record: record, diagnostics: [], maxBytes: 512).render(.human)
+        let marker = rendered.range(of: "\ncontinuation:")!
+        let title = rendered.range(of: "title: ")!
+        let rawTitleBytes = 512
+            - rendered[marker.lowerBound...].utf8.count
+            - rendered[..<title.upperBound].utf8.count
+        let renderedTitle = rendered[title.upperBound..<marker.lowerBound]
 
         #expect(rendered.utf8.count <= 512)
         #expect(!rendered.contains("\u{FFFD}"))
         #expect(rendered.contains("continuation:"))
+        #expect(rawTitleBytes % "€".utf8.count != 0)
+        #expect(renderedTitle.utf8.count % "€".utf8.count == 0)
     }
 
     @Test
