@@ -157,10 +157,7 @@ extension Workspace.Inventory.Test.Integration {
             denied: [],
             limit: .init(fixture: 1, items: 1)
         )
-        let repositories = GitHub.Organization.Repositories.Client<
-            Workspace.Inventory.Test.Failure
-        > {
-            _ async throws(Workspace.Inventory.Test.Failure) in
+        let repositories = GitHub.Organization.Repositories.Client { _ in
             .init(
                 response: .init(
                     repositories: [.init(fixture: 1, name: "swift-file")]
@@ -210,8 +207,7 @@ extension Workspace.Inventory.Test.Integration {
             denied: [],
             limit: .init(fixture: 1, items: 1)
         )
-        let repositories = GitHub.Organization.Repositories.Client<Workspace.Inventory.Test.Failure> {
-            _ async throws(Workspace.Inventory.Test.Failure) in
+        let repositories = GitHub.Organization.Repositories.Client { _ in
             .init(response: .init(repositories: [.init(fixture: 1, name: "swift-broken")]), next: nil)
         }
         let content = GitHub.Repository.Content.Client<Workspace.Inventory.Test.Failure> {
@@ -226,7 +222,7 @@ extension Workspace.Inventory.Test.Integration {
         let original = try Data(contentsOf: fixture.file)
         let existing = try Workspace.Configuration.Document.load(at: fixture.root)
 
-        do throws(Workspace.Inventory.Error<Workspace.Inventory.Test.Failure, Workspace.Inventory.Test.Failure>) {
+        do throws(Workspace.Inventory.Error<Workspace.Inventory.Test.Failure>) {
             _ = try await application.run(existing: existing, dry: false)
             Issue.record("Expected content failure")
         } catch {
@@ -268,12 +264,11 @@ extension Workspace.Inventory.Test.Integration {
         // now fails discovery before the writer is reached, and this test is
         // about the writer. What it discovers is immaterial — the assertion is
         // that publication refuses after the file changed underneath it.
-        let repositories = GitHub.Organization.Repositories.Client<Workspace.Inventory.Test.Failure> {
-            _ async throws(Workspace.Inventory.Test.Failure) in
+        let repositories = GitHub.Organization.Repositories.Client { _ in
             do throws(File.System.Write.Atomic.Error) {
                 try replace()
             } catch {
-                throw .status
+                throw .right(.transport)
             }
             return .init(
                 response: .init(repositories: [.init(fixture: 1, name: "swift-file")]),
@@ -289,7 +284,7 @@ extension Workspace.Inventory.Test.Integration {
             client: .init(repositories: repositories, content: content)
         )
 
-        do throws(Workspace.Inventory.Error<Workspace.Inventory.Test.Failure, Workspace.Inventory.Test.Failure>) {
+        do throws(Workspace.Inventory.Error<Workspace.Inventory.Test.Failure>) {
             _ = try await application.run(existing: existing, dry: false)
             Issue.record("Expected the intervening change to reject publication")
         } catch {
@@ -324,10 +319,7 @@ extension Workspace.Inventory.Test.Integration {
             denied: [],
             limit: .init(fixture: 1, items: 1)
         )
-        let repositories = GitHub.Organization.Repositories.Client<
-            Workspace.Inventory.Test.Failure
-        > {
-            _ async throws(Workspace.Inventory.Test.Failure) in
+        let repositories = GitHub.Organization.Repositories.Client { _ in
             .init(
                 response: .init(
                     repositories: [.init(fixture: 1, name: "swift-file")]
@@ -346,12 +338,7 @@ extension Workspace.Inventory.Test.Integration {
             client: .init(repositories: repositories, content: content)
         )
 
-        do throws(
-            Workspace.Inventory.Error<
-                Workspace.Inventory.Test.Failure,
-                Workspace.Inventory.Test.Failure
-            >
-        ) {
+        do throws(Workspace.Inventory.Error<Workspace.Inventory.Test.Failure>) {
             _ = try await application.run(existing: existing, dry: false)
             Issue.record("Expected dirty-state refusal")
         } catch {
@@ -396,10 +383,7 @@ extension Workspace.Inventory.Test.Integration {
             denied: [],
             limit: .init(fixture: 1, items: 1)
         )
-        let repositories = GitHub.Organization.Repositories.Client<
-            Workspace.Inventory.Test.Failure
-        > {
-            _ async throws(Workspace.Inventory.Test.Failure) in
+        let repositories = GitHub.Organization.Repositories.Client { _ in
             .init(
                 response: .init(
                     repositories: [.init(fixture: 1, name: "swift-file")]
@@ -418,12 +402,7 @@ extension Workspace.Inventory.Test.Integration {
             client: .init(repositories: repositories, content: content)
         )
 
-        do throws(
-            Workspace.Inventory.Error<
-                Workspace.Inventory.Test.Failure,
-                Workspace.Inventory.Test.Failure
-            >
-        ) {
+        do throws(Workspace.Inventory.Error<Workspace.Inventory.Test.Failure>) {
             _ = try await application.run(existing: existing, dry: false)
             Issue.record("Expected worktree inspection failure")
         } catch {

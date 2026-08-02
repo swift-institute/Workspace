@@ -25,6 +25,7 @@ and local-source composition for cross-package work (`workspace compose` / `rest
 | `package <action>` | Run SwiftPM build, test, resolution, and administration through the Swift coordinator. |
 | `package lint` | Lint one package with the same binary, rules, and exit policy CI gates on. |
 | `lint` | Lint the whole ecosystem. `install\|check` manage the pinned linter and its parity with CI. |
+| `lint ledger` | Render the complete residual lint census as a human report or deterministic JSON. |
 
 ## What Swift Institute is
 
@@ -363,6 +364,8 @@ workspace lint install     # fetch, verify, record the build
 workspace lint check       # is it the build CI consumes?
 workspace lint             # the whole ecosystem
 workspace lint --changed   # only packages with local work
+workspace lint ledger      # complete residual compliance ledger
+workspace lint ledger --format json
 workspace package lint     # one package, from inside it
 ```
 
@@ -371,6 +374,44 @@ the package root and the installed binaries by walking up, reads no inventory,
 and enumerates no organization. The whole-ecosystem sweep enumerates from
 `Workspace.json` and lints packages concurrently. Both modes go through one
 implementation, so a package's verdict cannot depend on which one asked for it.
+
+`lint ledger` is the read-only machine evidence entry point for the complete
+inventory. Its human and JSON forms come from the same typed report. Every
+`Workspace.json` repository appears exactly once with its canonical identity,
+owning organization, layer, measured or `UNMEASURED` state and reason, typed
+prerequisite cause when one blocks measurement, exact unsuppressed error count,
+advisory findings grouped by rule, and a known or explicitly unknown verification
+coordinate. JSON object keys, package rows, findings, and remediation batches are
+deterministically ordered. A validated inventory containing zero repositories is
+incomplete and exits `2`; it can never render a compliant ledger.
+
+Terminal advisory decisions and qualifying exact-head GitHub Actions runs are
+explicit inputs; Workspace does not infer them from Issue prose, comments, or
+past CI state:
+
+```sh
+workspace lint ledger --format json \
+  --disposition 'PLAT-ARCH-022=remediation@swift-foundations/swift-linter#20' \
+  --verification 'swift-primitives/swift-bytes@<40-hex-sha>=https://github.com/swift-primitives/swift-bytes/actions/runs/<id>'
+```
+
+The verification grammar is
+`owner/repository@<40-hex-sha>=https://github.com/owner/repository/actions/runs/<id>`.
+Disposition states are `promotion`, `retention`, `change`, `removal`, `addition`,
+`relocation`, and `remediation`. Batches combine only the same rule and exact
+supplied owner Issue; missing dispositions remain explicitly unresolved.
+
+The ledger requests swift-linter's existing SARIF result schema and validates
+the result count against the always-on summary. It never parses the human
+diagnostic format or reclassifies findings. Until configured-package and
+prebuilt-runner dispatch propagate that structured-output request, affected
+rows fail closed as `UNMEASURED` and name
+[swift-linter issue #20](https://github.com/swift-foundations/swift-linter/issues/20).
+The typed `sarif` prerequisite field owns that blocked state; human reason prose
+is rendered alongside it but is never parsed to derive machine output.
+Exit `0` means a complete compliant ledger, `1` means complete evidence with
+error-severity findings, and `2` means incomplete evidence or unresolved
+advisory disposition.
 
 **Every package is linted, whether or not it carries a `Lint.swift`.** A package
 with one is dispatched exactly as CI dispatches it. A package without one cannot

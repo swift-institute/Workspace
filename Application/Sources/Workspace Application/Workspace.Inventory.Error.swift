@@ -2,15 +2,11 @@ public import GitHub
 public import Tagged_Primitives
 
 extension Workspace.Inventory {
-    public enum Error<Listing, Content>: Swift.Error, Sendable
-    where
-        Listing: Swift.Error,
-        Content: Swift.Error
-    {
+    public enum Error<Content: Swift.Error>: Swift.Error, Sendable {
         case cancellation
         case repositories(
             GitHub.Organization.Name,
-            GitHub.Organization.Repositories.Traversal.Error<Listing>
+            Either<Async.Lifecycle.Error, GitHub.Organization.Repositories.Traversal.Error>
         )
         /// An organization listed zero public repositories without
         /// ``Workspace/Inventory/Policy/vacant`` declaring that it may.

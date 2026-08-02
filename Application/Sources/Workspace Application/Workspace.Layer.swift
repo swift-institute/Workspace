@@ -11,6 +11,9 @@ extension Workspace {
 }
 
 extension Workspace.Layer {
+    /// The stable inventory wire token owned by this enum.
+    public var token: Swift.String { rawValue }
+
     /// The GitHub organization that is this layer's root: the directory
     /// a layer's packages materialize under, and the organization whose
     /// repositories sit directly in it. Organizations that are not a
@@ -37,7 +40,7 @@ extension Workspace.Layer {
     }
 
     public static func serialize(_ value: Self) -> JSON {
-        value.rawValue.json
+        value.token.json
     }
 
     public static func deserialize(_ json: JSON) throws(JSON.Error) -> Self {
