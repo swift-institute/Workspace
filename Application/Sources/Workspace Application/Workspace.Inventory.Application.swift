@@ -2,20 +2,16 @@ public import File_System
 public import Git_Foundation
 
 extension Workspace.Inventory {
-    public struct Application<Listing, Content>: Sendable
-    where
-        Listing: Swift.Error,
-        Content: Swift.Error
-    {
+    public struct Application<Content: Swift.Error>: Sendable {
         public let root: File.Directory
         public let policy: Workspace.Inventory.Policy
-        public let client: Workspace.Inventory.Client<Listing, Content>
+        public let client: Workspace.Inventory.Client<Content>
         public let git: Git.Client
 
         public init(
             root: File.Directory,
             policy: Workspace.Inventory.Policy,
-            client: Workspace.Inventory.Client<Listing, Content>,
+            client: Workspace.Inventory.Client<Content>,
             git: Git.Client = .init()
         ) {
             self.root = root
@@ -30,7 +26,7 @@ extension Workspace.Inventory.Application {
     public func run(
         existing: Workspace.Configuration.Document,
         dry: Bool
-    ) async throws(Workspace.Inventory.Error<Listing, Content>) -> Workspace.Inventory.Writer.Plan {
+    ) async throws(Workspace.Inventory.Error<Content>) -> Workspace.Inventory.Writer.Plan {
         if !dry {
             try preflight()
         }
@@ -61,7 +57,7 @@ extension Workspace.Inventory.Application {
     /// so a command that cannot safely publish fails before paying for a live
     /// census. ``Workspace/Inventory/Writer/run(_:replacing:)`` separately
     /// rejects a change to `Workspace.json` that races discovery.
-    private func preflight() throws(Workspace.Inventory.Error<Listing, Content>) {
+    private func preflight() throws(Workspace.Inventory.Error<Content>) {
         let changes: [Git.Status.Entry]
         do throws(Git.Client.Error) {
             changes = try git.status(at: root.description)

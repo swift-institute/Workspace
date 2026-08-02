@@ -97,7 +97,7 @@ extension Workspace.Inventory.Test.Unit {
             limit: .init(fixture: 3, items: 20)
         )
 
-        let repositories = GitHub.Organization.Repositories.Client<Never> { request async throws(Never) in
+        let repositories = GitHub.Organization.Repositories.Client { request in
             if request.page == .first {
                 return .init(
                     response: .init(repositories: [
@@ -183,7 +183,7 @@ extension Workspace.Inventory.Test.`Edge Case` {
             denied: [],
             limit: .init(fixture: 3, items: 20)
         )
-        let repositories = GitHub.Organization.Repositories.Client<Never> { request async throws(Never) in
+        let repositories = GitHub.Organization.Repositories.Client { request in
             request.organization == empty
                 ? .init(response: .init(repositories: []), next: nil)
                 : .init(response: .init(repositories: [.init(fixture: 1, name: "swift-file")]), next: nil)
@@ -192,7 +192,7 @@ extension Workspace.Inventory.Test.`Edge Case` {
             .init(kind: .file)
         }
 
-        do throws(Workspace.Inventory.Error<Never, Never>) {
+        do throws(Workspace.Inventory.Error<Never>) {
             _ = try await Workspace.Inventory.Client(
                 repositories: repositories,
                 content: content
@@ -225,7 +225,7 @@ extension Workspace.Inventory.Test.`Edge Case` {
             vacant: [empty],
             limit: .init(fixture: 3, items: 20)
         )
-        let repositories = GitHub.Organization.Repositories.Client<Never> { request async throws(Never) in
+        let repositories = GitHub.Organization.Repositories.Client { request in
             request.organization == empty
                 ? .init(response: .init(repositories: []), next: nil)
                 : .init(response: .init(repositories: [.init(fixture: 1, name: "swift-file")]), next: nil)
@@ -267,7 +267,7 @@ extension Workspace.Inventory.Test.`Edge Case` {
             denied: [],
             limit: .init(fixture: 1, items: 1)
         )
-        let repositories = GitHub.Organization.Repositories.Client<Never> { _ async throws(Never) in
+        let repositories = GitHub.Organization.Repositories.Client { _ in
             .init(
                 response: .init(repositories: [
                     .init(fixture: 1, name: "swift-one"),
@@ -278,14 +278,14 @@ extension Workspace.Inventory.Test.`Edge Case` {
         }
         let content = GitHub.Repository.Content.Client<Never> { _ async throws(Never) in nil }
 
-        do throws(Workspace.Inventory.Error<Never, Never>) {
+        do throws(Workspace.Inventory.Error<Never>) {
             _ = try await Workspace.Inventory.Client(
                 repositories: repositories,
                 content: content
             ).discover(policy)
             Issue.record("Expected the item bound to fail")
         } catch {
-            guard case .repositories(owner, .items) = error else {
+            guard case .repositories(owner, .right(.items)) = error else {
                 Issue.record("Unexpected error: \(error)")
                 return
             }
@@ -300,7 +300,7 @@ extension Workspace.Inventory.Test.`Edge Case` {
             denied: [],
             limit: .init(fixture: 1, items: 10)
         )
-        let repositories = GitHub.Organization.Repositories.Client<Never> { request async throws(Never) in
+        let repositories = GitHub.Organization.Repositories.Client { request in
             .init(
                 response: .init(repositories: []),
                 next: .init(
@@ -313,14 +313,14 @@ extension Workspace.Inventory.Test.`Edge Case` {
         }
         let content = GitHub.Repository.Content.Client<Never> { _ async throws(Never) in nil }
 
-        do throws(Workspace.Inventory.Error<Never, Never>) {
+        do throws(Workspace.Inventory.Error<Never>) {
             _ = try await Workspace.Inventory.Client(
                 repositories: repositories,
                 content: content
             ).discover(policy)
             Issue.record("Expected the traversal bound to fail")
         } catch {
-            guard case .repositories(owner, .pages) = error else {
+            guard case .repositories(owner, .right(.pages)) = error else {
                 Issue.record("Unexpected error: \(error)")
                 return
             }
@@ -330,7 +330,7 @@ extension Workspace.Inventory.Test.`Edge Case` {
     @Test
     func `Cancellation is not erased into a client failure`() async throws {
         let policy = Workspace.Inventory.Policy.institute()
-        let repositories = GitHub.Organization.Repositories.Client<Never> { _ async throws(Never) in
+        let repositories = GitHub.Organization.Repositories.Client { _ in
             .init(response: .init(repositories: []), next: nil)
         }
         let content = GitHub.Repository.Content.Client<Never> { _ async throws(Never) in nil }
@@ -343,7 +343,7 @@ extension Workspace.Inventory.Test.`Edge Case` {
         do {
             _ = try await task.value
             Issue.record("Expected cancellation")
-        } catch let error as Workspace.Inventory.Error<Never, Never> {
+        } catch let error as Workspace.Inventory.Error<Never> {
             guard case .cancellation = error else {
                 Issue.record("Unexpected error: \(error)")
                 return
@@ -361,8 +361,7 @@ extension Workspace.Inventory.Test.`Edge Case` {
             denied: [],
             limit: .init(fixture: 1, items: 1)
         )
-        let repositories = GitHub.Organization.Repositories.Client<Workspace.Inventory.Test.Failure> {
-            _ async throws(Workspace.Inventory.Test.Failure) in
+        let repositories = GitHub.Organization.Repositories.Client { _ in
             .init(response: .init(repositories: [.init(fixture: 1, name: "swift-broken")]), next: nil)
         }
         let content = GitHub.Repository.Content.Client<Workspace.Inventory.Test.Failure> {
@@ -370,7 +369,7 @@ extension Workspace.Inventory.Test.`Edge Case` {
             throw .malformed
         }
 
-        do throws(Workspace.Inventory.Error<Workspace.Inventory.Test.Failure, Workspace.Inventory.Test.Failure>) {
+        do throws(Workspace.Inventory.Error<Workspace.Inventory.Test.Failure>) {
             _ = try await Workspace.Inventory.Client(
                 repositories: repositories,
                 content: content
@@ -398,7 +397,7 @@ extension Workspace.Inventory.Test.`Edge Case` {
             denied: [],
             limit: .init(fixture: 1, items: 10)
         )
-        let repositories = GitHub.Organization.Repositories.Client<Never> { request async throws(Never) in
+        let repositories = GitHub.Organization.Repositories.Client { request in
             .init(
                 response: .init(repositories: [
                     .init(
@@ -413,7 +412,7 @@ extension Workspace.Inventory.Test.`Edge Case` {
             .init(kind: .file)
         }
 
-        do throws(Workspace.Inventory.Error<Never, Never>) {
+        do throws(Workspace.Inventory.Error<Never>) {
             _ = try await Workspace.Inventory.Client(
                 repositories: repositories,
                 content: content
@@ -454,7 +453,7 @@ extension Workspace.Inventory.Test.Integration {
 
     private static func discovery(
         _ pages: [[GitHub.Repository.Summary]]
-    ) async throws(Workspace.Inventory.Error<Never, Never>) -> Workspace.Inventory.Discovery {
+    ) async throws(Workspace.Inventory.Error<Never>) -> Workspace.Inventory.Discovery {
         let owner = GitHub.Organization.Name("swift-foundations")
         let policy: Workspace.Inventory.Policy
         do throws(Workspace.Inventory.Policy.Error) {
@@ -466,7 +465,7 @@ extension Workspace.Inventory.Test.Integration {
         } catch {
             preconditionFailure("Invalid synthetic inventory policy: \(error)")
         }
-        let repositories = GitHub.Organization.Repositories.Client<Never> { request async throws(Never) in
+        let repositories = GitHub.Organization.Repositories.Client { request in
             let index = Int(request.page.rawValue - 1)
             let next: GitHub.Organization.Repositories.Request? =
                 index + 1 < pages.count

@@ -1,16 +1,12 @@
 public import GitHub
 
 extension Workspace.Inventory {
-    public struct Client<Listing, Content>: Sendable
-    where
-        Listing: Swift.Error,
-        Content: Swift.Error
-    {
-        public let repositories: GitHub.Organization.Repositories.Client<Listing>
+    public struct Client<Content: Swift.Error>: Sendable {
+        public let repositories: GitHub.Organization.Repositories.Client
         public let content: GitHub.Repository.Content.Client<Content>
 
         public init(
-            repositories: GitHub.Organization.Repositories.Client<Listing>,
+            repositories: GitHub.Organization.Repositories.Client,
             content: GitHub.Repository.Content.Client<Content>
         ) {
             self.repositories = repositories
@@ -22,7 +18,7 @@ extension Workspace.Inventory {
 extension Workspace.Inventory.Client {
     public func discover(
         _ policy: Workspace.Inventory.Policy
-    ) async throws(Workspace.Inventory.Error<Listing, Content>) -> Workspace.Inventory.Discovery {
+    ) async throws(Workspace.Inventory.Error<Content>) -> Workspace.Inventory.Discovery {
         guard let path = GitHub.Repository.Content.Path(segments: ["Package.swift"]) else {
             throw .path
         }
@@ -41,7 +37,7 @@ extension Workspace.Inventory.Client {
                 size: .maximum
             )
             let summaries: [GitHub.Repository.Summary]
-            do throws(GitHub.Organization.Repositories.Traversal.Error<Listing>) {
+            do throws(Either<Async.Lifecycle.Error, GitHub.Organization.Repositories.Traversal.Error>) {
                 summaries = try await repositories.all(
                     request,
                     limit: policy.limit,
@@ -49,8 +45,10 @@ extension Workspace.Inventory.Client {
                     order: .server
                 )
             } catch {
-                if case .cancellation = error { throw .cancellation }
-                throw .repositories(organization.name, error)
+                switch error {
+                case .left(.cancelled): throw .cancellation
+                case .left, .right: throw .repositories(organization.name, error)
+                }
             }
 
             // Each organization is its own positive control: a listing that
