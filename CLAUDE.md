@@ -60,7 +60,11 @@ authenticated `gh` never changes what a plain `doctor` does.
   jurisdiction orgs nest under their layer root, e.g. `swift-standards/swift-ietf/<package>`).
   Never infer a location from a package's name and never scan the tree for packages — resolve
   through the inventory (`Workspace.Layout` in the application). Materialized paths are
-  regenerable state; nothing durable may reference one as stable.
+  regenerable state; nothing durable may reference one as stable. Peer institutes follow the
+  same discipline one level up: `Peers.json` registers each peer and the peer's own inventory
+  file declares its packages, resolved at `<entry>/<peer>/<organization>/<name>`
+  (`Workspace.Peer.Layout`); adoption is opt-in per checkout, and an unmaterialized peer is a
+  fact, not a finding.
 - **`sync` never rewrites work.** It fast-forwards only a checkout that is clean, on `main`,
   tracking `origin/main`, with no local commits. It never resets, cleans, stashes, rebases, or
   switches a branch. Dirty worktrees and feature branches are reported and left alone. Preserve
