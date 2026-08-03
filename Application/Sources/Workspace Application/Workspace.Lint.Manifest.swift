@@ -84,9 +84,16 @@ extension Workspace.Lint.Manifest {
         }
     }
 
+    /// The key recording when the build was produced.
+    ///
+    /// Incidental to a parity comparison — two platforms build the same
+    /// revisions at different times — but the most legible thing to
+    /// print when a report has to say *which* build it is about.
+    static let builtAt = "built-at"
+
     static let incidental: Swift.Set<Swift.String> = [
         "digest",
-        "built-at",
+        Self.builtAt,
         "platform",
         "swift-image",
         "xcode",

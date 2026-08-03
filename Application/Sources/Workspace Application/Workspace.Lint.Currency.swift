@@ -1,3 +1,4 @@
+private import File_System
 private import Process
 
 extension Workspace.Lint {
@@ -82,21 +83,33 @@ extension Workspace.Lint {
     /// the read-only inner loop.
     ///
     /// - Returns: The empty array when every input matches. Otherwise a
-    ///   report naming each input that moved, ending in the remedy.
+    ///   report naming each input that moved, then the installation the
+    ///   verdict is about, ending in the remedy.
     public func currency() throws(Workspace.Error) -> [Swift.String] {
         var heads = [Swift.String: Swift.String]()
         for input in Currency.inputs {
             heads[input.key] = try Self.head(of: input)
         }
-        return Self.currency(of: try installedManifest(), against: heads)
+        return Self.currency(
+            of: try installedManifest(),
+            against: heads,
+            at: manifestFile.description
+        )
     }
 
     /// The comparison itself, separated from the resolution that feeds
     /// it so the refusal can be driven from a fixture rather than from
     /// whatever the six repositories happen to hold today.
+    ///
+    /// - Parameter source: The manifest the verdict is about, named in
+    ///   the refusal. Passed in rather than read from `installed`,
+    ///   because a parsed manifest does not carry where it was read
+    ///   from — and where it was read from is the half of the refusal
+    ///   that was missing.
     static func currency(
         of installed: Manifest,
-        against heads: [Swift.String: Swift.String]
+        against heads: [Swift.String: Swift.String],
+        at source: Swift.String
     ) -> [Swift.String] {
         var stale = [Swift.String]()
         for input in Currency.inputs {
@@ -115,7 +128,36 @@ extension Workspace.Lint {
             )
         }
         guard !stale.isEmpty else { return [] }
-        return [Self.stale] + stale + [Self.republish]
+        return [Self.stale] + stale
+            + [Self.provenance(of: installed, at: source), Self.republish]
+    }
+
+    /// Which installation the verdict is about.
+    ///
+    /// `--fix` does not resolve its binaries from a Workspace checkout.
+    /// It ascends from the package being linted to the first ancestor
+    /// carrying an installed manifest — see ``Workspace/Lint/resolve(from:)``
+    /// — so a machine holding more than one installed tree refuses on
+    /// whichever tree that ascent reached, which need not be the one a
+    /// reader thinks of as "the" installation. A package linted from a
+    /// scratch directory reaches an installation beside that scratch
+    /// directory, not the one beside the organization roots.
+    ///
+    /// Naming only a revision made the refusal unfalsifiable from its
+    /// own text: inspecting a *different* manifest and finding it
+    /// current is fully consistent with the refusal being correct, so
+    /// the check that looks like it disproves the refusal actually says
+    /// nothing about it. Naming the manifest is what lets a reader
+    /// check the claim the guard actually made.
+    static func provenance(
+        of installed: Manifest,
+        at source: Swift.String
+    ) -> Swift.String {
+        "this verdict is about the installation recorded at \(source), digest "
+            + installed.digest
+            + (installed.value(for: Manifest.builtAt).map { ", built \($0)" } ?? "")
+            + "; that is the build --fix would run, so an installation elsewhere on this "
+            + "machine being current is not evidence against this refusal"
     }
 
     /// The `main` head of `input`, resolved from the remote.
