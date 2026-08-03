@@ -291,7 +291,7 @@ extension Workspace.Lint.Measurement {
     /// that account can be shown, and a rendering that withholds it
     /// reports a mystery where the tool named a cause.
     var unmeasuredDiagnostics: [Swift.String] {
-        guard verdict.isUnmeasured else { return [] }
+        guard verdict.isUnmeasured, summary == nil else { return [] }
         return diagnostics
             .split(separator: "\n", omittingEmptySubsequences: true)
             .map(Swift.String.init)

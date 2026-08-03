@@ -52,8 +52,15 @@ extension Workspace.Lint.Fix {
     /// runner-spawned fix run.
     ///
     /// The counterpart of ``exclusionArguments(_:)`` for the process
-    /// whose argument vector cannot carry options. The engine reads it
-    /// only when the fix mode itself rides ``variable``.
+    /// whose argument vector cannot carry options. Fix mode and target
+    /// roots ride environment channels on both spawn paths — the
+    /// dispatcher sets ``variable`` too — so it is not the fix mode's own
+    /// transport that decides whether this channel is read. The
+    /// discriminator is which binary is spawned, equivalently whether a
+    /// command-line `--fix` is present: the dispatcher reads exclusions
+    /// only from ``exclusionArguments(_:)`` on its command line and
+    /// ignores this variable, while the runner has no command line to
+    /// carry them and reads only this channel.
     static let exclusionsVariable = "SWIFT_LINTER_FIX_EXCLUDING_RULES"
 
     /// Encodes per-rule fix exclusions for the engine's channel.
