@@ -143,6 +143,113 @@ struct `Workspace Lint Currency Tests` {
         )
     }
 
+    // MARK: - The refusal is a measurement, not an error (swift-linter#33)
+
+    /// A refusal must be reportable in the vocabulary a lane already
+    /// reads.
+    ///
+    /// It used to be a thrown configuration error, which left it outside
+    /// the measurement report entirely: `swift-format` clean, `swiftlint`
+    /// clean, no swift-linter line at all, and a lane recording "no delta
+    /// — proven clean" for a package whose findings were never evaluated.
+    /// Sixteen repositories were processed that way on 2026-08-03. The
+    /// verdict this reason feeds is `unmeasured`, which prints the word
+    /// UNMEASURED and exits 2 — neither 0 nor 1.
+    @Test
+    func `a refusal renders as an unmeasured verdict, never as clean`() throws {
+        let manifest = try Workspace.Lint.Manifest.parse(Self.installed, label: "fixture")
+        var heads = Self.matching
+        heads["swift-institute-linter-rules"] = "eab2cddebfb196027fa85d0c3586f6719381b599"
+        let verdict = Workspace.Lint.Currency.Verdict.installationStale(
+            report: Workspace.Lint.currency(of: manifest, against: heads, at: Self.source)
+        )
+        let reason = try #require(verdict.reason)
+        let measurement = Workspace.Lint.Measurement(
+            package: "/fixture/package",
+            verdict: .unmeasured(reason: reason),
+            summary: nil,
+            plan: nil,
+            findings: [],
+            structured: nil,
+            prerequisite: .currency,
+            diagnostics: "",
+            status: 0
+        )
+        #expect(measurement.verdict.isUnmeasured)
+        #expect(measurement.verdict.fails)
+        #expect(measurement.verdict != .clean)
+        #expect(measurement.description.contains("UNMEASURED"))
+        #expect(measurement.description.contains(Workspace.Lint.stale))
+        #expect(measurement.prerequisite == .currency)
+    }
+
+    /// `current` carries no refusal, so a caller cannot fall through the
+    /// refusing path by forgetting to check an empty array.
+    @Test
+    func `a current verdict carries no refusal and no reason`() {
+        #expect(Workspace.Lint.Currency.Verdict.current.refusal == nil)
+        #expect(Workspace.Lint.Currency.Verdict.current.reason == nil)
+    }
+
+    /// The typed prerequisite is what machine consumers key on, so it
+    /// must not drift with the prose.
+    @Test
+    func `the currency prerequisite names this issue`() {
+        #expect(Workspace.Lint.Prerequisite.currency.token == "currency")
+        #expect(
+            Workspace.Lint.Prerequisite.currency.issue
+                == "https://github.com/swift-foundations/swift-linter/issues/33"
+        )
+    }
+
+    // MARK: - The remedy names the installation (swift-linter#33)
+
+    /// The remedy must name the tree the verdict is about.
+    ///
+    /// A bare `workspace lint install` was the whole instruction, and it
+    /// is the instruction that failed: one machine carried four installed
+    /// trees at four depths, and eight consecutive successful installs
+    /// never touched the one the lint run was refusing on.
+    @Test
+    func `the reinstall remedy names the hierarchy to install into`() {
+        let remedy = Workspace.Lint.reinstall(into: "/Users/x/Developer/coenttb")
+        #expect(
+            remedy.contains(
+                "workspace lint install --workspace-path /Users/x/Developer/coenttb"
+            )
+        )
+    }
+
+    /// When the release itself is behind, the remedy must say that no
+    /// install clears it — the state that sent a lane round a loop with
+    /// no exit.
+    @Test
+    func `a behind release is reported as having no local remedy`() throws {
+        let published = try Workspace.Lint.Manifest.parse(Self.installed, label: "fixture")
+        let remedy = Workspace.Lint.releaseBehind(published)
+        #expect(remedy.contains("cannot clear this refusal"))
+        #expect(remedy.contains("publish-ci-binaries.yml"))
+        #expect(!remedy.contains("--workspace-path"))
+    }
+
+    /// The caller-supplied remedy is what closes the report, so a
+    /// classified refusal does not also carry the generic one.
+    @Test
+    func `the supplied remedy replaces the default, never joins it`() throws {
+        let manifest = try Workspace.Lint.Manifest.parse(Self.installed, label: "fixture")
+        var heads = Self.matching
+        heads["engine"] = "1a80ddd4b14accd2efb62e15802d41ee185a24d3"
+        let findings = Workspace.Lint.currency(
+            of: manifest,
+            against: heads,
+            at: Self.source,
+            remedy: Workspace.Lint.reinstall(into: "/hierarchy")
+        )
+        #expect(findings.count == 4)
+        #expect(findings.last == Workspace.Lint.reinstall(into: "/hierarchy"))
+        #expect(!findings.contains(Workspace.Lint.republish))
+    }
+
     /// The mapping and the release workflow's digest step must name the
     /// same six inputs. A rule pack added upstream and not added here
     /// would be an input the guard never checks.

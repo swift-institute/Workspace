@@ -128,6 +128,27 @@ extension Workspace.Lint {
                 + "run `workspace lint install` from the workspace checkout"
         )
     }
+
+    /// The installation `path` resolves to, or `nil` when the ascent
+    /// reaches the filesystem root without finding one.
+    ///
+    /// The non-throwing half of ``resolve(from:)``, and the reason
+    /// `install` and `--fix` can no longer disagree about which
+    /// installation they mean. `install` used to derive its target from
+    /// the *current working directory's* parent while `--fix` ascended
+    /// from the linted package, so an install run from anywhere other
+    /// than the linted package's own hierarchy created or refreshed a
+    /// different tree and reported success. On 2026-08-03 that put four
+    /// installed trees at four depths on one machine at three different
+    /// digests, and a wave lane reinstalled eight times without once
+    /// touching the tree its lint run was refusing on.
+    ///
+    /// A path that cannot be resolved is not an error here: an install
+    /// into a hierarchy that has none yet is the first install, and it
+    /// still has to work.
+    public static func existing(from path: Swift.String) -> Self? {
+        try? Self.resolve(from: path)
+    }
 }
 
 extension Workspace.Lint {

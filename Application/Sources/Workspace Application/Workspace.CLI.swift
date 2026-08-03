@@ -920,9 +920,27 @@ extension Workspace.CLI {
                 guard Workspace.Lint.supportsFix(installation) else {
                     throw .configuration(Workspace.Lint.fixUnsupported)
                 }
-                let stale = try lint.currency()
-                guard stale.isEmpty else {
-                    throw .configuration(stale.joined(separator: "\n"))
+                // A refusal is reported as a measurement, never thrown.
+                // Thrown, it left the report entirely: a lane saw
+                // swift-format clean, swiftlint clean, and no swift-linter
+                // line at all, and absence of a finding read as absence of
+                // findings. As an UNMEASURED verdict it occupies the same
+                // line, the same word, and the same exit code as every
+                // other run that established nothing.
+                if let reason = try lint.currency().reason {
+                    let refused = Workspace.Lint.Measurement(
+                        package: target.package.description,
+                        verdict: .unmeasured(reason: reason),
+                        summary: nil,
+                        plan: nil,
+                        findings: [],
+                        structured: nil,
+                        prerequisite: .currency,
+                        diagnostics: "",
+                        status: 0
+                    )
+                    print(refused)
+                    Process.Exit.normal(2)
                 }
                 // The shadow gate, first tier only. The inner loop stands
                 // inside one package and reads no inventory, so the
@@ -1005,10 +1023,25 @@ extension Workspace.CLI {
             let lint = Workspace.Lint(root: root)
             switch modes.first {
             case .some(.install):
-                try lint.install()
-                let manifest = try lint.installedManifest()
+                // Install the installation `--fix` would resolve, not the
+                // one this process happens to be standing next to. The two
+                // rules disagreed — `--fix` ascends from the linted package,
+                // `install` took the cwd's parent — so an install run from
+                // anywhere else refreshed a different tree and reported
+                // success while the lint run kept refusing on the tree it
+                // had actually reached. Falling back to the checkout-derived
+                // hierarchy keeps the first install on a fresh machine
+                // working, where there is no installation to ascend to.
+                let target = Workspace.Lint.existing(from: checkoutValue) ?? lint
+                try target.install()
+                let manifest = try target.installedManifest()
                 print("lint: installed swift-linter \(manifest.digest)")
-                print("lint: \(try lint.executable(for: manifest))")
+                print("lint: \(try target.executable(for: manifest))")
+                // Always name the installation that was written. A success
+                // line that does not say *which* installation is exactly
+                // what let eight consecutive successful installs leave the
+                // refusing tree untouched.
+                print("lint: installation \(target.manifestFile)")
             case .some(.check):
                 let diagnostics = try lint.diagnostics()
                 guard diagnostics.isEmpty else {
@@ -1039,9 +1072,18 @@ extension Workspace.CLI {
                     guard Workspace.Lint.supportsFix(try lint.installation()) else {
                         throw .configuration(Workspace.Lint.fixUnsupported)
                     }
-                    let stale = try lint.currency()
-                    guard stale.isEmpty else {
-                        throw .configuration(stale.joined(separator: "\n"))
+                    // Same discipline as the single-package path: the
+                    // sweep refuses in the sweep's own vocabulary rather
+                    // than as a thrown error, so a reader scanning for
+                    // UNMEASURED finds it and an exit code of 2 separates
+                    // it from both 0 (clean) and 1 (violations).
+                    if let reason = try lint.currency().reason {
+                        print("lint all: UNMEASURED — \(reason)")
+                        print(
+                            "lint all: 0 packages linted; no repository in this sweep has been "
+                                + "measured, and none may be recorded clean"
+                        )
+                        Process.Exit.normal(2)
                     }
                 }
                 let configuration = try Workspace.Configuration.load(at: root.checkout)
