@@ -37,8 +37,33 @@ extension Workspace.Lint.Fix {
     ///
     /// One option-value pair is emitted for every supplied identifier. That
     /// preserves the engine's repeated-option semantics exactly.
+    ///
+    /// Valid only on the dispatcher's command line, and only next to a
+    /// command-line `--fix`: the engine refuses the option without one,
+    /// and in command-line fix mode it ignores ``exclusionsVariable``
+    /// entirely. The runner takes the channel instead — its argument
+    /// vector is lint targets and nothing else, so an option there is
+    /// read as a path.
     static func exclusionArguments(_ identifiers: [Swift.String]) -> [Swift.String] {
         identifiers.flatMap { [Self.exclusionOption, $0] }
+    }
+
+    /// The environment channel carrying per-rule fix exclusions to a
+    /// runner-spawned fix run.
+    ///
+    /// The counterpart of ``exclusionArguments(_:)`` for the process
+    /// whose argument vector cannot carry options. The engine reads it
+    /// only when the fix mode itself rides ``variable``.
+    static let exclusionsVariable = "SWIFT_LINTER_FIX_EXCLUDING_RULES"
+
+    /// Encodes per-rule fix exclusions for the engine's channel.
+    ///
+    /// A JSON array of identifiers, in caller order with duplicates
+    /// intact — the same repeated-option semantics
+    /// ``exclusionArguments(_:)`` preserves, on the transport the
+    /// runner's environment protocol reads.
+    static func exclusions(_ identifiers: [Swift.String]) -> Swift.String {
+        JSON.array(identifiers.map { .string($0) }).jsonString()
     }
 
     /// The environment channel the engine reads the mode from.
