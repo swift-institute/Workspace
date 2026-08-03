@@ -1,3 +1,4 @@
+import Standard_Library_Extensions
 import Testing
 
 @testable import Workspace_Application
@@ -10,17 +11,17 @@ extension Workspace.Context.Packet {
 extension Workspace.Context.Packet.Test {
     @Test
     func `key accepts a canonical Issue coordinate only`() {
-        #expect(Key(argument: "swift-institute/Workspace#100")?.identity == "swift-institute/Workspace#100")
-        #expect(Key(argument: "swift-institute/Workspace#0") == nil)
-        #expect(Key(argument: "swift-institute/Workspace") == nil)
-        #expect(Key(argument: "swift-institute/Workspace#one") == nil)
+        #expect(Workspace.Context.Packet.Key(argument: "swift-institute/Workspace#100")?.identity == "swift-institute/Workspace#100")
+        #expect(Workspace.Context.Packet.Key(argument: "swift-institute/Workspace#0") == nil)
+        #expect(Workspace.Context.Packet.Key(argument: "swift-institute/Workspace") == nil)
+        #expect(Workspace.Context.Packet.Key(argument: "swift-institute/Workspace#one") == nil)
     }
 
     @Test
     func `report has deterministic bounded JSON and states its continuation`() {
-        let report = Report(
+        let report = Workspace.Context.Packet.Report(
             record: .init(
-                key: Key(argument: "swift-institute/Workspace#100")!,
+                key: Workspace.Context.Packet.Key(argument: "swift-institute/Workspace#100")!,
                 title: "Render a packet",
                 state: "open",
                 type: "Task",
@@ -49,15 +50,15 @@ extension Workspace.Context.Packet.Test {
 
     @Test
     func `incomplete evidence exits two rather than looking clean`() {
-        let report = Report(record: nil, diagnostics: ["GitHub unavailable"], maxBytes: 24_000)
+        let report = Workspace.Context.Packet.Report(record: nil, diagnostics: ["GitHub unavailable"], maxBytes: 24_000)
         #expect(report.status == 2)
         #expect(report.render(.human).contains("incomplete"))
     }
 
     @Test
     func `human packet truncation preserves a non ASCII scalar boundary`() {
-        let record = Record(
-            key: Key(argument: "swift-institute/Workspace#100")!,
+        let record = Workspace.Context.Packet.Record(
+            key: Workspace.Context.Packet.Key(argument: "swift-institute/Workspace#100")!,
             title: Swift.String(repeating: "€", count: 400),
             state: "open",
             type: "Task",
@@ -68,7 +69,7 @@ extension Workspace.Context.Packet.Test {
             divergences: [], diagnostics: []
         )
 
-        let rendered = Report(record: record, diagnostics: [], maxBytes: 512).render(.human)
+        let rendered = Workspace.Context.Packet.Report(record: record, diagnostics: [], maxBytes: 512).render(.human)
         let marker = rendered.range(of: "\ncontinuation:")!
         let title = rendered.range(of: "title: ")!
         let rawTitleBytes = 512
@@ -85,8 +86,8 @@ extension Workspace.Context.Packet.Test {
 
     @Test
     func `measured comment mismatch exits one`() {
-        let record = Record(
-            key: Key(argument: "swift-institute/Workspace#100")!,
+        let record = Workspace.Context.Packet.Record(
+            key: Workspace.Context.Packet.Key(argument: "swift-institute/Workspace#100")!,
             title: "Packet",
             state: "open",
             type: "Task",
@@ -96,6 +97,6 @@ extension Workspace.Context.Packet.Test {
             assignees: [], labels: [], parent: nil, children: [], comments: [],
             divergences: ["included comment belongs to another Issue"], diagnostics: []
         )
-        #expect(Report(record: record, diagnostics: [], maxBytes: 24_000).status == 1)
+        #expect(Workspace.Context.Packet.Report(record: record, diagnostics: [], maxBytes: 24_000).status == 1)
     }
 }

@@ -264,7 +264,10 @@ extension Workspace.Inventory.Test.Integration {
         // now fails discovery before the writer is reached, and this test is
         // about the writer. What it discovers is immaterial — the assertion is
         // that publication refuses after the file changed underneath it.
-        let repositories = GitHub.Organization.Repositories.Client { _ in
+        let repositories = GitHub.Organization.Repositories.Client {
+            _ async throws(
+                Either<Async.Lifecycle.Error, GitHub.Organization.Repositories.Page.Error>
+            ) in
             do throws(File.System.Write.Atomic.Error) {
                 try replace()
             } catch {
