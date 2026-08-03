@@ -61,6 +61,54 @@ extension Workspace.Lint.Currency {
     public static let branch = "main"
 }
 
+extension Workspace.Lint.Currency {
+    /// What a currency check established, as three states rather than a
+    /// bool.
+    ///
+    /// The two refusals are kept apart because they ask for different
+    /// actions, and the guard used to withhold the difference. An
+    /// installation trailing a current release is cleared by one command.
+    /// An installation level with a release that is itself behind `main`
+    /// cannot be cleared by any local command — the binaries a lane would
+    /// install are the ones it already has — and a message that told it
+    /// to reinstall sent it round a loop with no exit.
+    ///
+    /// Both refuse. This is not a tolerance: the predicate is unchanged
+    /// and still exact against `main`. Only the remedy differs.
+    public enum Verdict: Equatable, Sendable {
+        /// Every input matches its repository's `main`.
+        case current
+
+        /// The installation trails the published release. Reinstalling
+        /// clears it.
+        case installationStale(report: [Swift.String])
+
+        /// The published release itself trails `main`. No local action
+        /// clears it; the republish has to land first.
+        case releaseStale(report: [Swift.String])
+    }
+}
+
+extension Workspace.Lint.Currency.Verdict {
+    /// The refusal report, or `nil` when nothing is being refused.
+    ///
+    /// Optional rather than an empty array so a caller cannot forget to
+    /// check: `if let` is the shape that makes the refusing path
+    /// impossible to fall through.
+    public var refusal: [Swift.String]? {
+        switch self {
+        case .current: nil
+        case .installationStale(let report), .releaseStale(let report): report
+        }
+    }
+
+    /// The one-line reason carried into an
+    /// ``Workspace/Lint/Measurement/Verdict/unmeasured(reason:)`` verdict.
+    public var reason: Swift.String? {
+        refusal?.joined(separator: "\n")
+    }
+}
+
 extension Workspace.Lint {
     /// Whether the installed binaries were built from today's rule packs
     /// and engine, reported as findings rather than a bool.
@@ -82,19 +130,60 @@ extension Workspace.Lint {
     /// is about to rewrite the ecosystem's source, and why it stays off
     /// the read-only inner loop.
     ///
-    /// - Returns: The empty array when every input matches. Otherwise a
-    ///   report naming each input that moved, then the installation the
-    ///   verdict is about, ending in the remedy.
-    public func currency() throws(Workspace.Error) -> [Swift.String] {
+    /// - Returns: ``Workspace/Lint/Currency/Verdict/current`` when every
+    ///   input matches. Otherwise a refusal naming each input that moved,
+    ///   the installation the verdict is about, and the remedy that
+    ///   actually applies to the state it found.
+    public func currency() throws(Workspace.Error) -> Currency.Verdict {
         var heads = [Swift.String: Swift.String]()
         for input in Currency.inputs {
             heads[input.key] = try Self.head(of: input)
         }
-        return Self.currency(
-            of: try installedManifest(),
+        let installed = try installedManifest()
+        let source = manifestFile.description
+        guard
+            !Self.currency(of: installed, against: heads, at: source).isEmpty
+        else { return .current }
+
+        // Which of the two refusals this is decides whether a lane has
+        // anything to do. The published platform manifest is the only
+        // thing that separates them: an installation behind a current
+        // release is cleared by one command, while an installation level
+        // with a release that is itself behind `main` cannot be cleared
+        // locally at all. Telling a lane to reinstall in the second case
+        // is what turns a one-minute wait into a diagnosis cycle, and it
+        // is what eight of them paid on 2026-08-03.
+        let published: Manifest
+        do throws(Workspace.Error) {
+            published = try Manifest.parse(
+                try fetch(Asset.manifest),
+                label: "published \(Asset.manifest)"
+            )
+        } catch {
+            // The release could not be read, so the discriminator is
+            // unavailable. Report the refusal with the conservative
+            // two-step remedy rather than asserting which state it is:
+            // a guess here is a wrong instruction, not a missing one.
+            return .installationStale(
+                report: Self.currency(of: installed, against: heads, at: source)
+            )
+        }
+        let releaseIsBehind = !Self.currency(
+            of: published,
             against: heads,
-            at: manifestFile.description
+            at: "the published \(Asset.manifest)"
+        ).isEmpty
+        let report = Self.currency(
+            of: installed,
+            against: heads,
+            at: source,
+            remedy: releaseIsBehind
+                ? Self.releaseBehind(published)
+                : Self.reinstall(into: hierarchy.description)
         )
+        return releaseIsBehind
+            ? .releaseStale(report: report)
+            : .installationStale(report: report)
     }
 
     /// The comparison itself, separated from the resolution that feeds
@@ -106,10 +195,18 @@ extension Workspace.Lint {
     ///   because a parsed manifest does not carry where it was read
     ///   from — and where it was read from is the half of the refusal
     ///   that was missing.
+    ///
+    /// - Parameter remedy: The closing instruction. Supplied by the
+    ///   caller because which remedy is correct depends on a fact this
+    ///   comparison does not have — whether the published release is
+    ///   itself current. The conservative two-step republish is the
+    ///   default, so a caller that cannot establish that fact still says
+    ///   something true.
     static func currency(
         of installed: Manifest,
         against heads: [Swift.String: Swift.String],
-        at source: Swift.String
+        at source: Swift.String,
+        remedy: Swift.String = Workspace.Lint.republish
     ) -> [Swift.String] {
         var stale = [Swift.String]()
         for input in Currency.inputs {
@@ -129,7 +226,7 @@ extension Workspace.Lint {
         }
         guard !stale.isEmpty else { return [] }
         return [Self.stale] + stale
-            + [Self.provenance(of: installed, at: source), Self.republish]
+            + [Self.provenance(of: installed, at: source), remedy]
     }
 
     /// Which installation the verdict is about.
@@ -229,4 +326,35 @@ extension Workspace.Lint {
         "republish the binaries (`gh workflow run publish-ci-binaries.yml "
         + "--repo \(Workspace.Lint.repository)`, then wait for it), and reinstall with "
         + "`workspace lint install`"
+
+    /// The remedy when the release is current and only this installation
+    /// is behind — naming the installation, not just the command.
+    ///
+    /// A bare `workspace lint install` used to be the whole instruction,
+    /// and it is the instruction that failed: this machine carried four
+    /// installed trees at four depths on 2026-08-03, and an install run
+    /// from a lane's own directory refreshed one of the three the
+    /// subsequent lint never consulted. Naming the hierarchy makes the
+    /// command reach the tree this verdict is about, which is the only
+    /// tree that clearing it means anything for.
+    static func reinstall(into hierarchy: Swift.String) -> Swift.String {
+        "the published release is current and only this installation is behind, so one "
+            + "command clears it: `workspace lint install --workspace-path \(hierarchy)`"
+    }
+
+    /// The remedy when there is none — stated as such.
+    ///
+    /// A rule-pack push republishes automatically (each pack's `ci.yml`
+    /// dispatches `publish-ci-binaries.yml`), so this state resolves on
+    /// its own once the build lands. Until it does, reinstalling installs
+    /// the binaries already installed. Saying so is the difference
+    /// between a lane waiting and a lane retrying eight times.
+    static func releaseBehind(_ published: Manifest) -> Swift.String {
+        "the published ci-binaries release is itself behind main (digest "
+            + published.digest
+            + "), so reinstalling would install what is already installed and cannot clear "
+            + "this refusal; the republish is automatic on a rule-pack push — watch "
+            + "`gh run list --workflow publish-ci-binaries.yml --repo "
+            + "\(Workspace.Lint.repository)` and reinstall once it lands"
+    }
 }

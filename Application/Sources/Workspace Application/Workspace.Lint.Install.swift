@@ -189,7 +189,14 @@ extension Workspace.Lint {
         }
     }
 
-    private func fetch(_ asset: Swift.String) throws(Workspace.Error) -> Swift.String {
+    /// One published asset's contents, without installing anything.
+    ///
+    /// Internal rather than private because the currency check reads the
+    /// published manifest through it: separating "this installation is
+    /// behind the release" from "the release is behind main" needs the
+    /// release, and re-implementing the fetch beside it would be a second
+    /// spelling of the same request.
+    func fetch(_ asset: Swift.String) throws(Workspace.Error) -> Swift.String {
         try run(
             "curl",
             arguments: [
