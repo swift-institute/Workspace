@@ -263,12 +263,20 @@ extension Workspace.Lint {
         case .sarif:
             do throws(Finding.Error) {
                 let parsed = try Finding.parse(sarif: standardOutput)
-                guard parsed.count == summary.violations else {
+                // The five-field summary's `findings` count is the SARIF
+                // population like-for-like: `violations` deliberately
+                // excludes note/remark severities that SARIF still
+                // serializes, so comparing against it there is
+                // apples-to-oranges (#104). Four-field engines carry no
+                // `findings` count, so they fall back to the only total
+                // they reported.
+                let expected = summary.findings ?? summary.violations
+                guard parsed.count == expected else {
                     return .init(
                         package: package,
                         verdict: .unmeasured(
                             reason:
-                                "swift-linter reported \(summary.violations) findings in its run "
+                                "swift-linter reported \(expected) findings in its run "
                                 + "summary but emitted \(parsed.count) SARIF results"
                         ),
                         summary: summary,
