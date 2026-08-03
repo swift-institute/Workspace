@@ -150,6 +150,9 @@ extension Workspace.Lint.Report: CustomStringConvertible {
             if case .unmeasured(let reason) = measurement.verdict {
                 lines.append("            \(reason)")
             }
+            for line in measurement.unmeasuredDiagnostics {
+                lines.append("            \(line)")
+            }
         }
         for measurement in violations {
             lines.append("\(measurement.verdict.text)  \(measurement.package)")
@@ -260,7 +263,9 @@ extension Workspace.Lint.Measurement: CustomStringConvertible {
     ///
     /// Findings first, then the engine's own summary line verbatim.
     /// Reproducing the summary rather than paraphrasing it means the
-    /// number a developer reads locally is the number CI printed.
+    /// number a developer reads locally is the number CI printed. An
+    /// unmeasured verdict is followed by the engine's standard error for
+    /// the same reason — verbatim, not paraphrased.
     public var description: Swift.String {
         var lines = findings
         if let summary {
@@ -270,6 +275,25 @@ extension Workspace.Lint.Measurement: CustomStringConvertible {
             )
         }
         lines.append(verdict.text)
+        lines.append(contentsOf: unmeasuredDiagnostics)
         return lines.joined(separator: "\n")
+    }
+}
+
+extension Workspace.Lint.Measurement {
+    /// The engine's standard error, as lines worth rendering.
+    ///
+    /// Populated only for an unmeasured verdict. A measured run's
+    /// standard error is its summary line, which both renderings already
+    /// reproduce; an unmeasured run's standard error is the engine's own
+    /// account of why it established nothing — a channel it found unset,
+    /// an option it rejected. ``diagnostics`` is retained precisely so
+    /// that account can be shown, and a rendering that withholds it
+    /// reports a mystery where the tool named a cause.
+    var unmeasuredDiagnostics: [Swift.String] {
+        guard verdict.isUnmeasured else { return [] }
+        return diagnostics
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .map(Swift.String.init)
     }
 }
