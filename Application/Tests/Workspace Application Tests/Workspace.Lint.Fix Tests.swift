@@ -32,6 +32,21 @@ extension Workspace.Lint.Fix.Test {
         ])
     }
 
+    /// The runner-path counterpart of the option spelling: same
+    /// identifiers, same order, same duplicates, JSON-encoded for the
+    /// environment channel the runner reads. The option spelling cannot
+    /// reach the runner — its argument vector is lint targets only — and
+    /// the channel cannot reach a command-line fix run, which ignores it.
+    @Test
+    func `the exclusion channel preserves repeated and unknown engine identifiers`() {
+        #expect(Workspace.Lint.Fix.exclusionsVariable == "SWIFT_LINTER_FIX_EXCLUDING_RULES")
+        #expect(
+            Workspace.Lint.Fix.exclusions([
+                "PLAT-ARCH-022", "SAFE-001", "PLAT-ARCH-022", "UNKNOWN-999",
+            ]) == "[\"PLAT-ARCH-022\",\"SAFE-001\",\"PLAT-ARCH-022\",\"UNKNOWN-999\"]"
+        )
+    }
+
     @Test
     func `declared roots use the linter fix channel without losing order or spaces`() {
         let roots = [

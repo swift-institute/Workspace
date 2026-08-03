@@ -168,6 +168,7 @@ extension Workspace.Lint {
                     arguments.append("--dry-run")
                 }
                 arguments += roots.flatMap { ["--target-root", $0.description] }
+                arguments += Fix.exclusionArguments(excludedFixes)
             }
         } else {
             guard let bundle else {
@@ -190,9 +191,17 @@ extension Workspace.Lint {
             environment[Self.policyVariable] = Self.exitPolicy
             executable = installation.runner.description
             arguments = [package]
-        }
-        if fix != nil {
-            arguments += Fix.exclusionArguments(excludedFixes)
+            // The runner's argument vector is lint targets and nothing
+            // else, so the exclusion must ride the environment here. The
+            // dispatcher branch above is the opposite: in command-line
+            // fix mode the engine reads only `--fix-excluding` and
+            // silently ignores the exclusion channel, which on a
+            // shadowed package would apply the exact rewrite the
+            // exclusion exists to withhold.
+            if fix != nil, !excludedFixes.isEmpty {
+                environment[Workspace.Lint.Fix.exclusionsVariable] =
+                    Workspace.Lint.Fix.exclusions(excludedFixes)
+            }
         }
 
         let clock = ContinuousClock()
