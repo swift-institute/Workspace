@@ -60,8 +60,8 @@ extension Workspace.Lint.Ledger.Test.Unit {
         )
         #expect(report.batches[0].findings == 2)
         #expect(report.status == 2)
-        #expect(report.json.contains(#""state" : "unknown""#))
-        #expect(report.json.contains(#""terminal" : true"#))
+        #expect(report.json.contains(#""state": "unknown""#))
+        #expect(report.json.contains(#""terminal": true"#))
         #expect(report.description.contains("UNMEASURED  swift-standards/swift-gamma"))
         #expect(report.description.contains("PLAT-ARCH-022 · 1 · remediation"))
     }
@@ -146,7 +146,7 @@ extension Workspace.Lint.Ledger.Test.`Edge Case` {
         )
 
         #expect(report.status == 2)
-        #expect(report.json.contains(#""status" : "incomplete""#))
+        #expect(report.json.contains(#""status": "incomplete""#))
         #expect(report.description.contains("lint residual ledger: incomplete — 0"))
         #expect(!report.description.contains("lint residual ledger: compliant"))
     }
@@ -229,8 +229,8 @@ extension Workspace.Lint.Ledger.Test.`Edge Case` {
 
         #expect(typed.blocked)
         #expect(typed.packages[0].prerequisite == .sarif)
-        #expect(typed.json.contains(#""kind" : "sarif""#))
-        #expect(typed.json.contains(#""state" : "blocked""#))
+        #expect(typed.json.contains(#""kind": "sarif""#))
+        #expect(typed.json.contains(#""state": "blocked""#))
         #expect(
             typed.description.contains(
                 "prerequisite: sarif · \(Workspace.Lint.Ledger.Report.prerequisite)"
@@ -238,7 +238,7 @@ extension Workspace.Lint.Ledger.Test.`Edge Case` {
         )
         #expect(!prose.blocked)
         #expect(prose.packages[0].prerequisite == nil)
-        #expect(prose.json.contains(#""state" : "satisfied""#))
+        #expect(prose.json.contains(#""state": "satisfied""#))
     }
 
     @Test
@@ -253,8 +253,8 @@ extension Workspace.Lint.Ledger.Test.`Edge Case` {
 
         #expect(report.unresolved == 2)
         #expect(report.status == 2)
-        #expect(report.json.contains(#""state" : "unresolved""#))
-        #expect(report.json.contains(#""terminal" : false"#))
+        #expect(report.json.contains(#""state": "unresolved""#))
+        #expect(report.json.contains(#""terminal": false"#))
     }
 }
 
