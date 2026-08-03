@@ -54,6 +54,44 @@ struct `Workspace Lint Measurement Tests` {
         #expect(measurement.verdict.isUnmeasured)
     }
 
+    /// An engine that refuses a run says why on standard error. The
+    /// rendering must reproduce that account: a coordinator that
+    /// swallowed `fix target-root channel is unset` turned a
+    /// self-diagnosing refusal into a fleet-blocking mystery (#105).
+    @Test
+    func `an unmeasured rendering shows what the engine said`() {
+        let refusal =
+            "[Lint] error: fix target-root channel is unset; "
+            + "target membership must be supplied by the package manifest"
+        let measurement = Workspace.Lint.adjudicate(
+            package: "/tmp/whatever",
+            status: 1,
+            standardOutput: "",
+            standardError: refusal
+        )
+        #expect(measurement.verdict.isUnmeasured)
+        #expect(measurement.description.contains(refusal))
+    }
+
+    /// A measured run's standard error is its summary line, which the
+    /// rendering already reproduces; repeating it verbatim would print
+    /// every number twice.
+    @Test
+    func `a measured rendering does not repeat standard error`() {
+        let measurement = Workspace.Lint.adjudicate(
+            package: "/tmp/whatever",
+            status: 0,
+            standardOutput: "",
+            standardError: "swift-quiet · 93 active rules · 17 files linted · 0 violations"
+        )
+        #expect(measurement.verdict == .clean)
+        #expect(measurement.unmeasuredDiagnostics.isEmpty)
+        #expect(
+            measurement.description
+                == "swift-quiet · 93 active rules · 17 files linted · 0 violations\nclean"
+        )
+    }
+
     @Test
     func `rules over files with nothing found is clean`() {
         let measurement = Workspace.Lint.adjudicate(
@@ -141,7 +179,7 @@ struct `Workspace Lint Measurement Tests` {
         let fixture = try FixProcessFixture()
         defer { fixture.remove() }
 
-        let measurement = Workspace.Lint().measure(
+        let measurement = Workspace.Lint(hierarchy: fixture.package).measure(
             try .resolve(fixture.package.description),
             using: try fixture.installation(),
             default: nil,
@@ -168,7 +206,7 @@ struct `Workspace Lint Measurement Tests` {
         let fixture = try FixProcessFixture()
         defer { fixture.remove() }
 
-        let measurement = Workspace.Lint().measure(
+        let measurement = Workspace.Lint(hierarchy: fixture.package).measure(
             try .resolve(fixture.package.description),
             using: try fixture.installation(),
             default: nil,
@@ -298,6 +336,31 @@ struct `Workspace Lint Report Tests` {
             diagnostics: "",
             status: 0
         )
+    }
+
+    /// The sweep rendering owes each unmeasured package the same
+    /// account the single-package rendering shows: the reason, then the
+    /// engine's standard error verbatim.
+    @Test
+    func `the sweep rendering shows what the engine said for each unmeasured package`() {
+        let refusal = "[Lint] error: fix target-root channel is unset"
+        let unmeasured = Workspace.Lint.Measurement(
+            package: "/tmp/pkg",
+            verdict: .unmeasured(reason: "the engine emitted no run summary"),
+            summary: nil,
+            plan: nil,
+            findings: [],
+            diagnostics: refusal,
+            status: 1
+        )
+        let report = Workspace.Lint.Report(
+            scope: .all,
+            inventory: 1,
+            unmaterialized: [],
+            considered: 1,
+            measurements: [unmeasured]
+        )
+        #expect(report.description.contains(refusal))
     }
 
     /// An unmeasured package outranks a violation. A violation is a fact
