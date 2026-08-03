@@ -3,14 +3,25 @@ extension Workspace.Lint {
     ///
     /// The engine emits one line to **standard error** at the end of
     /// every configured run, on both the prebuilt-runner path and the
-    /// per-invocation eval path:
+    /// per-invocation eval path. Two wire forms are in circulation:
     ///
     /// ```
     /// swift-github · 93 active rules · 56 files linted · 10 violations
+    /// swift-github · 93 active rules · 56 files linted · 10 violations · 12 findings
     /// ```
     ///
-    /// with an optional `(−N excluded)` clause after the rule count when
-    /// the consumer excludes rules from its bundle.
+    /// The four-field form is every engine through
+    /// swift-foundations/swift-linter#22; the five-field form, with the
+    /// trailing `<N> findings` count, is swift-linter PR #24 and every
+    /// engine after it. Both are accepted so that installing a #24-built
+    /// engine before every consumer has adopted the new field does not
+    /// read as UNMEASURED (swift-institute/Workspace#106) — the failure
+    /// mode #105 already produced once, from a narrower skew. `findings`
+    /// is `nil` when the engine that produced the line predates #24;
+    /// consuming it for ledger parity is #104, not here.
+    ///
+    /// Both forms carry an optional `(−N excluded)` clause after the
+    /// rule count when the consumer excludes rules from its bundle.
     ///
     /// ## Why this line is load-bearing
     ///
@@ -41,18 +52,27 @@ extension Workspace.Lint {
         /// Findings emitted, at every severity.
         public let violations: Swift.Int
 
+        /// The total surfaced-finding count, present only on the
+        /// swift-linter PR #24 five-field wire form.
+        ///
+        /// `nil` on the four-field form — not zero, which would claim a
+        /// clean-findings run the engine never reported.
+        public let findings: Swift.Int?
+
         public init(
             package: Swift.String,
             activeRules: Swift.Int,
             excludedRules: Swift.Int,
             filesLinted: Swift.Int,
-            violations: Swift.Int
+            violations: Swift.Int,
+            findings: Swift.Int? = nil
         ) {
             self.package = package
             self.activeRules = activeRules
             self.excludedRules = excludedRules
             self.filesLinted = filesLinted
             self.violations = violations
+            self.findings = findings
         }
     }
 }
@@ -82,9 +102,12 @@ extension Workspace.Lint.Summary {
         return nil
     }
 
+    /// Parses either the four-field (pre-#24) or five-field
+    /// (swift-linter PR #24) wire form; any other field count is
+    /// refused rather than guessed at.
     static func parse(line: Swift.Substring) -> Self? {
         let fields = line.split(separator: Self.separator, omittingEmptySubsequences: false)
-        guard fields.count == 4 else { return nil }
+        guard fields.count == 4 || fields.count == 5 else { return nil }
 
         let package = Workspace.Lint.trimmed(fields[0])
         guard !package.isEmpty else { return nil }
@@ -92,9 +115,29 @@ extension Workspace.Lint.Summary {
         guard
             let rules = Self.rules(Workspace.Lint.trimmed(fields[1])),
             let files = Self.count(Workspace.Lint.trimmed(fields[2]), unit: "linted"),
-            let violations = Self.count(Workspace.Lint.trimmed(fields[3]), unit: nil)
+            let violations = Self.count(
+                Workspace.Lint.trimmed(fields[3]),
+                singular: "violation",
+                plural: "violations"
+            )
         else {
             return nil
+        }
+
+        let findings: Swift.Int?
+        if fields.count == 5 {
+            guard
+                let parsedFindings = Self.count(
+                    Workspace.Lint.trimmed(fields[4]),
+                    singular: "finding",
+                    plural: "findings"
+                )
+            else {
+                return nil
+            }
+            findings = parsedFindings
+        } else {
+            findings = nil
         }
 
         return .init(
@@ -102,7 +145,8 @@ extension Workspace.Lint.Summary {
             activeRules: rules.active,
             excludedRules: rules.excluded,
             filesLinted: files,
-            violations: violations
+            violations: violations,
+            findings: findings
         )
     }
 
@@ -130,22 +174,28 @@ extension Workspace.Lint.Summary {
         return (active: active, excluded: excluded)
     }
 
-    /// Parses `N files linted` / `N file linted`, and `N violations` /
-    /// `N violation`.
+    /// Parses `N files linted` / `N file linted`.
     ///
-    /// The engine singularises its nouns, so neither the noun nor the
-    /// field width can be matched literally; the leading integer and the
-    /// trailing keyword are what identify the field.
-    static func count(_ field: Swift.String, unit: Swift.String?) -> Swift.Int? {
+    /// The engine singularises the noun, so only the trailing `unit`
+    /// keyword (`linted`) is matched literally; the leading integer and
+    /// the field width are what identify the field otherwise.
+    static func count(_ field: Swift.String, unit: Swift.String) -> Swift.Int? {
         let words = field.split(separator: " ", omittingEmptySubsequences: true)
         guard let first = words.first, let value = Swift.Int(first) else { return nil }
-        if let unit {
-            guard words.last == unit[...] else { return nil }
-            guard words.count == 3 else { return nil }
-        } else {
-            guard words.count == 2 else { return nil }
-            guard words[1] == "violations" || words[1] == "violation" else { return nil }
-        }
+        guard words.count == 3, words.last == unit[...] else { return nil }
+        return value
+    }
+
+    /// Parses a bare `N <plural>` / `N <singular>` field — `N
+    /// violations` / `N violation`, or `N findings` / `N finding`.
+    ///
+    /// The engine singularises the noun, so both forms of the keyword
+    /// must be accepted; the caller names which noun this field is, so
+    /// a `violations` field can never be mistaken for a `findings` one.
+    static func count(_ field: Swift.String, singular: Swift.String, plural: Swift.String) -> Swift.Int? {
+        let words = field.split(separator: " ", omittingEmptySubsequences: true)
+        guard let first = words.first, let value = Swift.Int(first) else { return nil }
+        guard words.count == 2, words[1] == plural[...] || words[1] == singular[...] else { return nil }
         return value
     }
 }

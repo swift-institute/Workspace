@@ -21,6 +21,59 @@ struct `Workspace Lint Summary Tests` {
         #expect(summary.excludedRules == 0)
         #expect(summary.filesLinted == 56)
         #expect(summary.violations == 10)
+        // The engine that emitted this line predates swift-linter PR #24,
+        // so it never reported a findings count — `nil`, not `0`.
+        #expect(summary.findings == nil)
+    }
+
+    /// swift-foundations/swift-linter PR #24 (Refs #22) appends a fifth
+    /// `<N> findings` field to the summary line. A machine carrying a
+    /// #24-built engine must not read every package on it as UNMEASURED
+    /// the moment that engine installs (swift-institute/Workspace#106) —
+    /// the fleet-wide version of the skew #105 already produced once.
+    @Test
+    func `parses the swift-linter PR #24 five-field form`() throws {
+        let summary = try #require(
+            Workspace.Lint.Summary.parse(
+                "swift-github · 93 active rules · 56 files linted · 10 violations · 12 findings\n"
+            )
+        )
+        #expect(summary.package == "swift-github")
+        #expect(summary.activeRules == 93)
+        #expect(summary.excludedRules == 0)
+        #expect(summary.filesLinted == 56)
+        #expect(summary.violations == 10)
+        #expect(summary.findings == 12)
+    }
+
+    /// The five-field form composes with the pre-existing excluded-rules
+    /// clause — the two extensions are independent and must not
+    /// interfere with each other's parse.
+    @Test
+    func `parses the five-field form with excluded rules`() throws {
+        let summary = try #require(
+            Workspace.Lint.Summary.parse(
+                "swift-standard-library-extensions · 95 active rules (−1 excluded) · "
+                    + "12 files linted · 3 violations · 9 findings"
+            )
+        )
+        #expect(summary.activeRules == 95)
+        #expect(summary.excludedRules == 1)
+        #expect(summary.violations == 3)
+        #expect(summary.findings == 9)
+    }
+
+    /// The five-field form singularises `finding` exactly as the other
+    /// three counted fields do.
+    @Test
+    func `parses the five-field form's singular finding`() throws {
+        let summary = try #require(
+            Workspace.Lint.Summary.parse(
+                "swift-tiny · 4 active rules · 1 file linted · 1 violation · 1 finding"
+            )
+        )
+        #expect(summary.violations == 1)
+        #expect(summary.findings == 1)
     }
 
     @Test
@@ -76,6 +129,14 @@ struct `Workspace Lint Summary Tests` {
         "swift-github · 93 active rules · 56 files · 10 violations",
         "swift-github · 93 active rules · 56 files linted · 10 findings",
         " · 93 active rules · 56 files linted · 10 violations",
+        // Five fields, but not the PR #24 shape: a sixth field, a
+        // non-numeric findings count, the wrong trailing noun, and the
+        // violations/findings fields swapped. Tolerating the new field
+        // count must not widen into tolerating garbage in it.
+        "swift-github · 93 active rules · 56 files linted · 10 violations · 12 findings · extra",
+        "swift-github · 93 active rules · 56 files linted · 10 violations · many findings",
+        "swift-github · 93 active rules · 56 files linted · 10 violations · 12 issues",
+        "swift-github · 93 active rules · 56 files linted · 10 findings · 12 violations",
     ])
     func `refuses lines that are not the engine's summary`(line: Swift.String) {
         #expect(Workspace.Lint.Summary.parse(line) == nil)
