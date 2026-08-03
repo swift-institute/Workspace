@@ -14,6 +14,10 @@ extension Workspace {
         public let root: Workspace.Root
         public let configuration: Configuration
         public let selection: Workspace.Selection.Resolved
+        /// The registered peer institutes whose checkout facts the run
+        /// measures (``Workspace/Peer/Registry``); empty when the
+        /// checkout registers none.
+        public let peers: [Workspace.Peer]
         public let git: Git.Client
         public let packages: Package.Manager
 
@@ -40,6 +44,7 @@ extension Workspace {
             root: Workspace.Root,
             configuration: Configuration,
             selection: Workspace.Selection.Resolved,
+            peers: [Workspace.Peer] = [],
             git: Git.Client = .init(),
             packages: Package.Manager = .init(),
             fanout: Workspace.Fanout = .init(),
@@ -55,6 +60,7 @@ extension Workspace {
             self.root = root
             self.configuration = configuration
             self.selection = selection
+            self.peers = peers
             self.git = git
             self.packages = packages
             self.fanout = fanout
@@ -89,6 +95,7 @@ extension Workspace.Doctor {
             record(await pins(checkouts)),
             record(await manifest(checkouts)),
             record(linter()),
+            record(await peerCheckout()),
         ]
         switch access {
         case .contributor:

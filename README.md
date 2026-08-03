@@ -528,6 +528,39 @@ outside the physical organization directory. These checks assume a stable local 
 namespace: they are repeated safety snapshots, not a descriptor-relative guarantee against
 another process replacing a directory concurrently.
 
+### Peer institutes
+
+A peer institute is a sibling ecosystem — the Rule Institute is the first — whose checkout
+root sits **beside** this hierarchy root under the same entry directory, carrying the peer's
+name. For a clone at `X/Workspace` the hierarchy is `X/`, and a peer named `rule-institute`
+roots at the entry sibling `X/../rule-institute/`:
+
+```text
+entry/
+├── swift-institute/          the hierarchy above: Workspace/ and the materialization roots
+└── rule-institute/           a peer institute's root — not part of this hierarchy
+    ├── .github/              the peer's control plane, carrying its inventory file
+    └── swift-nl-wetgever/    the peer's organization directories
+```
+
+The committed `Peers.json` beside `Workspace.json` registers which peers Workspace can
+resolve and where each peer's **own** inventory file lives relative to its root. The peer
+inventory (`{"version", "ecosystem", "repositories"}`, records `{"name", "url",
+"organization"}` — `Workspace.json`'s record shape minus `layer`) stays inside the peer's
+tree, so the peer owns its package records and this repository never carries them. A peer
+repository materializes at `<peer root>/<organization>/<name>`, or directly at
+`<peer root>/<name>` when its organization is the peer's eponymous one — the same
+inventory-derived discipline as above, with no layer level: locations come from the
+declaration, never from walking a tree.
+
+Adoption is opt-in per checkout: a machine without the peer root has simply not opted in,
+which `doctor`'s `peer-checkout` check reports as a fact, never a finding. A peer root that
+exists **without** a usable inventory is the state the mechanism exists to end — its packages
+would only be locatable by tree inference — so that warns, and a broken declaration is an
+error. `workspace inventory` prints each registered peer's register after the
+swift-institute one. `sync` does not clone peer repositories; materializing a peer tree is
+the peer's own concern.
+
 ## Reading `doctor`
 
 `doctor` reports what is measurably true about your checkout right now — never a written

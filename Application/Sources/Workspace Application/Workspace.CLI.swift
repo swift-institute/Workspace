@@ -1140,10 +1140,12 @@ extension Workspace.CLI {
             Process.Exit.normal(status)
         case .doctor:
             let selection = try Workspace.Selection.effective(at: root.checkout, in: configuration)
+            let registry = try Workspace.Peer.Registry.load(at: root.checkout)
             let report = await Workspace.Doctor(
                 root: root,
                 configuration: configuration,
                 selection: selection,
+                peers: registry.peers,
                 progress: .standardOutput
             ).run(access: institute ? .institute() : .contributor)
             print(report)
@@ -1218,6 +1220,16 @@ extension Workspace.CLI {
                         repositories: configuration.repositories
                     )
                 )
+                let registry = try Workspace.Peer.Registry.load(at: root.checkout)
+                for peer in registry.peers {
+                    let presence: Workspace.Peer.Presence
+                    do throws(Workspace.Error) {
+                        presence = .resolve(peer, at: try root.peer(peer))
+                    } catch {
+                        presence = .invalid("\(error)")
+                    }
+                    print(Workspace.Peer.Report(peer: peer, presence: presence))
+                }
             case .some(.regenerate):
                 let document = try Workspace.Configuration.Document.load(at: root.checkout)
                 let http = GitHub.HTTP.Client<
