@@ -513,7 +513,10 @@ extension Workspace.CLI {
             guard arguments.isEmpty else {
                 throw .validationFailed(reason: "--argument is valid only with package.")
             }
-            guard modes.first == .packet || issue.isEmpty, includedComments.isEmpty, maxBytes == 24_000 else {
+            guard
+                modes.first == .packet
+                    || (issue.isEmpty && includedComments.isEmpty && maxBytes == 24_000)
+            else {
                 throw .validationFailed(
                     reason: "--issue, --max-bytes, and --include-comment are valid only with context packet."
                 )

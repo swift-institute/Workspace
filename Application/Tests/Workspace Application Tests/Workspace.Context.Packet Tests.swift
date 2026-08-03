@@ -69,15 +69,22 @@ extension Workspace.Context.Packet.Test {
             divergences: [], diagnostics: []
         )
 
-        let rendered = Workspace.Context.Packet.Report(record: record, diagnostics: [], maxBytes: 512).render(.human)
+        // 512 was the originally chosen bound, but at exactly 512 bytes the
+        // continuation marker's digit count happens to make the raw title
+        // budget an exact multiple of "€".utf8.count (3), which defeats the
+        // very property this test exists to demonstrate — see #110. 501
+        // keeps the same truncation shape (still far short of the full
+        // 1200-byte title) without that coincidental alignment.
+        let maxBytes = 501
+        let rendered = Workspace.Context.Packet.Report(record: record, diagnostics: [], maxBytes: maxBytes).render(.human)
         let marker = rendered.range(of: "\ncontinuation:")!
         let title = rendered.range(of: "title: ")!
-        let rawTitleBytes = 512
+        let rawTitleBytes = maxBytes
             - rendered[marker.lowerBound...].utf8.count
             - rendered[..<title.upperBound].utf8.count
         let renderedTitle = rendered[title.upperBound..<marker.lowerBound]
 
-        #expect(rendered.utf8.count <= 512)
+        #expect(rendered.utf8.count <= maxBytes)
         #expect(!rendered.contains("\u{FFFD}"))
         #expect(rendered.contains("continuation:"))
         #expect(rawTitleBytes % "€".utf8.count != 0)
