@@ -244,6 +244,115 @@ struct `Workspace Lint Measurement Tests` {
         #expect(narrowed.findings.count == 1)
         #expect(narrowed.verdict == measurement.verdict)
     }
+
+    /// Two SARIF results — one warning, one error — shared by the parity
+    /// tests below. Every summary line in those tests sets `violations`
+    /// and `findings` to different numbers, so a comparison against the
+    /// wrong field cannot pass by accident.
+    static let parityResults = #"""
+        {
+          "version": "2.1.0",
+          "runs": [{
+            "results": [
+              {
+                "ruleId": "PLAT-ARCH-022",
+                "level": "warning",
+                "message": {"text": "Advisory"},
+                "locations": [{"physicalLocation": {
+                  "artifactLocation": {"uri": "Sources/A.swift"},
+                  "region": {"startLine": 7, "startColumn": 3}
+                }}]
+              },
+              {
+                "ruleId": "IMPL-001",
+                "level": "error",
+                "message": {"text": "Error"},
+                "locations": [{"physicalLocation": {
+                  "artifactLocation": {"uri": "/tmp/pkg/Sources/B.swift"},
+                  "region": {"startLine": 2, "startColumn": 1}
+                }}]
+              }
+            ]
+          }]
+        }
+        """#
+
+    /// #104: `violations` deliberately excludes note/remark severities
+    /// that SARIF still serializes, so the five-field summary's
+    /// `findings` count — not `violations` — is the like-for-like SARIF
+    /// population. `violations` is set to a number that does not match
+    /// the two SARIF results, so this only passes by comparing against
+    /// `findings`.
+    @Test
+    func `five-field summary matches SARIF on findings, not violations`() throws {
+        let measurement = Workspace.Lint.adjudicate(
+            package: "/tmp/pkg",
+            status: 1,
+            standardOutput: Self.parityResults,
+            standardError: "swift-pkg · 2 active rules · 2 files linted · 1 violation · 2 findings",
+            format: .sarif
+        )
+
+        #expect(!measurement.verdict.isUnmeasured)
+        let structured = try #require(measurement.structured)
+        #expect(structured.count == 2)
+        #expect(measurement.verdict == .violations(count: 1, failing: true))
+    }
+
+    /// A five-field summary whose `findings` count disagrees with the
+    /// SARIF population is unmeasured even though `violations` happens
+    /// to match it exactly — once `findings` is present, it is the field
+    /// that governs.
+    @Test
+    func `five-field summary mismatch on findings is unmeasured`() {
+        let measurement = Workspace.Lint.adjudicate(
+            package: "/tmp/pkg",
+            status: 1,
+            standardOutput: Self.parityResults,
+            standardError: "swift-pkg · 2 active rules · 2 files linted · 2 violations · 3 findings",
+            format: .sarif
+        )
+
+        #expect(measurement.verdict.isUnmeasured)
+        #expect(measurement.verdict.text.contains("reported 3 findings"))
+        #expect(measurement.verdict.text.contains("emitted 2 SARIF results"))
+        #expect(measurement.structured == nil)
+    }
+
+    /// A four-field summary carries no `findings` count — the engine
+    /// predates swift-linter #24 — so the guard falls back to
+    /// `violations`, the only total such an engine ever reported.
+    @Test
+    func `four-field summary falls back to violations and matches`() throws {
+        let measurement = Workspace.Lint.adjudicate(
+            package: "/tmp/pkg",
+            status: 1,
+            standardOutput: Self.parityResults,
+            standardError: "swift-pkg · 2 active rules · 2 files linted · 2 violations",
+            format: .sarif
+        )
+
+        #expect(!measurement.verdict.isUnmeasured)
+        let structured = try #require(measurement.structured)
+        #expect(structured.count == 2)
+    }
+
+    /// The four-field fallback still fails closed on a genuine mismatch.
+    @Test
+    func `four-field summary mismatch on the violations fallback is unmeasured`() {
+        let measurement = Workspace.Lint.adjudicate(
+            package: "/tmp/pkg",
+            status: 1,
+            standardOutput: Self.parityResults,
+            standardError: "swift-pkg · 2 active rules · 2 files linted · 5 violations",
+            format: .sarif
+        )
+
+        #expect(measurement.verdict.isUnmeasured)
+        #expect(measurement.verdict.text.contains("reported 5 findings"))
+        #expect(measurement.verdict.text.contains("emitted 2 SARIF results"))
+        #expect(measurement.structured == nil)
+    }
 }
 
 private struct FixProcessFixture {
