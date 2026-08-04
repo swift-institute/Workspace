@@ -256,28 +256,68 @@ extension Workspace.Verification.Run {
         )
     }
 
-    /// A `swift test` summary line's `Executed N tests, with F failures`
-    /// shape — a best-effort parse, never invented when the captured
-    /// output does not contain a recognisable count.
+    /// A best-effort parse of `swift test`'s final summary line, in either
+    /// shape this ecosystem's targets can emit: XCTest's `Executed N
+    /// tests, with F failures …`, or Swift Testing's `Test run with N
+    /// tests in M suites passed/failed after T seconds …`. Returns `nil`
+    /// — never a guessed count — whenever a line matches one shape's
+    /// opening words but not its exact number-bearing tokens, exactly the
+    /// discipline ``Workspace/Lint/Summary/parse(_:)`` already applies to
+    /// swift-linter's own run summary.
     static func parseTestCounts(
         _ output: Swift.String
     ) -> Workspace.Verification.Operation.TestCounts? {
-        for line in output.split(separator: "\n") where line.contains("Executed") && line.contains("test") {
-            let tokens = line.split(separator: " ")
-            guard
-                let executedIndex = tokens.firstIndex(of: "Executed"),
-                executedIndex + 1 < tokens.count,
-                let executed = Swift.Int(tokens[executedIndex + 1])
-            else { continue }
-            var failed = 0
-            if let withIndex = tokens.firstIndex(of: "with"), withIndex + 1 < tokens.count,
-                let parsed = Swift.Int(tokens[withIndex + 1])
-            {
-                failed = parsed
-            }
-            return .init(executed: executed, passed: executed - failed, failed: failed)
+        for line in output.split(separator: "\n", omittingEmptySubsequences: true) {
+            if let counts = Self.parseXCTestSummary(line) { return counts }
+            if let counts = Self.parseSwiftTestingSummary(line) { return counts }
         }
         return nil
+    }
+
+    /// `Executed 5 tests, with 0 failures (0 unexpected) in 0.012 (0.014)
+    /// seconds`.
+    private static func parseXCTestSummary(
+        _ line: Swift.Substring
+    ) -> Workspace.Verification.Operation.TestCounts? {
+        guard line.contains("Executed"), line.contains("test") else { return nil }
+        let tokens = line.split(separator: " ")
+        guard
+            let executedIndex = tokens.firstIndex(of: "Executed"),
+            executedIndex + 1 < tokens.count,
+            let executed = Swift.Int(tokens[executedIndex + 1]),
+            let withIndex = tokens.firstIndex(of: "with"),
+            withIndex + 1 < tokens.count,
+            let failed = Swift.Int(tokens[withIndex + 1])
+        else { return nil }
+        return .init(executed: executed, passed: executed - failed, failed: failed)
+    }
+
+    /// `Test run with 5 tests in 2 suites passed after 0.012 seconds.` or
+    /// `… failed after 0.012 seconds with 2 issues (including 1 known
+    /// issue).` — the executed count sits right after the first `with`;
+    /// the failure count, when the run failed, sits right after the
+    /// second. A `passed` line with no second `with` is 0 failures by
+    /// construction, never a guess.
+    private static func parseSwiftTestingSummary(
+        _ line: Swift.Substring
+    ) -> Workspace.Verification.Operation.TestCounts? {
+        guard line.hasPrefix("Test run with"), line.contains("test") else { return nil }
+        let tokens = line.split(separator: " ")
+        guard
+            let firstWith = tokens.firstIndex(of: "with"),
+            firstWith + 1 < tokens.count,
+            let executed = Swift.Int(tokens[firstWith + 1])
+        else { return nil }
+        if line.contains(" passed ") {
+            return .init(executed: executed, passed: executed, failed: 0)
+        }
+        guard
+            line.contains(" failed "),
+            let secondWith = tokens[(firstWith + 1)...].firstIndex(of: "with"),
+            secondWith + 1 < tokens.count,
+            let failed = Swift.Int(tokens[secondWith + 1])
+        else { return nil }
+        return .init(executed: executed, passed: executed - failed, failed: failed)
     }
 }
 
