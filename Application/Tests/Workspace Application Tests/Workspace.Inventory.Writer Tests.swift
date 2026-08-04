@@ -99,6 +99,79 @@ extension Workspace.Inventory.Test.Unit {
         #expect(throws: Workspace.Error.self) { _ = try duplicate.rendered() }
         #expect(throws: Workspace.Error.self) { _ = try noncanonical.rendered() }
     }
+
+    /// Positive control: "Change a scratch layer; layer consistency fires
+    /// without changing orgs.yaml." A repository sitting directly in one of
+    /// the three layer-root organizations (here `swift-primitives`) must
+    /// declare that same layer; this check reads only `Workspace.Layer` and
+    /// the repository's own `organization`/`layer` fields; `orgs.yaml`
+    /// belongs to a different repository entirely and this module never
+    /// opens it.
+    @Test
+    func `A repository whose layer disagrees with its layer-root organization is rejected`() throws {
+        let key = Workspace.Repository.Key(
+            owner: .init("swift-primitives"),
+            name: .init("swift-mislabeled")
+        )
+        let mismatched = Workspace.Configuration(
+            version: 1,
+            scope: "swift-institute",
+            swift: "6.3.3",
+            xcode: "26.6",
+            repositories: [
+                .init(
+                    name: key.name.underlying,
+                    url: key.url,
+                    organization: key.owner.underlying,
+                    // swift-primitives is the primitives layer's root — this
+                    // must fire.
+                    layer: .foundations
+                )
+            ]
+        )
+        // Negative control: the same coordinate with the agreeing layer must
+        // not trip the guard.
+        let consistent = Workspace.Configuration(
+            version: 1,
+            scope: "swift-institute",
+            swift: "6.3.3",
+            xcode: "26.6",
+            repositories: [
+                .init(
+                    name: key.name.underlying,
+                    url: key.url,
+                    organization: key.owner.underlying,
+                    layer: .primitives
+                )
+            ]
+        )
+        // A sub-organization nested under a root (ruling 139) is exempt —
+        // `swift-ietf` is a standards-layer organization but is not the
+        // standards root, so any layer it declares is a different concern
+        // this guard does not adjudicate.
+        let subOrganization = Workspace.Configuration(
+            version: 1,
+            scope: "swift-institute",
+            swift: "6.3.3",
+            xcode: "26.6",
+            repositories: [
+                .init(
+                    name: "swift-rfc-9110",
+                    url: "https://github.com/swift-ietf/swift-rfc-9110.git",
+                    organization: "swift-ietf",
+                    layer: .standards
+                )
+            ]
+        )
+
+        #expect(throws: Workspace.Error.self) { _ = try mismatched.rendered() }
+        // Negative controls: both must render without throwing. Calling
+        // `rendered()` directly (rather than wrapping in `#expect(throws:)`)
+        // means an unexpected throw here fails the test through the normal
+        // uncaught-error path.
+        _ = try consistent.rendered()
+        _ = try subOrganization.rendered()
+    }
 }
 
 extension Workspace.Inventory.Test.Integration {

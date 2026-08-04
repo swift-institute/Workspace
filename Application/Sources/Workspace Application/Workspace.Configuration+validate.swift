@@ -30,6 +30,26 @@ extension Workspace.Configuration {
                     """
                 )
             }
+            // A repository sitting directly in a layer's *root* organization
+            // (swift-primitives, swift-standards, swift-foundations) must
+            // declare that same layer. Sub-organizations nested under a root
+            // per ruling 139 (swift-ietf, swift-arm-ltd, and so on) are not
+            // roots themselves and are exempt — `Layer.organization` only
+            // names the three roots, so this loop is a no-op for every
+            // other organization by construction. This never reads or
+            // writes `orgs.yaml`: the check is entirely over `Layer`, a
+            // Workspace-owned fact, and the organization string already
+            // present on the repository record.
+            if let root = Workspace.Layer.allCases.first(where: { $0.organization == repository.organization }),
+                root != repository.layer
+            {
+                throw .configuration(
+                    """
+                    Workspace.json repository \(repository.name) sits in \(repository.organization), \
+                    the \(root.token) layer root, but declares layer \(repository.layer.token)
+                    """
+                )
+            }
         }
 
         return self

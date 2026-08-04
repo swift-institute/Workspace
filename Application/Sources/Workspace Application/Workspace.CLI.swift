@@ -125,7 +125,7 @@ extension Workspace.CLI {
                 name: "mode",
                 placeholder:
                     "install|check|packet|serve|build|test|run|resolve|update|regenerate|clean|dump-package|lint|ledger"
-                    + "|pages|seal|token",
+                    + "|pages|effective|seal|token",
                 arity: .atMost(1),
                 help: .init(
                     abstract:
@@ -690,10 +690,14 @@ extension Workspace.CLI {
         } else if operation == .inventory {
             guard
                 modes.isEmpty
-                    || (modes.count == 1 && (modes.first == .regenerate || modes.first == .pages))
+                    || (modes.count == 1
+                        && (modes.first == .regenerate || modes.first == .pages
+                            || modes.first == .effective))
             else {
                 throw .validationFailed(
-                    reason: "inventory takes regenerate, pages, or no mode (the read-only register)."
+                    reason:
+                        "inventory takes regenerate, pages, effective, or no mode (the read-only "
+                        + "register)."
                 )
             }
             guard consumer.isEmpty, dependency.isEmpty else {
@@ -1310,6 +1314,50 @@ extension Workspace.CLI {
                             : "inventory regenerate: replaced Workspace.json"
                     )
                 }
+            case .some(.effective):
+                let document = try Workspace.Configuration.Document.load(at: root.checkout)
+                let http = GitHub.HTTP.Client<
+                    Workspace.Inventory.Transport.Error,
+                    GitHub.HTTP.Pagination.Error
+                >(
+                    agent: .init(rawValue: "swift-institute-workspace"),
+                    version: .init(rawValue: "2022-11-28"),
+                    execute: Workspace.Inventory.Transport.githubCLI()
+                )
+                let client = Workspace.Inventory.client(
+                    http,
+                    // `gh` supplies the credential; see Workspace.Inventory.Transport.
+                    authentication: .token(.init(rawValue: ""))
+                )
+                let discovery: Workspace.Inventory.Private.Discovery
+                do {
+                    discovery = try await client.discoverPrivate(.institute())
+                } catch {
+                    throw .configuration("inventory effective: \(error)")
+                }
+                let effective: Workspace.Inventory.Effective
+                do throws(Workspace.Inventory.Effective.Error) {
+                    effective = try .init(public: document.configuration, private: discovery)
+                } catch {
+                    throw .configuration("inventory effective: \(error)")
+                }
+                print(try effective.combined.rendered())
+                let publicDigest = try? effective.public.digest(at: root)
+                let privateDigest = try? effective.private.digest(at: root)
+                let combinedDigest = try? effective.combined.digest(at: root)
+                let summaryLine =
+                    "inventory effective: \(effective.public.repositories.count) public, "
+                    + "\(effective.private.repositories.count) private "
+                    + "(\(discovery.unmeasured.count) unmeasured), "
+                    + "\(effective.combined.repositories.count) combined\n"
+                    + "  public digest: \(publicDigest ?? "unavailable")\n"
+                    + "  private digest: \(privateDigest ?? "unavailable")\n"
+                    + "  effective digest: \(combinedDigest ?? "unavailable")\n"
+                unsafe fputs(summaryLine, stderr)
+                for entry in discovery.unmeasured {
+                    unsafe fputs("  UNMEASURED \(entry.scope): \(entry.reason)\n", stderr)
+                }
+                Process.Exit.normal(discovery.unmeasured.isEmpty ? 0 : 1)
             case .some(.pages):
                 let selection = try Workspace.Selection.effective(at: root.checkout, in: configuration)
                 let inventory = await Workspace.Pages.enumerate(root: root, selection: selection)

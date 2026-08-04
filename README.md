@@ -15,6 +15,7 @@ and local-source composition for cross-package work (`workspace compose` / `rest
 | `doctor` | Report what is measurably true about this checkout. |
 | `inventory` | Print the committed name → organization → relative-path register. Never discovers or writes. |
 | `inventory regenerate` | Discover the live roster and replace `Workspace.json`; `--dry-run` plans only. |
+| `inventory effective` | Combine the committed public roster with a live, authenticated private-visibility discovery pass; print the combined register and public/private/effective digests. Read-only — never writes `Workspace.json` or any private list. |
 | `dependencies` | Audit direct manifest dependency origins at exact remote revisions; never writes package state. |
 | `compose` | Point one package's dependency at your local checkout of it, so edits are picked up. |
 | `restore` | Undo a composition, returning the manifest to its declared form byte-for-byte. |

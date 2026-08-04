@@ -2624,12 +2624,6 @@
     },
     {
       "layer": "foundations",
-      "name": "swift-types-foundation",
-      "organization": "swift-foundations",
-      "url": "https://github.com/swift-foundations/swift-types-foundation.git"
-    },
-    {
-      "layer": "foundations",
       "name": "swift-uri",
       "organization": "swift-foundations",
       "url": "https://github.com/swift-foundations/swift-uri.git"
