@@ -6,6 +6,83 @@ import Testing
 @testable import Workspace_Application
 
 extension Workspace.Inventory.Test.Unit {
+    /// Positive control: "Delete a known entry in a scratch input;
+    /// regeneration restores it." A repository live and eligible, but absent
+    /// from the committed configuration passed as `existing`, is added back
+    /// by the merge exactly as `Client.discover(_:)` found it.
+    @Test
+    func `A repository missing from the committed inventory is restored by regeneration`() throws {
+        let key = Workspace.Repository.Key(
+            owner: .init("swift-primitives"),
+            name: .init("swift-deleted-by-mistake")
+        )
+        let existing = Workspace.Configuration(
+            version: 1,
+            scope: "swift-institute",
+            swift: "6.3.3",
+            xcode: "26.6",
+            repositories: []
+        )
+        let discovery = Workspace.Inventory.Discovery(
+            repositories: [.init(id: .init(1), key: key, layer: .primitives)],
+            exclusions: []
+        )
+
+        let merged = try Workspace.Inventory.Merge()(discovery, into: existing)
+
+        #expect(merged.repositories.map(\.name) == [key.name.underlying])
+        #expect(merged.repositories.map(\.url) == [key.url])
+    }
+
+    /// Positive control: "Add a stale scratch entry; regeneration
+    /// removes/reports it." A repository committed to `existing` but no
+    /// longer returned by live discovery (deleted, gone private, archived —
+    /// any reason) is dropped rather than carried forward, because
+    /// `Merge` only ever emits from `discovery.repositories`.
+    @Test
+    func `A repository no longer live is dropped as stale by regeneration`() throws {
+        let survivor = Workspace.Repository.Key(
+            owner: .init("swift-foundations"),
+            name: .init("swift-survivor")
+        )
+        let stale = Workspace.Repository.Key(
+            owner: .init("swift-foundations"),
+            name: .init("swift-gone-private")
+        )
+        let existing = Workspace.Configuration(
+            version: 1,
+            scope: "swift-institute",
+            swift: "6.3.3",
+            xcode: "26.6",
+            repositories: [
+                .init(
+                    name: survivor.name.underlying,
+                    url: survivor.url,
+                    organization: survivor.owner.underlying,
+                    layer: .foundations
+                ),
+                .init(
+                    name: stale.name.underlying,
+                    url: stale.url,
+                    organization: stale.owner.underlying,
+                    layer: .foundations
+                ),
+            ]
+        )
+        // The live discovery only returns `survivor` — `stale` went
+        // private, was archived, or was deleted; from Merge's perspective
+        // the reason is immaterial, only that discovery no longer reports it.
+        let discovery = Workspace.Inventory.Discovery(
+            repositories: [.init(id: .init(1), key: survivor, layer: .foundations)],
+            exclusions: []
+        )
+
+        let merged = try Workspace.Inventory.Merge()(discovery, into: existing)
+
+        #expect(merged.repositories.map(\.name) == [survivor.name.underlying])
+        #expect(!merged.repositories.map(\.name).contains(stale.name.underlying))
+    }
+
     @Test
     func `Merge preserves exact-key annotations and sorts layer owner name`() throws {
         let foundations = GitHub.Organization.Name("swift-foundations")

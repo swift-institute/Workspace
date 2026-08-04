@@ -292,6 +292,61 @@ extension Workspace.Inventory.Test.`Edge Case` {
         }
     }
 
+    /// Degenerate-case control: a page fetch failing *after* an earlier page
+    /// already succeeded must not surface as a short-but-complete roster.
+    /// `GitHub.Organization.Repositories.Client+all` only ever returns after
+    /// its `while let request = current` loop runs out of pages — a thrown
+    /// page error propagates before that loop can return anything, so
+    /// `swift-page-one`'s successful fetch is discarded along with the
+    /// failure rather than silently standing in for the whole organization.
+    /// This is the exact defect class 0B-01 found in `resolve-targets`: a
+    /// per-page accumulation that dropped every page but the last and
+    /// produced a confident, wrong, complete-looking answer.
+    @Test
+    func `A page fetch failure mid-pagination aborts discovery rather than truncating it`()
+        async throws
+    {
+        let owner = GitHub.Organization.Name("swift-foundations")
+        let policy = try Workspace.Inventory.Policy(
+            organizations: [.init(name: owner, layer: .foundations)],
+            denied: [],
+            limit: .init(fixture: 5, items: 50)
+        )
+        let repositories = GitHub.Organization.Repositories.Client {
+            request async throws(
+                Either<Async.Lifecycle.Error, GitHub.Organization.Repositories.Page.Error>
+            ) in
+            if request.page == .first {
+                return .init(
+                    response: .init(repositories: [.init(fixture: 1, name: "swift-page-one")]),
+                    next: .init(
+                        organization: request.organization,
+                        type: request.type,
+                        page: .init(fixture: 2),
+                        size: request.size
+                    )
+                )
+            }
+            throw .right(.transport)
+        }
+        let content = GitHub.Repository.Content.Client<Never> { _ async throws(Never) in
+            .init(kind: .file)
+        }
+
+        do throws(Workspace.Inventory.Error<Never>) {
+            _ = try await Workspace.Inventory.Client(
+                repositories: repositories,
+                content: content
+            ).discover(policy)
+            Issue.record("Expected the page-two failure to abort discovery entirely")
+        } catch {
+            guard case .repositories(owner, .right(.page(.transport))) = error else {
+                Issue.record("Unexpected error: \(error)")
+                return
+            }
+        }
+    }
+
     @Test
     func `Page bound is a typed repository traversal failure`() async throws {
         let owner = GitHub.Organization.Name("swift-foundations")

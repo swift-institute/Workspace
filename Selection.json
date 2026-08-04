@@ -430,7 +430,6 @@
     "swift-foundations/swift-time-to-live-dependencies",
     "swift-foundations/swift-translating",
     "swift-foundations/swift-translating-dependencies",
-    "swift-foundations/swift-types-foundation",
     "swift-foundations/swift-uri",
     "swift-foundations/swift-url-form-coding",
     "swift-foundations/swift-url-routing",
