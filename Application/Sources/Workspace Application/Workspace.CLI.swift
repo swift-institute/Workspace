@@ -1281,8 +1281,15 @@ extension Workspace.CLI {
                     )
                 }
                 let outputFile = File(outputPath)
-                do throws(File.System.Write.Atomic.Error) {
-                    try outputFile.write.atomic(receipt.canonical)
+                // Untyped catch, deliberately: the async `atomic(_:options:)`
+                // overload throws `Either<Kernel.Thread.Pool.Error,
+                // File.System.Write.Atomic.Error>`, whose first member this
+                // file has no reason to name or depend on directly — this
+                // call site only needs "did the write succeed," which an
+                // untyped `catch` reports exactly as well as spelling out
+                // the union would.
+                do {
+                    try await outputFile.write.atomic(receipt.canonical)
                 } catch {
                     throw .configuration("cannot write --receipt \(receiptPath): \(error)")
                 }
@@ -1710,6 +1717,13 @@ extension Workspace.CLI {
         case .lint:
             return
         case .github:
+            return
+        case .verification:
+            // Unreachable: `.verification` returns above, before `root`/
+            // `configuration` are even resolved, exactly like `.package`.
+            // Still a required arm — `Operation` gained a case, and every
+            // exhaustive switch over it must account for that, whether or
+            // not this arm can run.
             return
         }
     }
