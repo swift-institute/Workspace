@@ -49,16 +49,7 @@ extension Workspace.Verification {
         public let fresh: Swift.Bool
         public let jobs: Swift.Int?
         public let arguments: [Swift.String]
-
-        let head: @Sendable (Swift.String) throws(Workspace.Error) -> Swift.String
-        let dirty: @Sendable (Swift.String) throws(Workspace.Error) -> Swift.Bool
-        let build: @Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) -> Operation.Result
-        let test: @Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) -> Operation.Result
-        let nestedTests:
-            @Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) -> [Operation.Result]
-        let lint: @Sendable (Swift.String) -> Operation.Result
-        let environment: @Sendable () -> Environment
-        let now: @Sendable () -> Swift.String
+        let tools: Tools
 
         public init(
             packagePath: Swift.String,
@@ -77,18 +68,7 @@ extension Workspace.Verification {
             fresh: Swift.Bool = false,
             jobs: Swift.Int? = nil,
             arguments: [Swift.String] = [],
-            head: (@Sendable (Swift.String) throws(Workspace.Error) -> Swift.String)? = nil,
-            dirty: (@Sendable (Swift.String) throws(Workspace.Error) -> Swift.Bool)? = nil,
-            build: (@Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) -> Operation.Result)? =
-                nil,
-            test: (@Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) -> Operation.Result)? =
-                nil,
-            nestedTests: (
-                @Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) -> [Operation.Result]
-            )? = nil,
-            lint: (@Sendable (Swift.String) -> Operation.Result)? = nil,
-            environment: (@Sendable () -> Environment)? = nil,
-            now: (@Sendable () -> Swift.String)? = nil
+            tools: Tools = Tools()
         ) {
             self.packagePath = packagePath
             self.claimedHead = claimedHead
@@ -106,14 +86,63 @@ extension Workspace.Verification {
             self.fresh = fresh
             self.jobs = jobs
             self.arguments = arguments
-            self.head = head ?? Self.realHead
-            self.dirty = dirty ?? Self.realDirty
-            self.build = build ?? Self.realBuild
-            self.test = test ?? Self.realTest
-            self.nestedTests = nestedTests ?? Self.realNestedTests
-            self.lint = lint ?? Self.realLint
-            self.environment = environment ?? Environment.observe
-            self.now = now ?? Self.realNow
+            self.tools = tools
+        }
+    }
+}
+
+extension Workspace.Verification.Run {
+    /// Every real-tool interaction ``Run`` performs, bundled as one
+    /// injectable value instead of eight separate initializer parameters.
+    ///
+    /// Split out deliberately, not only for readability: a single
+    /// initializer assigning sixteen plain facts and eight `@Sendable`
+    /// closures (several with a `parameter ?? Self.realX` fallback) is
+    /// exactly the shape that crashed `swift-frontend` during IR
+    /// generation for `Run.init` on this toolchain — see the programme's
+    /// `toolchain-defects.md`. Splitting the closure-bearing parameters
+    /// into their own small type with its own defaults resolves the
+    /// crash and is the better design independent of that: every real/fake
+    /// pair now sits next to its sibling instead of spread across a
+    /// twenty-three-parameter initializer.
+    ///
+    /// Production always uses the defaults (every real closure); a test
+    /// substitutes only the ones it needs to fake, exactly the
+    /// ``Workspace/Coherence/Run`` pattern applied one level down.
+    struct Tools: Sendable {
+        var head: @Sendable (Swift.String) throws(Workspace.Error) -> Swift.String
+        var dirty: @Sendable (Swift.String) throws(Workspace.Error) -> Swift.Bool
+        var build: @Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) -> Operation.Result
+        var test: @Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) -> Operation.Result
+        var nestedTests:
+            @Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) -> [Operation.Result]
+        var lint: @Sendable (Swift.String) -> Operation.Result
+        var environment: @Sendable () -> Environment
+        var now: @Sendable () -> Swift.String
+
+        init(
+            head: @escaping @Sendable (Swift.String) throws(Workspace.Error) -> Swift.String = Run
+                .realHead,
+            dirty: @escaping @Sendable (Swift.String) throws(Workspace.Error) -> Swift.Bool = Run
+                .realDirty,
+            build: @escaping @Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) ->
+                Operation.Result = Run.realBuild,
+            test: @escaping @Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) ->
+                Operation.Result = Run.realTest,
+            nestedTests: @escaping @Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) ->
+                [Operation.Result] = Run.realNestedTests,
+            lint: @escaping @Sendable (Swift.String) -> Operation.Result = Run.realLint,
+            environment: @escaping @Sendable () -> Environment = Environment.observe,
+            now: @escaping @Sendable () -> Swift.String = Run.realNow
+        ) {
+            self.head = head
+            self.dirty = dirty
+            self.build = build
+            self.test = test
+            self.nestedTests = nestedTests
+            self.lint = lint
+            self.environment = environment
+            self.now = now
         }
     }
 }
@@ -439,8 +468,8 @@ extension Workspace.Verification.Run {
         let observedHead: Swift.String
         let isDirty: Swift.Bool
         do throws(Workspace.Error) {
-            observedHead = try head(packagePath)
-            isDirty = try dirty(packagePath)
+            observedHead = try tools.head(packagePath)
+            isDirty = try tools.dirty(packagePath)
         } catch {
             throw .subject("\(error)")
         }
@@ -455,18 +484,18 @@ extension Workspace.Verification.Run {
         for kind in requestedOperations {
             switch kind {
             case .build:
-                results.append(build(packagePath, fresh, jobs, arguments))
+                results.append(tools.build(packagePath, fresh, jobs, arguments))
             case .test:
-                results.append(test(packagePath, fresh, jobs, arguments))
+                results.append(tools.test(packagePath, fresh, jobs, arguments))
             case .nestedTests:
-                let nested = nestedTests(packagePath, fresh, jobs, arguments)
+                let nested = tools.nestedTests(packagePath, fresh, jobs, arguments)
                 if nested.isEmpty {
                     results.append(
                         .init(
                             operation: .nestedTests,
                             arguments: [],
-                            startedAt: now(),
-                            endedAt: now(),
+                            startedAt: tools.now(),
+                            endedAt: tools.now(),
                             durationSeconds: 0,
                             exitCode: nil,
                             provenance: fresh ? .fresh : .cached,
@@ -478,7 +507,7 @@ extension Workspace.Verification.Run {
                     results.append(contentsOf: nested)
                 }
             case .lint:
-                results.append(lint(packagePath))
+                results.append(tools.lint(packagePath))
             }
         }
 
@@ -539,7 +568,7 @@ extension Workspace.Verification.Run {
             layer: layer,
             workspaceRevision: workspaceRevision,
             policyRevision: policyRevision,
-            environment: environment(),
+            environment: tools.environment(),
             requestedOperations: requestedOperations,
             operations: results,
             platform: .init(

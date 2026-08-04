@@ -70,14 +70,16 @@ extension Workspace.Verification.Test {
             policyRevision: policyRevision,
             requestedOperations: requestedOperations,
             requiredOperations: requiredOperations,
-            head: { _ throws(Workspace.Error) in observedHead ?? claimedHead },
-            dirty: { _ throws(Workspace.Error) in isDirty },
-            build: { _, _, _, _ in buildResult ?? Self.operation(.build) },
-            test: { _, _, _, _ in testResult ?? Self.operation(.test) },
-            nestedTests: { _, _, _, _ in [] },
-            lint: { _ in Self.operation(.lint) },
-            environment: { Self.environment(swift: environmentSwift) },
-            now: { "2026-08-04T00:00:00Z" }
+            tools: .init(
+                head: { _ throws(Workspace.Error) in observedHead ?? claimedHead },
+                dirty: { _ throws(Workspace.Error) in isDirty },
+                build: { _, _, _, _ in buildResult ?? Self.operation(.build) },
+                test: { _, _, _, _ in testResult ?? Self.operation(.test) },
+                nestedTests: { _, _, _, _ in [] },
+                lint: { _ in Self.operation(.lint) },
+                environment: { Self.environment(swift: environmentSwift) },
+                now: { "2026-08-04T00:00:00Z" }
+            )
         )
     }
 }
@@ -207,19 +209,21 @@ extension Workspace.Verification.Test.`Edge Case` {
             policyRevision: "policy-1",
             requestedOperations: [.lint],
             requiredOperations: [.lint],
-            head: { _ throws(Workspace.Error) in Workspace.Verification.Test.head },
-            dirty: { _ throws(Workspace.Error) in false },
-            build: { _, _, _, _ in Workspace.Verification.Test.operation(.build) },
-            test: { _, _, _, _ in Workspace.Verification.Test.operation(.test) },
-            nestedTests: { _, _, _, _ in [] },
-            lint: { _ in
-                Workspace.Verification.Test.operation(
-                    .lint,
-                    findings: ["/Users/coen/Developer/coenttb/swift-primitives/Secret.swift:1:1: note"]
-                )
-            },
-            environment: { Workspace.Verification.Test.environment() },
-            now: { "2026-08-04T00:00:00Z" }
+            tools: .init(
+                head: { _ throws(Workspace.Error) in Workspace.Verification.Test.head },
+                dirty: { _ throws(Workspace.Error) in false },
+                build: { _, _, _, _ in Workspace.Verification.Test.operation(.build) },
+                test: { _, _, _, _ in Workspace.Verification.Test.operation(.test) },
+                nestedTests: { _, _, _, _ in [] },
+                lint: { _ in
+                    Workspace.Verification.Test.operation(
+                        .lint,
+                        findings: ["/Users/coen/Developer/coenttb/swift-primitives/Secret.swift:1:1: note"]
+                    )
+                },
+                environment: { Workspace.Verification.Test.environment() },
+                now: { "2026-08-04T00:00:00Z" }
+            )
         )
         #expect(throws: (Workspace.Verification.Error).self) {
             try run.run()
