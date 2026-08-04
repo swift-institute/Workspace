@@ -1,0 +1,347 @@
+import Testing
+
+@testable import Workspace_Application
+
+extension Workspace.Verification {
+    @Suite
+    struct Test {
+        @Suite struct Unit {}
+        @Suite struct `Edge Case` {}
+        @Suite struct Redaction {}
+        @Suite struct Check {}
+    }
+}
+
+extension Workspace.Verification.Test {
+    static let coordinate = Workspace.Repository.Key(identity: "swift-primitives/swift-example")!
+    static let head = "1111111111111111111111111111111111111111"
+
+    static func operation(
+        _ kind: Workspace.Verification.Operation.Kind,
+        outcome: Workspace.Verification.Operation.Outcome = .success,
+        compileEvidence: Swift.String? = nil,
+        findings: [Swift.String] = []
+    ) -> Workspace.Verification.Operation.Result {
+        .init(
+            operation: kind,
+            arguments: [],
+            startedAt: "2026-08-04T00:00:00Z",
+            endedAt: "2026-08-04T00:00:01Z",
+            durationSeconds: 1,
+            exitCode: 0,
+            provenance: .cached,
+            outcome: outcome,
+            compileEvidence: compileEvidence,
+            findings: findings
+        )
+    }
+
+    static func environment(swift: Swift.String = "6.4") -> Workspace.Verification.Environment {
+        .init(swift: swift, xcode: "26.0", sdk: "26.0", os: "macos", architecture: "arm64", runnerImage: nil)
+    }
+
+    /// A run whose every real-tool closure is a deterministic stub — no
+    /// process spawn, no real checkout — so unit tests exercise
+    /// ``Run/run()``'s own refusal and sealing logic in isolation, exactly
+    /// the ``Workspace/Coherence/Run`` and ``Workspace/Conversion/Seal``
+    /// pattern.
+    static func run(
+        claimedHead: Swift.String = head,
+        observedHead: Swift.String? = nil,
+        isDirty: Swift.Bool = false,
+        requestedOperations: [Workspace.Verification.Operation.Kind] = [.build, .test],
+        requiredOperations: [Workspace.Verification.Operation.Kind] = [.build, .test],
+        buildResult: Workspace.Verification.Operation.Result? = nil,
+        testResult: Workspace.Verification.Operation.Result? = nil,
+        environmentSwift: Swift.String = "6.4",
+        inventoryDigest: Swift.String = "deadbeef",
+        workspaceRevision: Swift.String = "2222222222222222222222222222222222222222",
+        policyRevision: Swift.String = "policy-1"
+    ) -> Workspace.Verification.Run {
+        .init(
+            packagePath: "/tmp/subject",
+            claimedHead: claimedHead,
+            coordinate: coordinate,
+            visibility: .private,
+            defaultBranch: "main",
+            layer: .primitives,
+            inventoryDigest: inventoryDigest,
+            workspaceRevision: workspaceRevision,
+            policyRevision: policyRevision,
+            requestedOperations: requestedOperations,
+            requiredOperations: requiredOperations,
+            head: { _ throws(Workspace.Error) in observedHead ?? claimedHead },
+            dirty: { _ throws(Workspace.Error) in isDirty },
+            build: { _, _, _, _ in buildResult ?? Self.operation(.build) },
+            test: { _, _, _, _ in testResult ?? Self.operation(.test) },
+            nestedTests: { _, _, _, _ in [] },
+            lint: { _ in Self.operation(.lint) },
+            environment: { Self.environment(swift: environmentSwift) },
+            now: { "2026-08-04T00:00:00Z" }
+        )
+    }
+}
+
+extension Workspace.Verification.Test.Unit {
+    @Test
+    func `A run whose subject matches its claim and whose operations succeed is verified`() throws {
+        let receipt = try Self.run().run()
+        #expect(receipt.verdict == .verified)
+        #expect(receipt.operations.count == 2)
+        #expect(receipt.requiredGates.allSatisfy(\.satisfied))
+    }
+
+    @Test
+    func `Two runs over the same semantic input produce identical canonical JSON`() throws {
+        let first = try Self.run().run()
+        let second = try Self.run().run()
+        #expect(first.canonical == second.canonical)
+    }
+
+    @Test
+    func `Changing the claimed subject head changes the canonical digest`() throws {
+        let first = try Self.run().run()
+        let second = try Self.run(claimedHead: "3333333333333333333333333333333333333333", observedHead: "3333333333333333333333333333333333333333").run()
+        #expect(first.canonical != second.canonical)
+    }
+
+    @Test
+    func `Changing one operation result changes the canonical digest`() throws {
+        let first = try Self.run().run()
+        let second = try Self.run(
+            buildResult: Self.operation(.build, outcome: .failure)
+        ).run()
+        #expect(first.canonical != second.canonical)
+    }
+
+    @Test
+    func `Changing the observed toolchain changes the canonical digest`() throws {
+        let first = try Self.run().run()
+        let second = try Self.run(environmentSwift: "6.5").run()
+        #expect(first.canonical != second.canonical)
+    }
+
+    @Test
+    func `Changing the inventory digest changes the canonical digest`() throws {
+        let first = try Self.run().run()
+        let second = try Self.run(inventoryDigest: "cafef00d").run()
+        #expect(first.canonical != second.canonical)
+    }
+
+    @Test
+    func `A build failure seals as an unverified receipt rather than refusing`() throws {
+        let receipt = try Self.run(buildResult: Self.operation(.build, outcome: .failure)).run()
+        #expect(receipt.verdict.fails)
+    }
+}
+
+extension Workspace.Verification.Test.`Edge Case` {
+    @Test
+    func `Zero requested operations refuses to seal`() {
+        #expect(throws: Workspace.Verification.Error.noOperationExecuted) {
+            try Self.run(requestedOperations: [], requiredOperations: []).run()
+        }
+    }
+
+    @Test
+    func `A required operation that was never requested refuses to seal`() {
+        #expect(throws: Workspace.Verification.Error.requiredOperationMissing(.lint)) {
+            try Self.run(requestedOperations: [.build], requiredOperations: [.build, .lint]).run()
+        }
+    }
+
+    @Test
+    func `A required operation that came back unmeasured refuses to seal`() {
+        #expect(
+            throws: Workspace.Verification.Error.requiredOperationNotExecuted(.build)
+        ) {
+            try Self.run(
+                buildResult: Self.operation(.build, outcome: .unmeasured(reason: "synthetic"))
+            ).run()
+        }
+    }
+
+    @Test
+    func `A claimed head that does not match the observed head refuses to seal`() {
+        #expect(
+            throws: Workspace.Verification.Error.headMismatch(
+                claimed: Self.head,
+                observed: "4444444444444444444444444444444444444444"
+            )
+        ) {
+            try Self.run(observedHead: "4444444444444444444444444444444444444444").run()
+        }
+    }
+
+    @Test
+    func `A dirty subject checkout refuses to seal`() {
+        #expect(throws: Workspace.Verification.Error.dirtySubject("/tmp/subject")) {
+            try Self.run(isDirty: true).run()
+        }
+    }
+
+    @Test
+    func `A secret-shaped diagnostic refuses to seal`() {
+        #expect(throws: (Workspace.Verification.Error).self) {
+            try Self.run(
+                buildResult: Self.operation(
+                    .build,
+                    outcome: .failure,
+                    compileEvidence: "error: token ghp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa leaked"
+                )
+            ).run()
+        }
+    }
+
+    @Test
+    func `An absolute machine path in a finding refuses to seal`() {
+        let run = Workspace.Verification.Run(
+            packagePath: "/tmp/subject",
+            claimedHead: Workspace.Verification.Test.head,
+            coordinate: Workspace.Verification.Test.coordinate,
+            visibility: .private,
+            defaultBranch: "main",
+            layer: .primitives,
+            inventoryDigest: "deadbeef",
+            workspaceRevision: "2222222222222222222222222222222222222222",
+            policyRevision: "policy-1",
+            requestedOperations: [.lint],
+            requiredOperations: [.lint],
+            head: { _ throws(Workspace.Error) in Workspace.Verification.Test.head },
+            dirty: { _ throws(Workspace.Error) in false },
+            build: { _, _, _, _ in Workspace.Verification.Test.operation(.build) },
+            test: { _, _, _, _ in Workspace.Verification.Test.operation(.test) },
+            nestedTests: { _, _, _, _ in [] },
+            lint: { _ in
+                Workspace.Verification.Test.operation(
+                    .lint,
+                    findings: ["/Users/coen/Developer/coenttb/swift-primitives/Secret.swift:1:1: note"]
+                )
+            },
+            environment: { Workspace.Verification.Test.environment() },
+            now: { "2026-08-04T00:00:00Z" }
+        )
+        #expect(throws: (Workspace.Verification.Error).self) {
+            try run.run()
+        }
+    }
+}
+
+extension Workspace.Verification.Test.Redaction {
+    @Test
+    func `A GitHub PAT shape is recognised`() {
+        #expect(
+            Workspace.Verification.Redaction.diagnose("ghp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") != nil
+        )
+    }
+
+    @Test
+    func `A PEM header is recognised`() {
+        #expect(Workspace.Verification.Redaction.diagnose("-----BEGIN PRIVATE KEY-----") != nil)
+    }
+
+    @Test
+    func `An absolute machine path is recognised`() {
+        #expect(
+            Workspace.Verification.Redaction.diagnose("/Users/coen/Developer/secret") != nil
+        )
+    }
+
+    @Test
+    func `An ordinary compiler diagnostic is not flagged`() {
+        #expect(
+            Workspace.Verification.Redaction.diagnose(
+                "Sources/Example/Example.swift:12:5: error: cannot find 'foo' in scope"
+            ) == nil
+        )
+    }
+}
+
+extension Workspace.Verification.Test.Check {
+    static func verifiedReceipt() -> Workspace.Verification.Receipt {
+        .init(
+            subject: .init(
+                coordinate: Workspace.Verification.Test.coordinate,
+                visibility: .private,
+                defaultBranch: "main",
+                claimedHead: Workspace.Verification.Test.head,
+                observedHead: Workspace.Verification.Test.head,
+                dirty: false
+            ),
+            inventoryDigest: "deadbeef",
+            layer: .primitives,
+            workspaceRevision: "2222222222222222222222222222222222222222",
+            policyRevision: "policy-1",
+            environment: Workspace.Verification.Test.environment(),
+            requestedOperations: [.build, .test],
+            operations: [
+                Workspace.Verification.Test.operation(.build),
+                Workspace.Verification.Test.operation(.test),
+            ],
+            platform: .init(declared: ["macOS"], measured: "macos"),
+            requiredGates: [
+                .init(name: "build", satisfied: true),
+                .init(name: "test", satisfied: true),
+            ],
+            verdict: .verified
+        )
+    }
+
+    @Test
+    func `A consistent verified receipt has no diagnostics`() {
+        #expect(Workspace.Verification.Check.diagnostics(for: Self.verifiedReceipt()).isEmpty)
+    }
+
+    @Test
+    func `A verified receipt over a dirty subject is flagged inconsistent`() {
+        var receipt = Self.verifiedReceipt()
+        receipt = Workspace.Verification.Receipt(
+            subject: .init(
+                coordinate: receipt.subject.coordinate,
+                visibility: receipt.subject.visibility,
+                defaultBranch: receipt.subject.defaultBranch,
+                claimedHead: receipt.subject.claimedHead,
+                observedHead: receipt.subject.observedHead,
+                dirty: true
+            ),
+            inventoryDigest: receipt.inventoryDigest,
+            layer: receipt.layer,
+            workspaceRevision: receipt.workspaceRevision,
+            policyRevision: receipt.policyRevision,
+            environment: receipt.environment,
+            requestedOperations: receipt.requestedOperations,
+            operations: receipt.operations,
+            platform: receipt.platform,
+            requiredGates: receipt.requiredGates,
+            verdict: receipt.verdict
+        )
+        #expect(!Workspace.Verification.Check.diagnostics(for: receipt).isEmpty)
+    }
+
+    @Test
+    func `A verified receipt whose required gate is unsatisfied is flagged inconsistent`() {
+        let base = Self.verifiedReceipt()
+        let receipt = Workspace.Verification.Receipt(
+            subject: base.subject,
+            inventoryDigest: base.inventoryDigest,
+            layer: base.layer,
+            workspaceRevision: base.workspaceRevision,
+            policyRevision: base.policyRevision,
+            environment: base.environment,
+            requestedOperations: base.requestedOperations,
+            operations: base.operations,
+            platform: base.platform,
+            requiredGates: [.init(name: "build", satisfied: false)],
+            verdict: .verified
+        )
+        #expect(!Workspace.Verification.Check.diagnostics(for: receipt).isEmpty)
+    }
+
+    @Test
+    func `An unverified receipt round-trips through JSON with an identical digest`() throws {
+        let receipt = Self.verifiedReceipt()
+        let decoded = try Workspace.Verification.Receipt(jsonString: receipt.canonical)
+        #expect(decoded == receipt)
+        #expect(decoded.canonical == receipt.canonical)
+    }
+}

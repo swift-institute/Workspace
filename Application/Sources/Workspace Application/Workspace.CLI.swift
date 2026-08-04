@@ -43,6 +43,16 @@ extension Workspace {
         public var includedComments: [Swift.String]
         public var dispositions: [Swift.String]
         public var verifications: [Swift.String]
+        public var claimedHead: Swift.String
+        public var defaultBranch: Swift.String
+        public var verificationVisibility: Swift.String
+        public var verificationLayer: Swift.String
+        public var inventoryDigest: Swift.String
+        public var workspaceRevision: Swift.String
+        public var policyRevision: Swift.String
+        public var requestedOperations: [Swift.String]
+        public var requiredOperations: [Swift.String]
+        public var platformSupport: [Swift.String]
 
         public init(
             operation: Operation = .sync,
@@ -70,7 +80,17 @@ extension Workspace {
             maxBytes: Swift.Int = 24_000,
             includedComments: [Swift.String] = [],
             dispositions: [Swift.String] = [],
-            verifications: [Swift.String] = []
+            verifications: [Swift.String] = [],
+            claimedHead: Swift.String = "",
+            defaultBranch: Swift.String = "",
+            verificationVisibility: Swift.String = "",
+            verificationLayer: Swift.String = "",
+            inventoryDigest: Swift.String = "",
+            workspaceRevision: Swift.String = "",
+            policyRevision: Swift.String = "",
+            requestedOperations: [Swift.String] = [],
+            requiredOperations: [Swift.String] = [],
+            platformSupport: [Swift.String] = []
         ) {
             self.operation = operation
             self.dry = dry
@@ -98,6 +118,16 @@ extension Workspace {
             self.includedComments = includedComments
             self.dispositions = dispositions
             self.verifications = verifications
+            self.claimedHead = claimedHead
+            self.defaultBranch = defaultBranch
+            self.verificationVisibility = verificationVisibility
+            self.verificationLayer = verificationLayer
+            self.inventoryDigest = inventoryDigest
+            self.workspaceRevision = workspaceRevision
+            self.policyRevision = policyRevision
+            self.requestedOperations = requestedOperations
+            self.requiredOperations = requiredOperations
+            self.platformSupport = platformSupport
         }
     }
 }
@@ -117,7 +147,7 @@ extension Workspace.CLI {
                 name: "operation",
                 placeholder:
                     "install|sync|build|doctor|inventory|dependencies|compose|restore|verify|context"
-                    + "|navigation|package|lint|coherence|conversion|github",
+                    + "|navigation|package|lint|coherence|conversion|github|verification",
                 help: .init(abstract: "Operation to perform.")
             )
             Command.Positional<Self, Mode>.Many(
@@ -306,7 +336,110 @@ extension Workspace.CLI {
                 name: .long(.literal("receipt")),
                 placeholder: "path",
                 help: .init(
-                    abstract: "Conversion receipt file `conversion check` re-reads (issue #83)."
+                    abstract:
+                        "Conversion receipt file `conversion check` re-reads (issue #83); "
+                        + "`verification seal`'s output path or `verification check`'s input path "
+                        + "(#253)."
+                )
+            )
+            Command.Option(
+                \.claimedHead,
+                name: .long(.literal("claimed-head")),
+                placeholder: "40-hex-sha",
+                help: .init(
+                    abstract:
+                        "The commit the caller believes the subject checkout stands on "
+                        + "(verification seal only); refused if it does not match the checked-out "
+                        + "HEAD."
+                )
+            )
+            Command.Option(
+                \.defaultBranch,
+                name: .long(.literal("default-branch")),
+                placeholder: "name",
+                help: .init(
+                    abstract:
+                        "The subject repository's default branch, as the caller resolved it "
+                        + "(verification seal only)."
+                )
+            )
+            Command.Option(
+                \.verificationVisibility,
+                name: .long(.literal("visibility")),
+                placeholder: "public|private|unmeasured",
+                help: .init(
+                    abstract: "The subject repository's visibility, as the caller resolved it "
+                        + "(verification seal only); never interrogated live."
+                )
+            )
+            Command.Option(
+                \.verificationLayer,
+                name: .long(.literal("layer")),
+                placeholder: "primitives|standards|foundations|components|applications",
+                help: .init(
+                    abstract:
+                        "The subject's effective-inventory layer, as the caller resolved it "
+                        + "(verification seal only)."
+                )
+            )
+            Command.Option(
+                \.inventoryDigest,
+                name: .long(.literal("inventory-digest")),
+                placeholder: "hex",
+                help: .init(
+                    abstract:
+                        "The effective Workspace inventory digest measuring this run "
+                        + "(verification seal only); see `Workspace.Inventory.Effective` (#132)."
+                )
+            )
+            Command.Option(
+                \.workspaceRevision,
+                name: .long(.literal("workspace-revision")),
+                placeholder: "40-hex-sha",
+                help: .init(
+                    abstract:
+                        "The Workspace source/executable revision performing this run "
+                        + "(verification seal only)."
+                )
+            )
+            Command.Option(
+                \.policyRevision,
+                name: .long(.literal("policy-revision")),
+                placeholder: "revision",
+                help: .init(
+                    abstract:
+                        "The control plane's universal policy/fixture revision this run measures "
+                        + "against (verification seal only)."
+                )
+            )
+            Command.Option<Self, Swift.String>.Many(
+                \.requestedOperations,
+                name: .long(.literal("step")),
+                placeholder: "build|test|nested-tests|lint",
+                help: .init(
+                    abstract:
+                        "One operation to perform (verification seal only; repeatable; defaults "
+                        + "to build, test, and lint)."
+                )
+            )
+            Command.Option<Self, Swift.String>.Many(
+                \.requiredOperations,
+                name: .long(.literal("required-step")),
+                placeholder: "build|test|nested-tests|lint",
+                help: .init(
+                    abstract:
+                        "One operation whose absence or non-execution refuses the seal "
+                        + "(verification seal only; repeatable; defaults to every --step)."
+                )
+            )
+            Command.Option<Self, Swift.String>.Many(
+                \.platformSupport,
+                name: .long(.literal("platform-support")),
+                placeholder: "name",
+                help: .init(
+                    abstract:
+                        "One declared supported-platform name, carried verbatim "
+                        + "(verification seal only; repeatable)."
                 )
             )
             Command.Option(
@@ -827,6 +960,73 @@ extension Workspace.CLI {
             guard arguments.isEmpty else {
                 throw .validationFailed(reason: "--argument is valid only with package.")
             }
+        } else if operation == .verification {
+            guard modes.count == 1, let mode = modes.first, mode == .seal || mode == .check else {
+                throw .validationFailed(reason: "verification requires seal or check.")
+            }
+            guard consumer.isEmpty, dependency.isEmpty else {
+                throw .validationFailed(
+                    reason: "--consumer and --dependency are not valid with verification."
+                )
+            }
+            guard !dry else {
+                throw .validationFailed(
+                    reason: "--dry-run is valid only with sync or inventory regenerate."
+                )
+            }
+            guard !receiptPath.isEmpty else {
+                throw .validationFailed(
+                    reason: "verification requires --receipt (seal's output path, check's input path)."
+                )
+            }
+            if mode == .seal {
+                guard !claimedHead.isEmpty else {
+                    throw .validationFailed(reason: "verification seal requires --claimed-head.")
+                }
+                guard !defaultBranch.isEmpty else {
+                    throw .validationFailed(reason: "verification seal requires --default-branch.")
+                }
+                guard Workspace.Verification.Visibility(rawValue: verificationVisibility) != nil else {
+                    throw .validationFailed(
+                        reason: "verification seal requires --visibility public, private, or unmeasured."
+                    )
+                }
+                guard Workspace.Layer(rawValue: verificationLayer) != nil else {
+                    throw .validationFailed(
+                        reason:
+                            "verification seal requires --layer primitives, standards, foundations, "
+                            + "components, or applications."
+                    )
+                }
+                guard !inventoryDigest.isEmpty else {
+                    throw .validationFailed(reason: "verification seal requires --inventory-digest.")
+                }
+                guard !workspaceRevision.isEmpty else {
+                    throw .validationFailed(reason: "verification seal requires --workspace-revision.")
+                }
+                guard !policyRevision.isEmpty else {
+                    throw .validationFailed(reason: "verification seal requires --policy-revision.")
+                }
+                for value in requestedOperations + requiredOperations {
+                    guard Workspace.Verification.Operation.Kind(rawValue: value) != nil else {
+                        throw .validationFailed(
+                            reason:
+                                "\(value) is not build, test, nested-tests, or lint "
+                                + "(--step/--required-step)."
+                        )
+                    }
+                }
+            } else {
+                guard
+                    packagePath.isEmpty, claimedHead.isEmpty, defaultBranch.isEmpty,
+                    verificationVisibility.isEmpty,
+                    verificationLayer.isEmpty, inventoryDigest.isEmpty, workspaceRevision.isEmpty,
+                    policyRevision.isEmpty, requestedOperations.isEmpty, requiredOperations.isEmpty,
+                    platformSupport.isEmpty, arguments.isEmpty, !fresh, jobs == nil
+                else {
+                    throw .validationFailed(reason: "verification check takes only --receipt.")
+                }
+            }
         } else {
             guard consumer.isEmpty, dependency.isEmpty else {
                 throw .validationFailed(
@@ -1005,6 +1205,134 @@ extension Workspace.CLI {
                 throw .process("\(error)")
             }
             Process.Exit.normal(status)
+        }
+
+        if case .verification = operation {
+            // Any valid directory anchors the scratch file `digest(at:)`
+            // places beside it, deleted before it returns — this is not
+            // the ecosystem Workspace checkout, only a place to put a
+            // transient sibling file. PWD is always available.
+            let scratchDirectory: File.Directory
+            do throws(File.Path.Error) {
+                scratchDirectory = try File.Directory(validating: working)
+            } catch {
+                throw .configuration("PWD is not a valid directory: \(error)")
+            }
+            let scratchRoot = try Workspace.Root(checkout: scratchDirectory)
+
+            switch modes.first {
+            case .some(.seal):
+                let subjectPath = packagePath.isEmpty ? working : packagePath
+                let remote: Swift.String
+                do throws(Git.Client.Error) {
+                    remote = try Git.Client().remote("origin", at: subjectPath)
+                } catch {
+                    throw .process("cannot read the subject's origin remote at \(subjectPath): \(error)")
+                }
+                guard let coordinate = Workspace.Repository.Key(url: remote) else {
+                    throw .configuration(
+                        "origin remote \(remote) is not a canonical https://github.com/owner/name.git URL"
+                    )
+                }
+                let requested =
+                    requestedOperations.isEmpty
+                    ? [Workspace.Verification.Operation.Kind.build, .test, .lint]
+                    : requestedOperations.compactMap(Workspace.Verification.Operation.Kind.init(rawValue:))
+                let required =
+                    requiredOperations.isEmpty
+                    ? requested
+                    : requiredOperations.compactMap(Workspace.Verification.Operation.Kind.init(rawValue:))
+
+                let run = Workspace.Verification.Run(
+                    packagePath: subjectPath,
+                    claimedHead: claimedHead,
+                    coordinate: coordinate,
+                    // `validate()` already refused an unrecognised value.
+                    visibility: Workspace.Verification.Visibility(rawValue: verificationVisibility)!,
+                    defaultBranch: defaultBranch,
+                    layer: Workspace.Layer(rawValue: verificationLayer)!,
+                    inventoryDigest: inventoryDigest,
+                    workspaceRevision: workspaceRevision,
+                    policyRevision: policyRevision,
+                    requestedOperations: requested,
+                    requiredOperations: required,
+                    platformSupport: platformSupport,
+                    fresh: fresh,
+                    jobs: jobs,
+                    arguments: arguments
+                )
+                let receipt: Workspace.Verification.Receipt
+                do throws(Workspace.Verification.Error) {
+                    receipt = try run.run()
+                } catch {
+                    throw .configuration("verification seal: \(error)")
+                }
+
+                let outputPath: File.Path
+                do throws(File.Path.Error) {
+                    outputPath = try File.Path(receiptPath)
+                } catch {
+                    throw .configuration("invalid --receipt path \(receiptPath): \(error)")
+                }
+                guard !File(outputPath).stat.exists else {
+                    throw .configuration(
+                        "--receipt \(receiptPath) already exists; verification seal writes only a "
+                            + "newly created output path"
+                    )
+                }
+                let outputFile = File(outputPath)
+                do throws(File.System.Write.Atomic.Error) {
+                    try outputFile.write.atomic(receipt.canonical)
+                } catch {
+                    throw .configuration("cannot write --receipt \(receiptPath): \(error)")
+                }
+                let digest = try? receipt.digest(at: scratchRoot)
+                let summaryLine =
+                    "verification seal: \(receipt.subject.coordinate.identity) "
+                    + "\(receipt.verdict.fails ? "unverified" : "verified"), "
+                    + "\(receipt.operations.count) operation(s)"
+                    + (digest.map { ", digest \($0)" } ?? ", digest unavailable") + "\n"
+                unsafe fputs(summaryLine, stderr)
+                Process.Exit.normal(receipt.verdict.fails ? 1 : 0)
+            case .some(.check):
+                let inputPath: File.Path
+                do throws(File.Path.Error) {
+                    inputPath = try File.Path(receiptPath)
+                } catch {
+                    throw .configuration("invalid --receipt path \(receiptPath): \(error)")
+                }
+                let bytes: [Byte]
+                do throws(Either<File.System.Read.Full.Error, Never>) {
+                    bytes = try File.System.Read.Full.read(from: inputPath) { (span: Swift.Span<Byte>) in
+                        var storage = [Byte]()
+                        storage.reserveCapacity(span.count)
+                        for index in span.indices {
+                            storage.append(span[index])
+                        }
+                        return storage
+                    }
+                } catch {
+                    throw .configuration("cannot read --receipt \(receiptPath): \(error)")
+                }
+                let receipt: Workspace.Verification.Receipt
+                do throws(JSON.Error) {
+                    receipt = try .init(jsonString: Swift.String(decoding: bytes, as: Swift.UTF8.self))
+                } catch {
+                    throw .configuration("cannot decode --receipt \(receiptPath): \(error)")
+                }
+                let diagnostics = Workspace.Verification.Check.diagnostics(for: receipt)
+                guard diagnostics.isEmpty else {
+                    throw .configuration(diagnostics.joined(separator: "\n"))
+                }
+                let digest = try? receipt.digest(at: scratchRoot)
+                print(
+                    "verification: current — \(receipt.subject.coordinate.identity) consistent"
+                        + (digest.map { ", digest \($0)" } ?? ", digest unavailable")
+                )
+            default:
+                throw .configuration("verification operation must be seal or check")
+            }
+            return
         }
 
         let checkoutValue =
