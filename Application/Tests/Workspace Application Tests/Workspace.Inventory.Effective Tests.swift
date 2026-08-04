@@ -169,7 +169,8 @@ extension Workspace.Inventory.Test.Unit {
 
         for digest in [publicDigest, privateDigest, combinedDigest] {
             #expect(digest.count == 64)
-            #expect(digest.allSatisfy(\.isHexDigit))
+            let isLowercaseHex = digest.allSatisfy(\.isHexDigit)
+            #expect(isLowercaseHex)
         }
         #expect(Set([publicDigest, privateDigest, combinedDigest]).count == 3)
     }
