@@ -23,16 +23,16 @@ extension Workspace.Verification.Check {
     public static func diagnostics(for receipt: Workspace.Verification.Receipt) -> [Swift.String] {
         var diagnostics: [Swift.String] = []
 
-        guard receipt.version == 1 else {
+        if receipt.version != 1 {
             diagnostics.append("unsupported schema version \(receipt.version); this validator knows 1")
         }
 
-        guard !receipt.requestedOperations.isEmpty else {
+        if receipt.requestedOperations.isEmpty {
             diagnostics.append("requestedOperations is empty; a receipt with nothing requested "
                 + "should never have been sealed")
         }
 
-        guard receipt.operations.contains(where: { $0.outcome.isExecuted }) else {
+        if !receipt.operations.contains(where: { $0.outcome.isExecuted }) {
             diagnostics.append("no operation reached a real outcome; a receipt attesting nothing was "
                 + "measured should never have been sealed")
         }
@@ -45,7 +45,7 @@ extension Workspace.Verification.Check {
                 diagnostics.append("required gate \(gate.name) is not a recognised operation kind")
                 continue
             }
-            guard recordedKinds.contains(kind) else {
+            if !recordedKinds.contains(kind) {
                 diagnostics.append(
                     "required gate \(gate.name) references an operation this receipt never recorded"
                 )
