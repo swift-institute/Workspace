@@ -51,6 +51,11 @@ extension Workspace.Verification {
         public let arguments: [Swift.String]
         let tools: Tools
 
+        /// The public entry point — always walks the real tool closures.
+        /// `Tools` itself stays internal (it is only an injection seam for
+        /// this module's own tests), so it cannot appear in a `public`
+        /// initializer's signature; this forwards to the internal
+        /// designated initializer with the real defaults.
         public init(
             packagePath: Swift.String,
             claimedHead: Swift.String,
@@ -67,8 +72,50 @@ extension Workspace.Verification {
             platformSupport: [Swift.String] = [],
             fresh: Swift.Bool = false,
             jobs: Swift.Int? = nil,
+            arguments: [Swift.String] = []
+        ) {
+            self.init(
+                packagePath: packagePath,
+                claimedHead: claimedHead,
+                coordinate: coordinate,
+                visibility: visibility,
+                visibilityReason: visibilityReason,
+                defaultBranch: defaultBranch,
+                layer: layer,
+                inventoryDigest: inventoryDigest,
+                workspaceRevision: workspaceRevision,
+                policyRevision: policyRevision,
+                requestedOperations: requestedOperations,
+                requiredOperations: requiredOperations,
+                platformSupport: platformSupport,
+                fresh: fresh,
+                jobs: jobs,
+                arguments: arguments,
+                tools: Tools()
+            )
+        }
+
+        /// The designated initializer — internal because ``Tools`` is
+        /// internal. Exists so this module's own tests can substitute fake
+        /// tool closures without a real package checkout.
+        init(
+            packagePath: Swift.String,
+            claimedHead: Swift.String,
+            coordinate: Workspace.Repository.Key,
+            visibility: Workspace.Verification.Visibility,
+            visibilityReason: Swift.String? = nil,
+            defaultBranch: Swift.String,
+            layer: Workspace.Layer,
+            inventoryDigest: Swift.String,
+            workspaceRevision: Swift.String,
+            policyRevision: Swift.String,
+            requestedOperations: [Operation.Kind],
+            requiredOperations: [Operation.Kind],
+            platformSupport: [Swift.String] = [],
+            fresh: Swift.Bool = false,
+            jobs: Swift.Int? = nil,
             arguments: [Swift.String] = [],
-            tools: Tools = Tools()
+            tools: Tools
         ) {
             self.packagePath = packagePath
             self.claimedHead = claimedHead
@@ -112,28 +159,35 @@ extension Workspace.Verification.Run {
     struct Tools: Sendable {
         var head: @Sendable (Swift.String) throws(Workspace.Error) -> Swift.String
         var dirty: @Sendable (Swift.String) throws(Workspace.Error) -> Swift.Bool
-        var build: @Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) -> Operation.Result
-        var test: @Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) -> Operation.Result
+        var build:
+            @Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) ->
+                Workspace.Verification.Operation.Result
+        var test:
+            @Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) ->
+                Workspace.Verification.Operation.Result
         var nestedTests:
-            @Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) -> [Operation.Result]
-        var lint: @Sendable (Swift.String) -> Operation.Result
-        var environment: @Sendable () -> Environment
+            @Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) ->
+                [Workspace.Verification.Operation.Result]
+        var lint: @Sendable (Swift.String) -> Workspace.Verification.Operation.Result
+        var environment: @Sendable () -> Workspace.Verification.Environment
         var now: @Sendable () -> Swift.String
 
         init(
-            head: @escaping @Sendable (Swift.String) throws(Workspace.Error) -> Swift.String = Run
-                .realHead,
-            dirty: @escaping @Sendable (Swift.String) throws(Workspace.Error) -> Swift.Bool = Run
-                .realDirty,
+            head: @escaping @Sendable (Swift.String) throws(Workspace.Error) -> Swift.String =
+                Workspace.Verification.Run.realHead,
+            dirty: @escaping @Sendable (Swift.String) throws(Workspace.Error) -> Swift.Bool =
+                Workspace.Verification.Run.realDirty,
             build: @escaping @Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) ->
-                Operation.Result = Run.realBuild,
+                Workspace.Verification.Operation.Result = Workspace.Verification.Run.realBuild,
             test: @escaping @Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) ->
-                Operation.Result = Run.realTest,
+                Workspace.Verification.Operation.Result = Workspace.Verification.Run.realTest,
             nestedTests: @escaping @Sendable (Swift.String, Swift.Bool, Swift.Int?, [Swift.String]) ->
-                [Operation.Result] = Run.realNestedTests,
-            lint: @escaping @Sendable (Swift.String) -> Operation.Result = Run.realLint,
-            environment: @escaping @Sendable () -> Environment = Environment.observe,
-            now: @escaping @Sendable () -> Swift.String = Run.realNow
+                [Workspace.Verification.Operation.Result] = Workspace.Verification.Run.realNestedTests,
+            lint: @escaping @Sendable (Swift.String) -> Workspace.Verification.Operation.Result =
+                Workspace.Verification.Run.realLint,
+            environment: @escaping @Sendable () -> Workspace.Verification.Environment =
+                Workspace.Verification.Environment.observe,
+            now: @escaping @Sendable () -> Swift.String = Workspace.Verification.Run.realNow
         ) {
             self.head = head
             self.dirty = dirty
