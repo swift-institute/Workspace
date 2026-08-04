@@ -18,7 +18,6 @@ extension Workspace.CLI {
         case lint
         case ledger
         case pages
-        case effective
         case seal
         case token
         case packet
@@ -39,7 +38,6 @@ extension Workspace.CLI {
             case "lint": self = .lint
             case "ledger": self = .ledger
             case "pages": self = .pages
-            case "effective": self = .effective
             case "seal": self = .seal
             case "token": self = .token
             case "packet": self = .packet
@@ -63,7 +61,6 @@ extension Workspace.CLI {
             case .lint: "lint"
             case .ledger: "ledger"
             case .pages: "pages"
-            case .effective: "effective"
             case .seal: "seal"
             case .token: "token"
             case .packet: "packet"
@@ -75,8 +72,8 @@ extension Workspace.CLI {
 extension Workspace.CLI.Mode {
     var buildAction: Build.Action? {
         switch self {
-        case .install, .check, .serve, .regenerate, .lint, .ledger, .pages, .effective, .seal,
-            .token, .packet:
+        case .install, .check, .serve, .regenerate, .lint, .ledger, .pages, .seal, .token,
+            .packet:
             nil
         case .build: .build
         case .test: .test

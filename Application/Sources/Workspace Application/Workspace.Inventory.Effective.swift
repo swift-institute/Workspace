@@ -1,28 +1,38 @@
 public import GitHub
+public import JSON
 public import Tagged_Primitives
 
 extension Workspace.Inventory {
     /// The committed public roster combined, in memory, with one live
-    /// private-discovery pass — three ``Workspace/Configuration`` values
-    /// sharing one schema, so each already carries its own digest via
-    /// ``Workspace/Receipt/Sealed`` without this type inventing a second
-    /// digesting path.
+    /// private-discovery pass.
     ///
-    /// **Why three, not one.** The programme requires "separate safe digests"
-    /// for the committed public inventory and the runtime private extension,
-    /// *plus* one combined digest a downstream verifier and caller generator
-    /// can use as the single effective population. `public` is exactly the
-    /// loaded `Workspace.json` — untouched, so its digest matches what is
-    /// already committed. `private` exists only in memory: a private
-    /// repository's coordinates never reach a public commit through this
-    /// type. `combined` is `public` and `private` merged and re-sorted by
-    /// the same (layer, key) order `Merge` already uses, so the same input
-    /// population always canonicalizes to the same bytes regardless of the
-    /// order discovery happened to observe it in.
+    /// **Why three populations, not one.** The programme requires "separate
+    /// safe digests" for the committed public inventory and the runtime
+    /// private extension, *plus* one combined digest a downstream verifier
+    /// and caller generator can use as the single effective population.
+    /// `public` is exactly `publicConfiguration.repositories` as loaded from
+    /// `Workspace.json` — untouched, so its digest matches what is already
+    /// committed. `private` exists only in memory: a private repository's
+    /// coordinates never reach a public commit through this type. `combined`
+    /// is `public` and `private` merged and re-sorted by the same (layer,
+    /// key) order `Merge` already uses, so the same input population always
+    /// canonicalizes to the same bytes regardless of the order discovery
+    /// happened to observe it in.
+    ///
+    /// **Why `Population`, not `Workspace.Configuration`, is the digested
+    /// shape.** `Workspace.Configuration` is the committed file's own type,
+    /// used everywhere in this module; conforming *it* to
+    /// ``Workspace/Receipt/Sealed`` would add a capability to a pervasive
+    /// existing type well beyond this task's three named files, for a need
+    /// only this type has. `Population` is new, scoped to this file, and
+    /// reuses `Sealed`'s one canonicalization-and-digest discipline exactly
+    /// the way `Workspace.Pages.Inventory` already does for a different
+    /// content-addressed observation — the established pattern for a new
+    /// digested shape, not a retrofit of an old one.
     public struct Effective: Sendable {
-        public let `public`: Workspace.Configuration
-        public let `private`: Workspace.Configuration
-        public let combined: Workspace.Configuration
+        public let `public`: Population
+        public let `private`: Population
+        public let combined: Population
 
         public init(
             public publicConfiguration: Workspace.Configuration,
@@ -66,21 +76,42 @@ extension Workspace.Inventory {
                 names[key.name] = key
             }
 
-            self.public = publicConfiguration
-            self.private = .init(
-                version: publicConfiguration.version,
-                scope: publicConfiguration.scope,
-                swift: publicConfiguration.swift,
-                xcode: publicConfiguration.xcode,
-                repositories: privateRepositories
-            )
+            self.public = .init(repositories: publicConfiguration.repositories)
+            self.private = .init(repositories: privateRepositories)
             self.combined = .init(
-                version: publicConfiguration.version,
-                scope: publicConfiguration.scope,
-                swift: publicConfiguration.swift,
-                xcode: publicConfiguration.xcode,
                 repositories: Self.sorted(publicConfiguration.repositories + privateRepositories)
             )
+        }
+    }
+}
+
+extension Workspace.Inventory.Effective {
+    /// One digested population: sorted repository coordinates, nothing else.
+    /// `version`/`scope`/`swift`/`xcode` are committed-file metadata, not
+    /// population facts, so they are deliberately absent — three digests
+    /// over the same three metadata fields plus a differing repository list
+    /// would still differ, but including fields no verifier needs to compare
+    /// only widens what a future edit to `Workspace.Configuration` could
+    /// silently change this type's digest by way of.
+    public struct Population: Equatable, Sendable, Workspace.Receipt.Sealed {
+        public let repositories: [Workspace.Repository]
+
+        public init(repositories: [Workspace.Repository]) {
+            self.repositories = repositories
+        }
+
+        public static func serialize(_ value: Self) -> JSON {
+            ["repositories": value.repositories.json]
+        }
+
+        public static func deserialize(_ json: JSON) throws(JSON.Error) -> Self {
+            guard let object = json.dictionary else {
+                throw .typeMismatch(expected: "object", got: "non-object")
+            }
+            guard let repositories = object["repositories"] else {
+                throw .missingKey("repositories")
+            }
+            return Self(repositories: try [Workspace.Repository](json: repositories))
         }
     }
 }
@@ -111,7 +142,7 @@ extension Workspace.Inventory.Effective {
         /// A repository (public or private) does not have its canonical
         /// owner/name URL — the same ground `Workspace.Configuration.validated()`
         /// checks for the committed file, applied here to the in-memory
-        /// private and combined configurations before they are digested.
+        /// private and combined populations.
         case annotation(Workspace.Repository)
         case collision(GitHub.Repository.Name, Workspace.Repository.Key, Workspace.Repository.Key)
     }
