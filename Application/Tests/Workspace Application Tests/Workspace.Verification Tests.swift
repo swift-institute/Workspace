@@ -1,4 +1,5 @@
 import Testing
+import JSON
 
 @testable import Workspace_Application
 
@@ -73,11 +74,11 @@ extension Workspace.Verification.Test {
             tools: .init(
                 head: { _ throws(Workspace.Error) in observedHead ?? claimedHead },
                 dirty: { _ throws(Workspace.Error) in isDirty },
-                build: { _, _, _, _ in buildResult ?? Self.operation(.build) },
-                test: { _, _, _, _ in testResult ?? Self.operation(.test) },
+                build: { _, _, _, _ in buildResult ?? Workspace.Verification.Test.operation(.build) },
+                test: { _, _, _, _ in testResult ?? Workspace.Verification.Test.operation(.test) },
                 nestedTests: { _, _, _, _ in [] },
-                lint: { _ in Self.operation(.lint) },
-                environment: { Self.environment(swift: environmentSwift) },
+                lint: { _ in Workspace.Verification.Test.operation(.lint) },
+                environment: { Workspace.Verification.Test.environment(swift: environmentSwift) },
                 now: { "2026-08-04T00:00:00Z" }
             )
         )
@@ -87,52 +88,58 @@ extension Workspace.Verification.Test {
 extension Workspace.Verification.Test.Unit {
     @Test
     func `A run whose subject matches its claim and whose operations succeed is verified`() throws {
-        let receipt = try Self.run().run()
+        let receipt = try Workspace.Verification.Test.run().run()
         #expect(receipt.verdict == .verified)
         #expect(receipt.operations.count == 2)
-        #expect(receipt.requiredGates.allSatisfy(\.satisfied))
+        // An explicit closure, not `\.satisfied` — the Swift Testing
+        // `#expect` macro's expansion mis-infers a bare key-path-as-predicate
+        // argument to `allSatisfy` as throwing on this toolchain, tripping
+        // "call can throw, but it is not marked with 'try'" with no `try`
+        // anywhere in the source. A closure sidesteps the macro's expansion
+        // issue without changing what is asserted.
+        #expect(receipt.requiredGates.allSatisfy { $0.satisfied })
     }
 
     @Test
     func `Two runs over the same semantic input produce identical canonical JSON`() throws {
-        let first = try Self.run().run()
-        let second = try Self.run().run()
+        let first = try Workspace.Verification.Test.run().run()
+        let second = try Workspace.Verification.Test.run().run()
         #expect(first.canonical == second.canonical)
     }
 
     @Test
     func `Changing the claimed subject head changes the canonical digest`() throws {
-        let first = try Self.run().run()
-        let second = try Self.run(claimedHead: "3333333333333333333333333333333333333333", observedHead: "3333333333333333333333333333333333333333").run()
+        let first = try Workspace.Verification.Test.run().run()
+        let second = try Workspace.Verification.Test.run(claimedHead: "3333333333333333333333333333333333333333", observedHead: "3333333333333333333333333333333333333333").run()
         #expect(first.canonical != second.canonical)
     }
 
     @Test
     func `Changing one operation result changes the canonical digest`() throws {
-        let first = try Self.run().run()
-        let second = try Self.run(
-            buildResult: Self.operation(.build, outcome: .failure)
+        let first = try Workspace.Verification.Test.run().run()
+        let second = try Workspace.Verification.Test.run(
+            buildResult: Workspace.Verification.Test.operation(.build, outcome: .failure)
         ).run()
         #expect(first.canonical != second.canonical)
     }
 
     @Test
     func `Changing the observed toolchain changes the canonical digest`() throws {
-        let first = try Self.run().run()
-        let second = try Self.run(environmentSwift: "6.5").run()
+        let first = try Workspace.Verification.Test.run().run()
+        let second = try Workspace.Verification.Test.run(environmentSwift: "6.5").run()
         #expect(first.canonical != second.canonical)
     }
 
     @Test
     func `Changing the inventory digest changes the canonical digest`() throws {
-        let first = try Self.run().run()
-        let second = try Self.run(inventoryDigest: "cafef00d").run()
+        let first = try Workspace.Verification.Test.run().run()
+        let second = try Workspace.Verification.Test.run(inventoryDigest: "cafef00d").run()
         #expect(first.canonical != second.canonical)
     }
 
     @Test
     func `A build failure seals as an unverified receipt rather than refusing`() throws {
-        let receipt = try Self.run(buildResult: Self.operation(.build, outcome: .failure)).run()
+        let receipt = try Workspace.Verification.Test.run(buildResult: Workspace.Verification.Test.operation(.build, outcome: .failure)).run()
         #expect(receipt.verdict.fails)
     }
 }
@@ -141,14 +148,14 @@ extension Workspace.Verification.Test.`Edge Case` {
     @Test
     func `Zero requested operations refuses to seal`() {
         #expect(throws: Workspace.Verification.Error.noOperationExecuted) {
-            try Self.run(requestedOperations: [], requiredOperations: []).run()
+            try Workspace.Verification.Test.run(requestedOperations: [], requiredOperations: []).run()
         }
     }
 
     @Test
     func `A required operation that was never requested refuses to seal`() {
         #expect(throws: Workspace.Verification.Error.requiredOperationMissing(.lint)) {
-            try Self.run(requestedOperations: [.build], requiredOperations: [.build, .lint]).run()
+            try Workspace.Verification.Test.run(requestedOperations: [.build], requiredOperations: [.build, .lint]).run()
         }
     }
 
@@ -157,8 +164,8 @@ extension Workspace.Verification.Test.`Edge Case` {
         #expect(
             throws: Workspace.Verification.Error.requiredOperationNotExecuted(.build)
         ) {
-            try Self.run(
-                buildResult: Self.operation(.build, outcome: .unmeasured(reason: "synthetic"))
+            try Workspace.Verification.Test.run(
+                buildResult: Workspace.Verification.Test.operation(.build, outcome: .unmeasured(reason: "synthetic"))
             ).run()
         }
     }
@@ -167,26 +174,26 @@ extension Workspace.Verification.Test.`Edge Case` {
     func `A claimed head that does not match the observed head refuses to seal`() {
         #expect(
             throws: Workspace.Verification.Error.headMismatch(
-                claimed: Self.head,
+                claimed: Workspace.Verification.Test.head,
                 observed: "4444444444444444444444444444444444444444"
             )
         ) {
-            try Self.run(observedHead: "4444444444444444444444444444444444444444").run()
+            try Workspace.Verification.Test.run(observedHead: "4444444444444444444444444444444444444444").run()
         }
     }
 
     @Test
     func `A dirty subject checkout refuses to seal`() {
         #expect(throws: Workspace.Verification.Error.dirtySubject("/tmp/subject")) {
-            try Self.run(isDirty: true).run()
+            try Workspace.Verification.Test.run(isDirty: true).run()
         }
     }
 
     @Test
     func `A secret-shaped diagnostic refuses to seal`() {
         #expect(throws: (Workspace.Verification.Error).self) {
-            try Self.run(
-                buildResult: Self.operation(
+            try Workspace.Verification.Test.run(
+                buildResult: Workspace.Verification.Test.operation(
                     .build,
                     outcome: .failure,
                     compileEvidence: "error: token ghp_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa leaked"
