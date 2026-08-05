@@ -139,6 +139,67 @@ extension Workspace.CLI.Test.Unit {
     }
 
     @Test
+    func `inventory effective parses its scope and output path`() throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: [
+                "inventory", "effective",
+                "--inventory-scope", "effective",
+                "--inventory-output", "/tmp/effective.json",
+            ],
+            initial: .init()
+        )
+
+        #expect(command.operation == .inventory)
+        #expect(command.modes == [.effective])
+        #expect(command.inventoryScope == "effective")
+        #expect(command.inventoryOutput == "/tmp/effective.json")
+    }
+
+    @Test
+    func `inventory effective parses the public-only scope`() throws {
+        let command = try Command.parse(
+            Workspace.CLI.self,
+            from: [
+                "inventory", "effective",
+                "--inventory-scope", "public",
+                "--inventory-output", "/tmp/effective.json",
+            ],
+            initial: .init()
+        )
+
+        #expect(command.modes == [.effective])
+        #expect(command.inventoryScope == "public")
+    }
+
+    @Test
+    func `inventory effective rejects dry run`() {
+        #expect(throws: Command.Error.self) {
+            try Command.parse(
+                Workspace.CLI.self,
+                from: [
+                    "inventory", "effective",
+                    "--inventory-scope", "public",
+                    "--inventory-output", "/tmp/effective.json",
+                    "--dry-run",
+                ],
+                initial: .init()
+            )
+        }
+    }
+
+    @Test
+    func `inventory register rejects the effective-only report options`() {
+        #expect(throws: Command.Error.self) {
+            try Command.parse(
+                Workspace.CLI.self,
+                from: ["inventory", "--inventory-scope", "public"],
+                initial: .init()
+            )
+        }
+    }
+
+    @Test
     func `dependencies parses deterministic output and policy exception inputs`() throws {
         let command = try Command.parse(
             Workspace.CLI.self,

@@ -1,6 +1,7 @@
 import File_System
 import Foundation
 import GitHub
+import JSON
 import Tagged_Primitives_Standard_Library_Integration
 import Testing
 
@@ -173,6 +174,244 @@ extension Workspace.Inventory.Test.Unit {
             #expect(isLowercaseHex)
         }
         #expect(Set([publicDigest, privateDigest, combinedDigest]).count == 3)
+    }
+
+    @Test
+    func `Output for public scope marks the private limb not-requested and exits complete`()
+        throws
+    {
+        let (root, location) = try Self.scratchRoot()
+        defer { try? FileManager.default.removeItem(at: location) }
+        let effective = try Workspace.Inventory.Effective(
+            public: Self.publicConfiguration,
+            private: .init(repositories: [], exclusions: [], unmeasured: [])
+        )
+
+        let output = try Workspace.Inventory.Effective.Output(
+            scope: .public,
+            effective: effective,
+            unmeasured: [],
+            root: root
+        )
+
+        #expect(output.private == nil)
+        #expect(output.exitCode == 0)
+        #expect(output.canonical.contains(#""private":{"status":"not-requested"}"#))
+        #expect(output.canonical.contains(#""schemaVersion":1"#))
+        #expect(!output.canonical.contains("\n"))
+    }
+
+    @Test
+    func `Output is byte-identical across two runs over identical inputs`() throws {
+        let (root, location) = try Self.scratchRoot()
+        defer { try? FileManager.default.removeItem(at: location) }
+
+        func report() throws -> Workspace.Inventory.Effective.Output {
+            let effective = try Workspace.Inventory.Effective(
+                public: Self.publicConfiguration,
+                private: Self.privateDiscovery
+            )
+            return try .init(
+                scope: .effective,
+                effective: effective,
+                unmeasured: [],
+                root: root
+            )
+        }
+
+        #expect(try report().canonical == report().canonical)
+    }
+
+    @Test
+    func `Changed input changes the combined digest and the report bytes`() throws {
+        let (root, location) = try Self.scratchRoot()
+        defer { try? FileManager.default.removeItem(at: location) }
+
+        let one = try Workspace.Inventory.Effective(
+            public: Self.publicConfiguration,
+            private: Self.privateDiscovery
+        )
+        let two = try Workspace.Inventory.Effective(
+            public: Self.publicConfiguration,
+            private: .init(repositories: [], exclusions: [], unmeasured: [])
+        )
+
+        let first = try Workspace.Inventory.Effective.Output(
+            scope: .effective, effective: one, unmeasured: [], root: root
+        )
+        let second = try Workspace.Inventory.Effective.Output(
+            scope: .effective, effective: two, unmeasured: [], root: root
+        )
+
+        #expect(first.combined.digest != second.combined.digest)
+        #expect(first.canonical != second.canonical)
+        #expect(first.public.digest == second.public.digest)
+    }
+
+    @Test
+    func `Unmeasured residue is carried as typed rows and exits UNMEASURED`() throws {
+        let (root, location) = try Self.scratchRoot()
+        defer { try? FileManager.default.removeItem(at: location) }
+        let effective = try Workspace.Inventory.Effective(
+            public: Self.publicConfiguration,
+            private: .init(repositories: [], exclusions: [], unmeasured: [])
+        )
+
+        let output = try Workspace.Inventory.Effective.Output(
+            scope: .effective,
+            effective: effective,
+            unmeasured: [
+                .init(scope: .organization(.init("swift-foundations")), reason: "listing failed"),
+                .init(
+                    scope: .repository(
+                        .init(owner: .init("swift-foundations"), name: .init("swift-private"))
+                    ),
+                    reason: "content read failed"
+                ),
+            ],
+            root: root
+        )
+
+        #expect(output.exitCode == 2)
+        #expect(output.unmeasured.count == 2)
+        #expect(output.unmeasured[0].kind == .organization)
+        #expect(output.unmeasured[0].coordinate == "swift-foundations")
+        #expect(output.unmeasured[1].kind == .repository)
+        #expect(output.unmeasured[1].coordinate == "swift-foundations/swift-private")
+        // The absence is typed and recorded, never invented away.
+        #expect(output.canonical.contains(#""kind":"organization""#))
+        #expect(output.canonical.contains(#""reason":"listing failed""#))
+    }
+
+    @Test
+    func `Output round-trips through its own serialization`() throws {
+        let (root, location) = try Self.scratchRoot()
+        defer { try? FileManager.default.removeItem(at: location) }
+        let effective = try Workspace.Inventory.Effective(
+            public: Self.publicConfiguration,
+            private: Self.privateDiscovery
+        )
+        let output = try Workspace.Inventory.Effective.Output(
+            scope: .effective,
+            effective: effective,
+            unmeasured: [.init(scope: .organization(.init("swift-standards")), reason: "denied")],
+            root: root
+        )
+
+        let decoded = try Workspace.Inventory.Effective.Output(jsonString: output.canonical)
+
+        #expect(decoded == output)
+        #expect(decoded.canonical == output.canonical)
+    }
+
+    @Test
+    func `Writer lands canonical LF-terminated bytes at owner-only permissions`() throws {
+        let (root, location) = try Self.scratchRoot()
+        defer { try? FileManager.default.removeItem(at: location) }
+        let effective = try Workspace.Inventory.Effective(
+            public: Self.publicConfiguration,
+            private: .init(repositories: [], exclusions: [], unmeasured: [])
+        )
+        let output = try Workspace.Inventory.Effective.Output(
+            scope: .public, effective: effective, unmeasured: [], root: root
+        )
+        let destination = location.appending(path: "effective.json")
+        let path = try File.Path(destination.path)
+
+        try output.write(to: path)
+        // Idempotent over an existing regular file: the atomic replace runs
+        // again rather than refusing its own previous output.
+        try output.write(to: path)
+
+        let bytes = try Data(contentsOf: destination)
+        #expect(Swift.String(decoding: bytes, as: Swift.UTF8.self) == output.canonical + "\n")
+        let attributes = try FileManager.default.attributesOfItem(atPath: destination.path)
+        #expect((attributes[.posixPermissions] as? Swift.Int) == 0o600)
+    }
+
+    @Test
+    func `Writer refuses a symlink target`() throws {
+        let (root, location) = try Self.scratchRoot()
+        defer { try? FileManager.default.removeItem(at: location) }
+        let effective = try Workspace.Inventory.Effective(
+            public: Self.publicConfiguration,
+            private: .init(repositories: [], exclusions: [], unmeasured: [])
+        )
+        let output = try Workspace.Inventory.Effective.Output(
+            scope: .public, effective: effective, unmeasured: [], root: root
+        )
+        let real = location.appending(path: "elsewhere.json")
+        try Data().write(to: real)
+        let link = location.appending(path: "link.json")
+        try FileManager.default.createSymbolicLink(
+            at: link, withDestinationURL: real
+        )
+
+        #expect(throws: Workspace.Error.self) {
+            try output.write(to: try File.Path(link.path))
+        }
+        // A dangling link is refused too, not silently replaced.
+        let dangling = location.appending(path: "dangling.json")
+        try FileManager.default.createSymbolicLink(
+            at: dangling,
+            withDestinationURL: location.appending(path: "missing.json")
+        )
+        #expect(throws: Workspace.Error.self) {
+            try output.write(to: try File.Path(dangling.path))
+        }
+    }
+
+    @Test
+    func `Writer refuses a pre-existing non-regular target`() throws {
+        let (root, location) = try Self.scratchRoot()
+        defer { try? FileManager.default.removeItem(at: location) }
+        let effective = try Workspace.Inventory.Effective(
+            public: Self.publicConfiguration,
+            private: .init(repositories: [], exclusions: [], unmeasured: [])
+        )
+        let output = try Workspace.Inventory.Effective.Output(
+            scope: .public, effective: effective, unmeasured: [], root: root
+        )
+        let directory = location.appending(path: "directory.json")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+
+        #expect(throws: Workspace.Error.self) {
+            try output.write(to: try File.Path(directory.path))
+        }
+    }
+
+    private static var publicConfiguration: Workspace.Configuration {
+        .init(
+            version: 1,
+            scope: "swift-institute",
+            swift: "6.3.3",
+            xcode: "26.6",
+            repositories: [
+                .init(
+                    name: "swift-alpha-primitives",
+                    url: "https://github.com/swift-primitives/swift-alpha-primitives.git",
+                    organization: "swift-primitives",
+                    layer: .primitives
+                )
+            ]
+        )
+    }
+
+    private static var privateDiscovery: Workspace.Inventory.Private.Discovery {
+        .init(
+            repositories: [
+                .init(
+                    id: .init(1),
+                    key: .init(
+                        owner: .init("swift-foundations"),
+                        name: .init("swift-private-package")
+                    ),
+                    layer: .foundations
+                )
+            ],
+            exclusions: [],
+            unmeasured: []
+        )
     }
 
     private static func scratchRoot() throws -> (Workspace.Root, URL) {
