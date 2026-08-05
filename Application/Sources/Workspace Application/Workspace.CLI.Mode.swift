@@ -13,6 +13,7 @@ extension Workspace.CLI {
         case resolve
         case update
         case regenerate
+        case effective
         case clean
         case dumpPackage
         case lint
@@ -33,6 +34,7 @@ extension Workspace.CLI {
             case "resolve": self = .resolve
             case "update": self = .update
             case "regenerate": self = .regenerate
+            case "effective": self = .effective
             case "clean": self = .clean
             case "dump-package": self = .dumpPackage
             case "lint": self = .lint
@@ -56,6 +58,7 @@ extension Workspace.CLI {
             case .resolve: "resolve"
             case .update: "update"
             case .regenerate: "regenerate"
+            case .effective: "effective"
             case .clean: "clean"
             case .dumpPackage: "dump-package"
             case .lint: "lint"
@@ -72,8 +75,8 @@ extension Workspace.CLI {
 extension Workspace.CLI.Mode {
     var buildAction: Build.Action? {
         switch self {
-        case .install, .check, .serve, .regenerate, .lint, .ledger, .pages, .seal, .token,
-            .packet:
+        case .install, .check, .serve, .regenerate, .effective, .lint, .ledger, .pages, .seal,
+            .token, .packet:
             nil
         case .build: .build
         case .test: .test

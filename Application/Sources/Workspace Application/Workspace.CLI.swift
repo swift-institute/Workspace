@@ -48,6 +48,8 @@ extension Workspace {
         public var verificationVisibility: Swift.String
         public var verificationLayer: Swift.String
         public var inventoryDigest: Swift.String
+        public var inventoryScope: Swift.String
+        public var inventoryOutput: Swift.String
         public var workspaceRevision: Swift.String
         public var policyRevision: Swift.String
         public var requestedOperations: [Swift.String]
@@ -86,6 +88,8 @@ extension Workspace {
             verificationVisibility: Swift.String = "",
             verificationLayer: Swift.String = "",
             inventoryDigest: Swift.String = "",
+            inventoryScope: Swift.String = "",
+            inventoryOutput: Swift.String = "",
             workspaceRevision: Swift.String = "",
             policyRevision: Swift.String = "",
             requestedOperations: [Swift.String] = [],
@@ -123,6 +127,8 @@ extension Workspace {
             self.verificationVisibility = verificationVisibility
             self.verificationLayer = verificationLayer
             self.inventoryDigest = inventoryDigest
+            self.inventoryScope = inventoryScope
+            self.inventoryOutput = inventoryOutput
             self.workspaceRevision = workspaceRevision
             self.policyRevision = policyRevision
             self.requestedOperations = requestedOperations
@@ -154,8 +160,8 @@ extension Workspace.CLI {
                 \.modes,
                 name: "mode",
                 placeholder:
-                    "install|check|packet|serve|build|test|run|resolve|update|regenerate|clean|dump-package|lint|ledger"
-                    + "|pages|seal|token",
+                    "install|check|packet|serve|build|test|run|resolve|update|regenerate|effective|clean|dump-package"
+                    + "|lint|ledger|pages|seal|token",
                 arity: .atMost(1),
                 help: .init(
                     abstract:
@@ -390,6 +396,27 @@ extension Workspace.CLI {
                     abstract:
                         "The effective Workspace inventory digest measuring this run "
                         + "(verification seal only); see `Workspace.Inventory.Effective` (#132)."
+                )
+            )
+            Command.Option(
+                \.inventoryScope,
+                name: .long(.literal("inventory-scope")),
+                placeholder: "public|effective",
+                help: .init(
+                    abstract:
+                        "The population breadth the effective-inventory report covers "
+                        + "(inventory effective only): the committed public roster alone, or "
+                        + "combined with one authorized private discovery pass."
+                )
+            )
+            Command.Option(
+                \.inventoryOutput,
+                name: .long(.literal("inventory-output")),
+                placeholder: "path",
+                help: .init(
+                    abstract:
+                        "Where the effective-inventory report is written atomically "
+                        + "(inventory effective only)."
                 )
             )
             Command.Option(
@@ -823,10 +850,22 @@ extension Workspace.CLI {
         } else if operation == .inventory {
             guard
                 modes.isEmpty
-                    || (modes.count == 1 && (modes.first == .regenerate || modes.first == .pages))
+                    || (modes.count == 1
+                        && (modes.first == .regenerate || modes.first == .pages
+                            || modes.first == .effective))
             else {
                 throw .validationFailed(
-                    reason: "inventory takes regenerate, pages, or no mode (the read-only register)."
+                    reason:
+                        "inventory takes regenerate, pages, effective, or no mode (the read-only "
+                        + "register)."
+                )
+            }
+            guard modes.first == .effective || (inventoryScope.isEmpty && inventoryOutput.isEmpty)
+            else {
+                throw .validationFailed(
+                    reason:
+                        "--inventory-scope and --inventory-output are valid only with "
+                        + "inventory effective."
                 )
             }
             guard consumer.isEmpty, dependency.isEmpty else {
@@ -1645,6 +1684,72 @@ extension Workspace.CLI {
                             : "inventory regenerate: replaced Workspace.json"
                     )
                 }
+            case .some(.effective):
+                guard let scope = Workspace.Inventory.Effective.Output.Scope(rawValue: inventoryScope)
+                else {
+                    throw .configuration(
+                        "inventory effective: --inventory-scope must be public or effective"
+                    )
+                }
+                guard !inventoryOutput.isEmpty else {
+                    throw .configuration("inventory effective: --inventory-output is required")
+                }
+                let outputPath: File.Path
+                do throws(File.Path.Error) {
+                    outputPath = try File.Path(inventoryOutput)
+                } catch {
+                    throw .configuration(
+                        "inventory effective: --inventory-output is not a valid path: \(error)"
+                    )
+                }
+
+                let discovery: Workspace.Inventory.Private.Discovery
+                switch scope {
+                case .public:
+                    // No private pass was requested; the report records the
+                    // limb as not-requested rather than as an empty
+                    // measurement.
+                    discovery = .init(repositories: [], exclusions: [], unmeasured: [])
+                case .effective:
+                    let http = GitHub.HTTP.Client<
+                        Workspace.Inventory.Transport.Error,
+                        GitHub.HTTP.Pagination.Error
+                    >(
+                        agent: .init(rawValue: "swift-institute-workspace"),
+                        version: .init(rawValue: "2022-11-28"),
+                        execute: Workspace.Inventory.Transport.githubCLI()
+                    )
+                    let client = Workspace.Inventory.client(
+                        http,
+                        // `gh` supplies the credential; see Workspace.Inventory.Transport.
+                        authentication: .token(.init(rawValue: ""))
+                    )
+                    do {
+                        discovery = try await client.discoverPrivate(.institute())
+                    } catch {
+                        throw .configuration("inventory effective: \(error)")
+                    }
+                }
+
+                let effective: Workspace.Inventory.Effective
+                do throws(Workspace.Inventory.Effective.Error) {
+                    effective = try .init(public: configuration, private: discovery)
+                } catch {
+                    throw .configuration("inventory effective: \(error)")
+                }
+                let report = try Workspace.Inventory.Effective.Output(
+                    scope: scope,
+                    effective: effective,
+                    unmeasured: discovery.unmeasured,
+                    root: root
+                )
+                try report.write(to: outputPath)
+                let summary =
+                    "inventory effective: scope \(scope.rawValue), "
+                    + "\(report.combined.population.count) combined, "
+                    + "\(report.unmeasured.count) unmeasured, wrote \(outputPath)\n"
+                unsafe fputs(summary, stderr)
+                Process.Exit.normal(report.exitCode)
             case .some(.pages):
                 let selection = try Workspace.Selection.effective(at: root.checkout, in: configuration)
                 let inventory = await Workspace.Pages.enumerate(root: root, selection: selection)
@@ -1663,7 +1768,9 @@ extension Workspace.CLI {
                 unsafe fputs(summaryLine, stderr)
                 Process.Exit.normal(inventory.isFullyCanonical ? 0 : 1)
             default:
-                throw .configuration("inventory operation must be regenerate, pages, or absent")
+                throw .configuration(
+                    "inventory operation must be regenerate, pages, effective, or absent"
+                )
             }
         case .dependencies:
             let git = Git.Client()
