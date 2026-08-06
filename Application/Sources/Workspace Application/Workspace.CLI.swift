@@ -5,6 +5,7 @@ private import File_System
 private import GitHub_HTTP
 private import Git_Foundation
 private import JSON
+private import Console
 private import Process
 
 #if canImport(Darwin)
@@ -15,25 +16,13 @@ private import Process
     private import Musl
 #endif
 
-/// Writes a diagnostic to standard error through the POSIX descriptor.
-///
-/// Glibc/Musl import the C `stderr` stream as a shared mutable `var`,
-/// which Swift 6 refuses to reference anywhere — including from a
-/// capturing initializer — so the stdio stream is unusable portably.
-/// Descriptor 2 is the same sink without the global. Partial writes
-/// loop; a failed write is dropped, because a diagnostic must never
-/// take the command down.
+/// Writes a diagnostic through the cross-platform standard-error owner
+/// (`Console.Output.error`, swift-console), which holds the one
+/// sanctioned seam to the C `stderr` stream across Darwin, Glibc, and
+/// Windows CRT. Failed writes are dropped there — a diagnostic never
+/// takes the command down.
 private func printToStandardError(_ text: Swift.String) {
-    let bytes = [UInt8](text.utf8)
-    unsafe bytes.withUnsafeBufferPointer { buffer in
-        guard let base = buffer.baseAddress else { return }
-        var offset = 0
-        while offset < buffer.count {
-            let written = unsafe write(2, base + offset, buffer.count - offset)
-            if written <= 0 { return }
-            offset += written
-        }
-    }
+    Console.Output.error(text)
 }
 
 extension Workspace {
