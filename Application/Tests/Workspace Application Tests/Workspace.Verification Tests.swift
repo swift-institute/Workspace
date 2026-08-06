@@ -55,7 +55,7 @@ extension Workspace.Verification.Test {
         buildResult: Workspace.Verification.Operation.Result? = nil,
         testResult: Workspace.Verification.Operation.Result? = nil,
         environmentSwift: Swift.String = "6.4",
-        inventoryDigest: Swift.String = "deadbeef",
+        inventoryDigest: Workspace.Verification.Inventory.Digest = .measured(Swift.String(repeating: "a", count: 64)),
         workspaceRevision: Swift.String = "2222222222222222222222222222222222222222",
         policyRevision: Swift.String = "policy-1"
     ) -> Workspace.Verification.Run {
@@ -133,7 +133,7 @@ extension Workspace.Verification.Test.Unit {
     @Test
     func `Changing the inventory digest changes the canonical digest`() throws {
         let first = try Workspace.Verification.Test.run().run()
-        let second = try Workspace.Verification.Test.run(inventoryDigest: "cafef00d").run()
+        let second = try Workspace.Verification.Test.run(inventoryDigest: .measured(Swift.String(repeating: "b", count: 64))).run()
         #expect(first.canonical != second.canonical)
     }
 
@@ -211,7 +211,7 @@ extension Workspace.Verification.Test.`Edge Case` {
             visibility: .private,
             defaultBranch: "main",
             layer: .primitives,
-            inventoryDigest: "deadbeef",
+            inventoryDigest: .measured(Swift.String(repeating: "a", count: 64)),
             workspaceRevision: "2222222222222222222222222222222222222222",
             policyRevision: "policy-1",
             requestedOperations: [.lint],
@@ -234,6 +234,89 @@ extension Workspace.Verification.Test.`Edge Case` {
         )
         #expect(throws: (Workspace.Verification.Error).self) {
             try run.run()
+        }
+    }
+}
+
+extension Workspace.Verification.Test.Unit {
+    /// The same receipt with a different inventory digest — `Receipt` is a
+    /// value type with no `with`-style member, and three tests here need
+    /// exactly this one substitution.
+    static func reseal(
+        _ receipt: Workspace.Verification.Receipt,
+        digest: Workspace.Verification.Inventory.Digest
+    ) -> Workspace.Verification.Receipt {
+        .init(
+            subject: receipt.subject,
+            inventoryDigest: digest,
+            layer: receipt.layer,
+            workspaceRevision: receipt.workspaceRevision,
+            policyRevision: receipt.policyRevision,
+            environment: receipt.environment,
+            requestedOperations: receipt.requestedOperations,
+            operations: receipt.operations,
+            platform: receipt.platform,
+            requiredGates: receipt.requiredGates,
+            verdict: receipt.verdict
+        )
+    }
+
+    @Test
+    func `An unmeasured inventory digest without a cause cannot be constructed`() {
+        #expect(throws: Workspace.Verification.Inventory.Digest.Error.unmeasuredWithoutCause) {
+            try Workspace.Verification.Inventory.Digest(token: "unmeasured", cause: nil)
+        }
+        #expect(throws: Workspace.Verification.Inventory.Digest.Error.unmeasuredWithoutCause) {
+            try Workspace.Verification.Inventory.Digest(token: "unmeasured", cause: "")
+        }
+    }
+
+    @Test
+    func `A measured inventory digest is 64 lowercase hex digits and carries no cause`() throws {
+        let digest = Swift.String(repeating: "a", count: 64)
+        #expect(try Workspace.Verification.Inventory.Digest(token: digest, cause: nil) == .measured(digest))
+        #expect(throws: Workspace.Verification.Inventory.Digest.Error.measuredWithCause) {
+            try Workspace.Verification.Inventory.Digest(token: digest, cause: "because")
+        }
+        #expect(throws: Workspace.Verification.Inventory.Digest.Error.notLowercaseHex64) {
+            try Workspace.Verification.Inventory.Digest(token: "deadbeef", cause: nil)
+        }
+        #expect(throws: Workspace.Verification.Inventory.Digest.Error.notLowercaseHex64) {
+            try Workspace.Verification.Inventory.Digest(
+                token: Swift.String(repeating: "A", count: 64),
+                cause: nil
+            )
+        }
+    }
+
+    @Test
+    func `A receipt carries the cause only when nothing was measured`() throws {
+        let measured = Workspace.Verification.Test.Check.verifiedReceipt()
+        // A measured receipt's canonical bytes are unchanged by the
+        // existence of the cause field — the digest of every receipt sealed
+        // before this schema addition still matches.
+        #expect(!measured.canonical.contains("inventoryDigestCause"))
+
+        let unmeasured = Self.reseal(
+            measured,
+            digest: .unmeasured(cause: "no cross-organization credential")
+        )
+        #expect(unmeasured.canonical.contains("inventoryDigestCause"))
+        #expect(unmeasured.canonical.contains("no cross-organization credential"))
+
+        let roundTripped = try Workspace.Verification.Receipt(json: unmeasured.json)
+        #expect(roundTripped == unmeasured)
+    }
+
+    @Test
+    func `A receipt claiming unmeasured without a cause does not parse`() {
+        let measured = Workspace.Verification.Test.Check.verifiedReceipt()
+        let text = measured.canonical.replacing(
+            measured.inventoryDigest.token,
+            with: "unmeasured"
+        )
+        #expect(throws: JSON.Error.self) {
+            try Workspace.Verification.Receipt(json: JSON.parse(text))
         }
     }
 }
@@ -279,7 +362,7 @@ extension Workspace.Verification.Test.Check {
                 observedHead: Workspace.Verification.Test.head,
                 dirty: false
             ),
-            inventoryDigest: "deadbeef",
+            inventoryDigest: .measured(Swift.String(repeating: "a", count: 64)),
             layer: .primitives,
             workspaceRevision: "2222222222222222222222222222222222222222",
             policyRevision: "policy-1",

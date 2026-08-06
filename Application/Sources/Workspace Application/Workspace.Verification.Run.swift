@@ -40,7 +40,7 @@ extension Workspace.Verification {
         public let visibilityReason: Swift.String?
         public let defaultBranch: Swift.String
         public let layer: Workspace.Layer
-        public let inventoryDigest: Swift.String
+        public let inventoryDigest: Workspace.Verification.Inventory.Digest
         public let workspaceRevision: Swift.String
         public let policyRevision: Swift.String
         public let requestedOperations: [Operation.Kind]
@@ -64,7 +64,7 @@ extension Workspace.Verification {
             visibilityReason: Swift.String? = nil,
             defaultBranch: Swift.String,
             layer: Workspace.Layer,
-            inventoryDigest: Swift.String,
+            inventoryDigest: Workspace.Verification.Inventory.Digest,
             workspaceRevision: Swift.String,
             policyRevision: Swift.String,
             requestedOperations: [Operation.Kind],
@@ -106,7 +106,7 @@ extension Workspace.Verification {
             visibilityReason: Swift.String? = nil,
             defaultBranch: Swift.String,
             layer: Workspace.Layer,
-            inventoryDigest: Swift.String,
+            inventoryDigest: Workspace.Verification.Inventory.Digest,
             workspaceRevision: Swift.String,
             policyRevision: Swift.String,
             requestedOperations: [Operation.Kind],

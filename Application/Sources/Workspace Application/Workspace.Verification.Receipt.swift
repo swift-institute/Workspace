@@ -15,7 +15,7 @@ extension Workspace.Verification {
         public let version: Swift.Int
         public let kind: Swift.String
         public let subject: Subject
-        public let inventoryDigest: Swift.String
+        public let inventoryDigest: Inventory.Digest
         public let layer: Workspace.Layer
         public let workspaceRevision: Swift.String
         public let policyRevision: Swift.String
@@ -30,7 +30,7 @@ extension Workspace.Verification {
             version: Swift.Int = 1,
             kind: Swift.String = "workspace-verification",
             subject: Subject,
-            inventoryDigest: Swift.String,
+            inventoryDigest: Inventory.Digest,
             layer: Workspace.Layer,
             workspaceRevision: Swift.String,
             policyRevision: Swift.String,
@@ -57,21 +57,29 @@ extension Workspace.Verification {
         }
 
         public static func serialize(_ value: Self) -> JSON {
-            [
-                "version": value.version.json,
-                "kind": value.kind.json,
-                "subject": value.subject.json,
-                "inventoryDigest": value.inventoryDigest.json,
-                "layer": value.layer.json,
-                "workspaceRevision": value.workspaceRevision.json,
-                "policyRevision": value.policyRevision.json,
-                "environment": value.environment.json,
-                "requestedOperations": value.requestedOperations.json,
-                "operations": value.operations.json,
-                "platform": value.platform.json,
-                "requiredGates": value.requiredGates.json,
-                "verdict": value.verdict.json,
+            var members: [(Swift.String, JSON)] = [
+                ("version", value.version.json),
+                ("kind", value.kind.json),
+                ("subject", value.subject.json),
+                ("inventoryDigest", value.inventoryDigest.token.json),
+                ("layer", value.layer.json),
+                ("workspaceRevision", value.workspaceRevision.json),
+                ("policyRevision", value.policyRevision.json),
+                ("environment", value.environment.json),
+                ("requestedOperations", value.requestedOperations.json),
+                ("operations", value.operations.json),
+                ("platform", value.platform.json),
+                ("requiredGates", value.requiredGates.json),
+                ("verdict", value.verdict.json),
             ]
+            // Present exactly when nothing was measured; absent — not null,
+            // not empty — when it was, so a measured receipt's canonical
+            // bytes are identical to what this schema produced before the
+            // cause existed, and its digest is unchanged.
+            if let cause = value.inventoryDigest.cause {
+                members.append(("inventoryDigestCause", cause.json))
+            }
+            return .object(members)
         }
 
         public static func deserialize(_ json: JSON) throws(JSON.Error) -> Self {
@@ -81,8 +89,21 @@ extension Workspace.Verification {
             guard let version = object["version"] else { throw .missingKey("version") }
             guard let kind = object["kind"] else { throw .missingKey("kind") }
             guard let subject = object["subject"] else { throw .missingKey("subject") }
-            guard let inventoryDigest = object["inventoryDigest"] else {
+            guard let inventoryDigestToken = object["inventoryDigest"] else {
                 throw .missingKey("inventoryDigest")
+            }
+            let inventoryDigestCause: Swift.String?
+            if let value = object["inventoryDigestCause"], value != .null {
+                inventoryDigestCause = try Swift.String(json: value)
+            } else {
+                inventoryDigestCause = nil
+            }
+            let token = try Swift.String(json: inventoryDigestToken)
+            let inventoryDigest: Workspace.Verification.Inventory.Digest
+            do throws(Workspace.Verification.Inventory.Digest.Error) {
+                inventoryDigest = try .init(token: token, cause: inventoryDigestCause)
+            } catch {
+                throw .typeMismatch(expected: "a valid inventory digest", got: "\(error)")
             }
             guard let layer = object["layer"] else { throw .missingKey("layer") }
             guard let workspaceRevision = object["workspaceRevision"] else {
@@ -103,7 +124,7 @@ extension Workspace.Verification {
                 version: Swift.Int(json: version),
                 kind: Swift.String(json: kind),
                 subject: Subject(json: subject),
-                inventoryDigest: Swift.String(json: inventoryDigest),
+                inventoryDigest: inventoryDigest,
                 layer: Workspace.Layer(json: layer),
                 workspaceRevision: Swift.String(json: workspaceRevision),
                 policyRevision: Swift.String(json: policyRevision),
