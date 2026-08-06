@@ -15,6 +15,27 @@ private import Process
     private import Musl
 #endif
 
+/// Writes a diagnostic to standard error through the POSIX descriptor.
+///
+/// Glibc/Musl import the C `stderr` stream as a shared mutable `var`,
+/// which Swift 6 refuses to reference anywhere — including from a
+/// capturing initializer — so the stdio stream is unusable portably.
+/// Descriptor 2 is the same sink without the global. Partial writes
+/// loop; a failed write is dropped, because a diagnostic must never
+/// take the command down.
+private func printToStandardError(_ text: Swift.String) {
+    let bytes = [UInt8](text.utf8)
+    unsafe bytes.withUnsafeBufferPointer { buffer in
+        guard let base = buffer.baseAddress else { return }
+        var offset = 0
+        while offset < buffer.count {
+            let written = unsafe write(2, base + offset, buffer.count - offset)
+            if written <= 0 { return }
+            offset += written
+        }
+    }
+}
+
 extension Workspace {
     public struct CLI: Sendable, Command.`Protocol` {
         public var operation: Operation
@@ -1128,9 +1149,8 @@ extension Workspace.CLI {
             // Everything a human wants to know goes to stderr, where it cannot
             // end up inside an Authorization header.
             print(result.token.value)
-            unsafe fputs(
-                "github token: \(result.cached ? "cache hit" : "minted") for \(organization)\n",
-                stderr
+            printToStandardError(
+                "github token: \(result.cached ? "cache hit" : "minted") for \(organization)\n"
             )
             return
         }
@@ -1338,7 +1358,7 @@ extension Workspace.CLI {
                     + "\(receipt.verdict.fails ? "unverified" : "verified"), "
                     + "\(receipt.operations.count) operation(s)"
                     + (digest.map { ", digest \($0)" } ?? ", digest unavailable") + "\n"
-                unsafe fputs(summaryLine, stderr)
+                printToStandardError(summaryLine)
                 Process.Exit.normal(receipt.verdict.fails ? 1 : 0)
             case .some(.check):
                 let inputPath: File.Path
@@ -1596,7 +1616,7 @@ extension Workspace.CLI {
                     "conversion seal: \(receipt.cohort.count) repositories, "
                     + "\(receipt.pages.count) pages"
                     + (digest.map { ", digest \($0)" } ?? ", digest unavailable") + "\n"
-                unsafe fputs(summaryLine, stderr)
+                printToStandardError(summaryLine)
             case .some(.check):
                 let validated: File.Path
                 do throws(File.Path.Error) {
@@ -1748,7 +1768,7 @@ extension Workspace.CLI {
                     "inventory effective: scope \(scope.rawValue), "
                     + "\(report.combined.population.count) combined, "
                     + "\(report.unmeasured.count) unmeasured, wrote \(outputPath)\n"
-                unsafe fputs(summary, stderr)
+                printToStandardError(summary)
                 Process.Exit.normal(report.exitCode)
             case .some(.pages):
                 let selection = try Workspace.Selection.effective(at: root.checkout, in: configuration)
@@ -1765,7 +1785,7 @@ extension Workspace.CLI {
                     "inventory pages: \(inventory.repositories.count) repositories, "
                     + "\(countsDescription)"
                     + (digest.map { ", digest \($0)" } ?? ", digest unavailable") + "\n"
-                unsafe fputs(summaryLine, stderr)
+                printToStandardError(summaryLine)
                 Process.Exit.normal(inventory.isFullyCanonical ? 0 : 1)
             default:
                 throw .configuration(
