@@ -2450,6 +2450,12 @@
     },
     {
       "layer": "foundations",
+      "name": "swift-signature",
+      "organization": "swift-foundations",
+      "url": "https://github.com/swift-foundations/swift-signature.git"
+    },
+    {
+      "layer": "foundations",
       "name": "swift-sitemap",
       "organization": "swift-foundations",
       "url": "https://github.com/swift-foundations/swift-sitemap.git"

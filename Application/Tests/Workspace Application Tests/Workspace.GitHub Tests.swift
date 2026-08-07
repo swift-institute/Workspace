@@ -136,34 +136,6 @@ struct `Workspace GitHub Tests` {
         #expect(parts[0] == "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9")
     }
 
-    // MARK: - Key armour
-
-    @Test
-    func `refuses a file that is not PEM-armoured`() {
-        #expect(throws: Workspace.GitHub.App.Error.malformedKey) {
-            try Workspace.GitHub.App.Key(pem: "not a key")
-        }
-        #expect(throws: Workspace.GitHub.App.Error.malformedKey) {
-            try Workspace.GitHub.App.Key(pem: "-----BEGIN RSA PRIVATE KEY-----\n-----END RSA PRIVATE KEY-----")
-        }
-    }
-
-    @Test
-    func `peels the PKCS8 wrapper off an RSA private key`() throws {
-        // PrivateKeyInfo { version 0, AlgorithmIdentifier rsaEncryption,
-        // OCTET STRING { 0x01 0x02 0x03 } } — the structure, not a key.
-        let der: [UInt8] = [
-            0x30, 0x1B,
-            0x02, 0x01, 0x00,
-            0x30, 0x0D,
-            0x06, 0x09, 0x2A, 0x86, 0x48, 0x86, 0xF7, 0x0D, 0x01, 0x01, 0x01,
-            0x05, 0x00,
-            0x04, 0x03, 0x01, 0x02, 0x03,
-        ]
-        let unwrapped = try Workspace.GitHub.App.Key.unwrap(der.map { Byte($0) })
-        #expect(unwrapped == [1, 2, 3].map { Byte(UInt8($0)) })
-    }
-
     // MARK: - CLI surface
 
     @Test
