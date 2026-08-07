@@ -20,6 +20,38 @@ let package = Package(
             name: "Workspace Application",
             targets: ["Workspace Application"]
         ),
+        .library(
+            name: "Workspace Architecture Model",
+            targets: ["WorkspaceArchitectureModel"]
+        ),
+        .library(
+            name: "Workspace Architecture Facts",
+            targets: ["WorkspaceArchitectureFacts"]
+        ),
+        .library(
+            name: "Workspace Architecture Graph",
+            targets: ["WorkspaceArchitectureGraph"]
+        ),
+        .library(
+            name: "Workspace Architecture Index",
+            targets: ["WorkspaceArchitectureIndex"]
+        ),
+        .library(
+            name: "Workspace Architecture Validation",
+            targets: ["WorkspaceArchitectureValidation"]
+        ),
+        .library(
+            name: "Workspace Architecture Candidates",
+            targets: ["WorkspaceArchitectureCandidates"]
+        ),
+        .library(
+            name: "Workspace Architecture Migration",
+            targets: ["WorkspaceArchitectureMigration"]
+        ),
+        .library(
+            name: "Workspace Architecture CLI",
+            targets: ["WorkspaceArchitectureCLI"]
+        ),
         .executable(
             name: "workspace",
             targets: ["Workspace CLI"]
@@ -60,10 +92,67 @@ let package = Package(
             name: "Skill Validation"
         ),
         .target(
+            name: "WorkspaceArchitectureModel"
+        ),
+        .target(
+            name: "WorkspaceArchitectureFacts",
+            dependencies: [
+                "WorkspaceArchitectureModel",
+                .product(name: "File System", package: "swift-file-system"),
+                .product(name: "JSON", package: "swift-json"),
+            ]
+        ),
+        .target(
+            name: "WorkspaceArchitectureGraph",
+            dependencies: [
+                "WorkspaceArchitectureModel"
+            ]
+        ),
+        .target(
+            name: "WorkspaceArchitectureIndex",
+            dependencies: [
+                "WorkspaceArchitectureModel",
+                "WorkspaceArchitectureGraph",
+            ]
+        ),
+        .target(
+            name: "WorkspaceArchitectureValidation",
+            dependencies: [
+                "WorkspaceArchitectureModel",
+                "WorkspaceArchitectureGraph",
+            ]
+        ),
+        .target(
+            name: "WorkspaceArchitectureCandidates",
+            dependencies: [
+                "WorkspaceArchitectureModel"
+            ]
+        ),
+        .target(
+            name: "WorkspaceArchitectureMigration",
+            dependencies: [
+                "WorkspaceArchitectureModel"
+            ]
+        ),
+        .target(
+            name: "WorkspaceArchitectureCLI",
+            dependencies: [
+                "WorkspaceArchitectureModel",
+                "WorkspaceArchitectureFacts",
+                "WorkspaceArchitectureGraph",
+                "WorkspaceArchitectureIndex",
+                "WorkspaceArchitectureValidation",
+                "WorkspaceArchitectureCandidates",
+                "WorkspaceArchitectureMigration",
+                .product(name: "File System", package: "swift-file-system"),
+            ]
+        ),
+        .target(
             name: "Workspace Application",
             dependencies: [
                 "Build Coordinator",
                 "Skill Validation",
+                "WorkspaceArchitectureCLI",
                 .product(name: "Command", package: "swift-arguments"),
                 .product(name: "Environment", package: "swift-environment"),
                 .product(name: "File System", package: "swift-file-system"),
@@ -91,6 +180,20 @@ let package = Package(
                 "Workspace Application",
                 .product(name: "Command", package: "swift-arguments")
             ]
+        ),
+        .testTarget(
+            name: "WorkspaceArchitectureTests",
+            dependencies: [
+                "WorkspaceArchitectureModel",
+                "WorkspaceArchitectureFacts",
+                "WorkspaceArchitectureGraph",
+                "WorkspaceArchitectureIndex",
+                "WorkspaceArchitectureValidation",
+                "WorkspaceArchitectureCandidates",
+                "WorkspaceArchitectureMigration",
+                "WorkspaceArchitectureCLI",
+            ],
+            path: "Tests/WorkspaceArchitectureTests"
         ),
         .testTarget(
             name: "Skill Validation Tests",
