@@ -206,7 +206,7 @@ struct `Workspace Lint Currency Tests` {
 
     /// The remedy must name the tree the verdict is about.
     ///
-    /// A bare `workspace lint install` was the whole instruction, and it
+    /// A bare `institute lint install` was the whole instruction, and it
     /// is the instruction that failed: one machine carried four installed
     /// trees at four depths, and eight consecutive successful installs
     /// never touched the one the lint run was refusing on.
@@ -215,7 +215,7 @@ struct `Workspace Lint Currency Tests` {
         let remedy = Workspace.Lint.reinstall(into: "/Users/x/Developer/coenttb")
         #expect(
             remedy.contains(
-                "workspace lint install --workspace-path /Users/x/Developer/coenttb"
+                "institute lint install --workspace-path /Users/x/Developer/coenttb"
             )
         )
     }

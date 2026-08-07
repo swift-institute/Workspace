@@ -50,14 +50,14 @@ extension Workspace.Selection {
             let committed = missing.filter { !added.contains($0) }
             if !committed.isEmpty {
                 diagnostics.append(
-                    "\(Self.filename) contains repository not present in Workspace.json: "
+                    "\(Self.filename) contains repository not present in Institute.json: "
                         + committed.map(\.identity).joined(separator: ", ")
                 )
             }
             let local = missing.filter(added.contains)
             if !local.isEmpty {
                 diagnostics.append(
-                    "\(Override.filename) adds repository not present in Workspace.json: "
+                    "\(Override.filename) adds repository not present in Institute.json: "
                         + local.map(\.identity).joined(separator: ", ")
                 )
             }

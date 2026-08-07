@@ -461,7 +461,7 @@ extension Workspace.Verification.Run {
 }
 
 extension Workspace.Verification.Run {
-    /// Runs the same per-package lint gate `workspace package lint`
+    /// Runs the same per-package lint gate `institute package lint`
     /// already performs (``Workspace/CLI/run()``'s `.package`/`.lint`
     /// branch), folded into an ``Operation/Result``.
     static func realLint(_ path: Swift.String) -> Workspace.Verification.Operation.Result {

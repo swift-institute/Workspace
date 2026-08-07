@@ -317,7 +317,7 @@ extension Workspace.Lint {
 
     /// Why the remedy is two steps rather than one.
     ///
-    /// `workspace lint install` downloads whatever the `ci-binaries`
+    /// `institute lint install` downloads whatever the `ci-binaries`
     /// release currently publishes. When the release itself is behind —
     /// which is the common case, since a rule-pack push republishes
     /// asynchronously — reinstalling changes nothing. Republishing
@@ -325,12 +325,12 @@ extension Workspace.Lint {
     static let republish =
         "republish the binaries (`gh workflow run publish-ci-binaries.yml "
         + "--repo \(Workspace.Lint.repository)`, then wait for it), and reinstall with "
-        + "`workspace lint install`"
+        + "`institute lint install`"
 
     /// The remedy when the release is current and only this installation
     /// is behind — naming the installation, not just the command.
     ///
-    /// A bare `workspace lint install` used to be the whole instruction,
+    /// A bare `institute lint install` used to be the whole instruction,
     /// and it is the instruction that failed: this machine carried four
     /// installed trees at four depths on 2026-08-03, and an install run
     /// from a lane's own directory refreshed one of the three the
@@ -339,7 +339,7 @@ extension Workspace.Lint {
     /// tree that clearing it means anything for.
     static func reinstall(into hierarchy: Swift.String) -> Swift.String {
         "the published release is current and only this installation is behind, so one "
-            + "command clears it: `workspace lint install --workspace-path \(hierarchy)`"
+            + "command clears it: `institute lint install --workspace-path \(hierarchy)`"
     }
 
     /// The remedy when there is none — stated as such.

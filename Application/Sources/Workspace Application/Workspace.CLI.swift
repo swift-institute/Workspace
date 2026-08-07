@@ -159,7 +159,7 @@ extension Workspace {
 extension Workspace.CLI {
     public static var configuration: Command.Configuration {
         .init(
-            name: "workspace",
+            name: "institute",
             abstract: "Synchronize, diagnose, and operate the public Swift Institute workspace."
         )
     }
@@ -1165,9 +1165,9 @@ extension Workspace.CLI {
         if case .install = operation {
             let installation = try Workspace.Installation()
             try installation.install()
-            print("workspace: installed and verified")
-            print("workspace command: \(installation.command)")
-            print("workspace executable: \(installation.executable)")
+            print("institute: installed and verified")
+            print("institute command: \(installation.command)")
+            print("institute executable: \(installation.executable)")
             return
         }
 
@@ -1175,7 +1175,7 @@ extension Workspace.CLI {
             // Minting a credential has nothing to do with a Workspace
             // checkout, so this returns before any root is resolved: the
             // command works from any directory on the machine, which is what
-            // makes `GH_TOKEN=$(workspace github token --org X)` usable in a
+            // makes `GH_TOKEN=$(institute github token --org X)` usable in a
             // lane standing inside a package.
             let app: Workspace.GitHub.App
             let result: (token: Workspace.GitHub.App.Token, cached: Swift.Bool)
@@ -1771,12 +1771,12 @@ extension Workspace.CLI {
                 }
                 switch plan {
                 case .current:
-                    print("inventory regenerate: Workspace.json is current")
+                    print("inventory regenerate: Institute.json is current")
                 case .replace:
                     print(
                         dry
-                            ? "inventory regenerate: would replace Workspace.json"
-                            : "inventory regenerate: replaced Workspace.json"
+                            ? "inventory regenerate: would replace Institute.json"
+                            : "inventory regenerate: replaced Institute.json"
                     )
                 }
             case .some(.effective):
@@ -1926,14 +1926,14 @@ extension Workspace.CLI {
             do throws(Git.Client.Error) {
                 head = try git.head(at: root.checkout.description)
                 dirty = try git.status(at: root.checkout.description).contains {
-                    $0.path == [UInt8]("Workspace.json".utf8)
+                    $0.path == [UInt8]("Institute.json".utf8)
                 }
             } catch {
-                throw .process("cannot identify the Workspace.json source revision: \(error)")
+                throw .process("cannot identify the Institute.json source revision: \(error)")
             }
             guard !dirty else {
                 throw .configuration(
-                    "Workspace.json has working-tree changes; an exact source revision "
+                    "Institute.json has working-tree changes; an exact source revision "
                         + "cannot be recorded"
                 )
             }

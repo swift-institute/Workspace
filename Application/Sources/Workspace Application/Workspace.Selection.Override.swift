@@ -7,7 +7,7 @@ extension Workspace.Selection {
     /// It is a *delta* rather than a replacement document, for two reasons.
     /// The committed `Selection.json` stays the authority: every effective
     /// selection is the committed list plus a named departure from it, which
-    /// is exactly what `workspace doctor` reports. And a replacement would
+    /// is exactly what `institute doctor` reports. And a replacement would
     /// freeze a machine at the policy of the day it was written — a package
     /// added to the committed selection later would silently never arrive,
     /// which is the coordination hazard this mechanism exists to remove,

@@ -22,7 +22,7 @@ extension Workspace.Architecture.Layer {
         }
     }
 
-    /// The inventory spelling, exactly as `Workspace.json` records it.
+    /// The inventory spelling, exactly as `Institute.json` records it.
     public var name: Swift.String {
         switch self {
         case .primitives: "primitives"

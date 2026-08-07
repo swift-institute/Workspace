@@ -7,7 +7,7 @@ extension Workspace.Dependency.Report {
         let document: JSON = [
             "schemaVersion": 1.json,
             "inventory": [
-                "document": "Workspace.json".json,
+                "document": "Institute.json".json,
                 "reference": inventoryReference.json,
                 "revision": inventoryRevision.json,
                 "population": subjects.count.json,

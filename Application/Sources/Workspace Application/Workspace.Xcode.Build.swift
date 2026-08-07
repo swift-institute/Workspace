@@ -6,7 +6,7 @@ extension Workspace.Xcode {
     /// generated `institute.xcworkspace`.
     ///
     /// The alternative this replaces is N invocations of
-    /// `workspace package build`, one per selected package. Those cannot
+    /// `institute package build`, one per selected package. Those cannot
     /// overlap: the build coordinator holds a machine-wide exclusive lock
     /// across the whole compilation, so the effective parallelism of a
     /// multi-package sweep is one, whatever `jobs` says. They also do not
@@ -71,13 +71,13 @@ extension Workspace.Xcode.Build {
         diagnostics: [Swift.String]
     ) {
         guard bundle[file: "contents.xcworkspacedata"].stat.exists else {
-            return ([], ["institute.xcworkspace is not generated; run `workspace sync`"])
+            return ([], ["institute.xcworkspace is not generated; run `institute sync`"])
         }
 
         var diagnostics = [Swift.String]()
         if !Workspace.Xcode.current(selection.repositories, at: root.checkout) {
             diagnostics.append(
-                "institute.xcworkspace does not match the resolved selection; run `workspace sync`"
+                "institute.xcworkspace does not match the resolved selection; run `institute sync`"
             )
         }
 
@@ -88,7 +88,7 @@ extension Workspace.Xcode.Build {
         if !Workspace.Xcode.Scheme.current(buildables, at: root.checkout) {
             diagnostics.append(
                 "\(Workspace.Xcode.Scheme.name).xcscheme does not match the selected packages'"
-                    + " manifests (\(buildables.count) buildable targets); run `workspace sync`."
+                    + " manifests (\(buildables.count) buildable targets); run `institute sync`."
                     + " An out-of-date scheme does not fail the build — it silently builds less"
                     + " of the selection."
             )

@@ -14,7 +14,7 @@ extension Workspace.Lint {
     public struct Report: Sendable {
         public let scope: Sweep.Scope
 
-        /// Packages in `Workspace.json`.
+        /// Packages in `Institute.json`.
         public let inventory: Swift.Int
 
         /// Inventory entries with no package on disk.
@@ -122,7 +122,7 @@ extension Workspace.Lint.Report {
             .map { $0 }
     }
 
-    /// Exit status, matching `workspace doctor`'s vocabulary.
+    /// Exit status, matching `institute doctor`'s vocabulary.
     ///
     /// | Status | Meaning |
     /// |---|---|

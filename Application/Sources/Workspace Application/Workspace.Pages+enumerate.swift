@@ -4,7 +4,7 @@ public import Git_Foundation
 extension Workspace.Pages {
     /// Derives the canonical page inventory for `selection` — population
     /// comes solely from `Workspace.Selection.Resolved.repositories`
-    /// (itself derived from `Workspace.json`), never from a directory walk
+    /// (itself derived from `Institute.json`), never from a directory walk
     /// of the checkout root (issue #82's derivation rule 1).
     ///
     /// One Git interrogation pair per selected repository (canonical and
@@ -44,7 +44,7 @@ extension Workspace.Pages {
                 kind: .organizationProfile,
                 path: "profile/README.md",
                 // `<organization>/.github` is never itself a selected
-                // inventory repository (Workspace.json enumerates no
+                // inventory repository (Institute.json enumerates no
                 // `.github` repositories), so this instrument has no
                 // checkout to test existence against — `present` is
                 // recorded `false` rather than guessed.
@@ -63,7 +63,7 @@ extension Workspace.Pages {
                 workspaceJsonBlob: Self.line(
                     try? Workspace.Doctor.spawn(
                         "git",
-                        arguments: ["-C", root.checkout.description, "rev-parse", "HEAD:Workspace.json"]
+                        arguments: ["-C", root.checkout.description, "rev-parse", "HEAD:Institute.json"]
                     )
                 ),
                 selection: selectionField

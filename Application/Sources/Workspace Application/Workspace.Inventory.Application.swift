@@ -56,7 +56,7 @@ extension Workspace.Inventory.Application {
     /// This runs before discovery, rather than after its hundreds of requests,
     /// so a command that cannot safely publish fails before paying for a live
     /// census. ``Workspace/Inventory/Writer/run(_:replacing:)`` separately
-    /// rejects a change to `Workspace.json` that races discovery.
+    /// rejects a change to `Institute.json` that races discovery.
     private func preflight() throws(Workspace.Inventory.Error<Content>) {
         let changes: [Git.Status.Entry]
         do throws(Git.Client.Error) {

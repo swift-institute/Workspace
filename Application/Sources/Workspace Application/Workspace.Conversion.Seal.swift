@@ -1,7 +1,7 @@
 private import File_System
 
 extension Workspace.Conversion {
-    /// `workspace conversion seal`: reads the page inventory of issue #82
+    /// `institute conversion seal`: reads the page inventory of issue #82
     /// and the materialized checkouts, and emits a receipt with the cohort
     /// and pages sealed at their pre-conversion revisions — every `post…`
     /// field `nil`, `evaluation` `nil`.

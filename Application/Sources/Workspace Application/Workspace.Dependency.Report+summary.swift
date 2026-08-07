@@ -7,7 +7,7 @@ extension Workspace.Dependency.Report: CustomStringConvertible {
         }
         let exceptions = identities.filter { $0.ownership == .sanctionedException }
         var lines = [
-            "dependency audit: \(subjects.count) repositories from Workspace.json "
+            "dependency audit: \(subjects.count) repositories from Institute.json "
                 + "(\(inventoryReference) at \(inventoryRevision))",
             "\(measured) measured · \(incomplete) excluded or unmeasured · "
                 + "\(manifests.count) manifests",

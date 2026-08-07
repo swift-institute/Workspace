@@ -673,7 +673,7 @@ extension Workspace.CLI.Test.Unit {
 extension Workspace.CLI.Test.`Edge Case` {
     @Test
     func `build takes no mode`() {
-        // `workspace build build` would read as a package operation and is a
+        // `institute build build` would read as a package operation and is a
         // plausible slip; it must not silently mean the whole selection.
         #expect(throws: Command.Error.self) {
             var command = Workspace.CLI(operation: .build, modes: [.build])

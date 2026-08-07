@@ -12,7 +12,7 @@ extension Workspace {
 extension Workspace.Error {
     public var description: Swift.String {
         switch self {
-        case .changed: "Workspace.json changed during inventory discovery"
+        case .changed: "Institute.json changed during inventory discovery"
         case .composition(let message): message
         case .configuration(let message): message
         case .filesystem(let message): message

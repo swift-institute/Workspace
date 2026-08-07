@@ -15,7 +15,7 @@ private import WorkspaceArchitectureValidation
 #endif
 
 extension Workspace.Architecture {
-    /// The thin composition root behind `workspace architecture validate`.
+    /// The thin composition root behind `institute architecture validate`.
     ///
     /// It composes derivation, graph construction, index generation and
     /// validation; it owns no model logic of its own.
@@ -23,10 +23,10 @@ extension Workspace.Architecture {
 }
 
 extension Workspace.Architecture.CLI {
-    /// Runs `workspace architecture validate` from `path`.
+    /// Runs `institute architecture validate` from `path`.
     ///
     /// Ascends from `path` to the nearest directory holding
-    /// `Workspace.json`, derives the model, regenerates the index twice
+    /// `Institute.json`, derives the model, regenerates the index twice
     /// and requires identical digests, then validates Class I plus the
     /// derived contradiction checks. Returns the process exit status:
     /// `0` when validation passes, `1` when violations remain.
@@ -83,14 +83,14 @@ extension Workspace.Architecture.CLI {
     }
 
     /// Ascends from `path` to the nearest directory containing
-    /// `Workspace.json`.
+    /// `Institute.json`.
     internal static func checkout(containing path: Swift.String) throws(Error) -> File.Directory {
         var current = path
         while true {
             do throws(File.Path.Error) {
                 let directory = try File.Directory(validating: current)
                 do throws(Either<File.System.Read.Full.Error, Never>) {
-                    _ = try directory[file: "Workspace.json"].read.full { (span) in span.count }
+                    _ = try directory[file: "Institute.json"].read.full { (span) in span.count }
                     return directory
                 } catch {
                     // No readable inventory here; keep ascending.

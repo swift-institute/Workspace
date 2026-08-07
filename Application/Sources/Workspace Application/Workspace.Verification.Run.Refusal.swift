@@ -28,7 +28,7 @@ extension Workspace.Verification.Run {
         case unavailableInstallation(Workspace.Error.Kind)
         /// The linter ran and declined to measure, but its own reason
         /// carries content this instrument will not seal. The full reason
-        /// is still printed by `workspace package lint` locally; only the
+        /// is still printed by `institute package lint` locally; only the
         /// receipt withholds it.
         case unsealableMeasurementReason
     }

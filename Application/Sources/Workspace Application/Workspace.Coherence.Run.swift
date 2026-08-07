@@ -353,7 +353,7 @@ extension Workspace.Coherence.Run {
                 workspaceJsonBlob: Self.line(
                     try? Workspace.Doctor.spawn(
                         "git",
-                        arguments: ["-C", root.checkout.description, "rev-parse", "HEAD:Workspace.json"]
+                        arguments: ["-C", root.checkout.description, "rev-parse", "HEAD:Institute.json"]
                     )
                 ),
                 selection: selectionField,

@@ -2,7 +2,7 @@ private import File_System
 private import Tagged_Primitives
 
 extension Workspace.Conversion {
-    /// `workspace conversion check <path>`: re-reads a receipt and reports,
+    /// `institute conversion check <path>`: re-reads a receipt and reports,
     /// without mutating anything, whether it is internally and
     /// historically consistent. Never mutates the receipt or the checkout;
     /// a positive result is a report, not a repair.

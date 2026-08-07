@@ -2,7 +2,7 @@ public import JSON
 
 extension Workspace.Peer {
     /// A peer institute's own package inventory — the per-ecosystem
-    /// counterpart of `Workspace.json`.
+    /// counterpart of `Institute.json`.
     ///
     /// The document lives inside the peer's tree at the peer-root-relative
     /// path its ``Workspace/Peer`` registry entry declares, so the peer
@@ -31,7 +31,7 @@ extension Workspace.Peer.Configuration {
     /// Validates the inventory for `peer`: a supported version, the
     /// declared ecosystem matching the registry entry, unique names,
     /// unique canonical keys, and every URL's owner matching the record's
-    /// organization — the same discipline `Workspace.json` is held to.
+    /// organization — the same discipline `Institute.json` is held to.
     public func validated(for peer: Workspace.Peer) throws(Workspace.Error) -> Self {
         guard version == 1 else {
             throw .configuration("unsupported peer inventory version \(version)")

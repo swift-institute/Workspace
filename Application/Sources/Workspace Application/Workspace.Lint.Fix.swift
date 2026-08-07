@@ -147,5 +147,5 @@ extension Workspace.Lint {
     /// understand environment channels.
     static let fixUnsupported =
         "the installed swift-linter predates --fix and would silently lint instead of "
-        + "fixing; run `workspace lint install` once the ci-binaries release carries it"
+        + "fixing; run `institute lint install` once the ci-binaries release carries it"
 }

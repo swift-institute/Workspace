@@ -2,7 +2,7 @@ public import JSON
 public import WorkspaceArchitectureModel
 
 extension Workspace.Architecture.Facts.Inventory {
-    /// One inventory row: the coordinate and layer `Workspace.json` records
+    /// One inventory row: the coordinate and layer `Institute.json` records
     /// for a package root.
     public struct Row: Sendable, Equatable, JSON.Serializable {
         public let organization: Swift.String

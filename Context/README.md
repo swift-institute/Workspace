@@ -1,6 +1,6 @@
 # Agent context
 
-`workspace context install` materializes the checkout-root entry point from
+`institute context install` materializes the checkout-root entry point from
 this directory.
 
 - `AGENTS.md` is the platform-neutral boot context.
@@ -42,22 +42,22 @@ hub, accepts only `name` and `description` metadata, requires the directory and
 declared names to match, and rejects `SKILL.md` files over 500 lines.
 
 Workspace also owns the Swift build coordinator exposed through
-`workspace package`. It serializes SwiftPM work, fixes build concurrency at
+`institute package`. It serializes SwiftPM work, fixes build concurrency at
 three jobs, rejects arguments that would override coordinator-owned state, and
 provides isolated `--fresh` build and test evidence whose scratch state is
 removed before returning. Agent context points to that typed interface rather
 than to repository-local script collections.
 
 The bare command is established once from a fresh clone with
-`swift run --package-path Application workspace install`. That self-hosting
+`swift run --package-path Application institute install`. That self-hosting
 bootstrap copies the executable out of generated SwiftPM build state and links
 it from `$HOME/.local/bin`; every later SwiftPM operation uses
-`workspace package`. The installer does not edit shell startup files and
+`institute package`. The installer does not edit shell startup files and
 refuses to replace any command path it cannot prove it owns.
 
 The cclsp/SourceKit-LSP boundary is likewise Workspace-owned through
-`workspace navigation`. It installs a pinned public cclsp revision into derived
+`institute navigation`. It installs a pinned public cclsp revision into derived
 state, generates machine-local MCP and per-package LSP configuration from the
 physical Workspace layout, and launches only the SourceKit-LSP selected by
 Xcode with `TOOLCHAINS` removed. cclsp remains external developer tooling, not a
-`Workspace.json` package.
+`Institute.json` package.

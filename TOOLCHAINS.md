@@ -1,7 +1,7 @@
 # Toolchain selection on a development machine
 
 This document describes **machine-local configuration, not committed state.** Nothing here is
-enforced by this repository, checked by `workspace doctor`, or reproduced by cloning. It records
+enforced by this repository, checked by `institute doctor`, or reproduced by cloning. It records
 the convention a machine should be configured to, and — more importantly — how to answer the
 question *"which toolchain produced this result?"* without guessing.
 

@@ -8,7 +8,7 @@ extension Workspace.CLI.Test {
 }
 
 extension Workspace.CLI.Test.Lint {
-    /// The sweep takes no mode. `workspace lint` is the ecosystem run;
+    /// The sweep takes no mode. `institute lint` is the ecosystem run;
     /// the tool operations are named.
     @Test
     func `a bare lint is the ecosystem sweep`() throws {

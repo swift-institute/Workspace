@@ -1,11 +1,11 @@
 # Swift Institute Workspace
 
 The front door to the Swift Institute: the public package inventory
-([Workspace.json](Workspace.json)), the default checkout
+([Institute.json](Institute.json)), the default checkout
 ([Selection.json](Selection.json)) with a per-machine override that stays out of Git
 (`Selection.local.json`), machine-checked facts about that checkout
-(`workspace doctor`), an isolated local development checkout for Xcode (`workspace sync`),
-and local-source composition for cross-package work (`workspace compose` / `restore` /
+(`institute doctor`), an isolated local development checkout for Xcode (`institute sync`),
+and local-source composition for cross-package work (`institute compose` / `restore` /
 `verify`).
 
 | Command | What it does |
@@ -14,7 +14,7 @@ and local-source composition for cross-package work (`workspace compose` / `rest
 | `sync` | Clone missing repositories and fast-forward eligible ones. Never rewrites work. |
 | `doctor` | Report what is measurably true about this checkout. |
 | `inventory` | Print the committed name → organization → relative-path register. Never discovers or writes. |
-| `inventory regenerate` | Discover the live roster and replace `Workspace.json`; `--dry-run` plans only. |
+| `inventory regenerate` | Discover the live roster and replace `Institute.json`; `--dry-run` plans only. |
 | `dependencies` | Audit direct manifest dependency origins at exact remote revisions; never writes package state. |
 | `compose` | Point one package's dependency at your local checkout of it, so edits are picked up. |
 | `restore` | Undo a composition, returning the manifest to its declared form byte-for-byte. |
@@ -58,7 +58,7 @@ owned by a specification-authority, vendor, or jurisdiction organization nested 
 deeper under their layer root (for example `swift-standards/swift-ietf/<package>`) — and
 composes them into a single Xcode workspace. `Selection.json` contains only canonical
 `owner/repository` identities and decides which inventory entries participate in the default
-checkout. Placement and ordering derive from `Workspace.json` alone: each selected entry's
+checkout. Placement and ordering derive from `Institute.json` alone: each selected entry's
 `organization` and `layer` fields decide the path, and inventory order decides synchronization
 and Xcode order. Tools never infer a location from a package's name or by scanning the tree,
 and materialized paths are regenerable state — when a repository transfers between
@@ -66,7 +66,7 @@ organizations, both documents must be updated explicitly before `sync` can proce
 
 ## Where facts come from
 
-- **Inventory:** [Workspace.json](Workspace.json) is the public roster of packages this
+- **Inventory:** [Institute.json](Institute.json) is the public roster of packages this
   workspace manages, intended to grow to every public, non-archived Institute package.
 - **Default checkout:** [Selection.json](Selection.json) is a membership list of canonical
   `owner/repository` identities. It deliberately does not repeat package metadata, paths, or
@@ -74,7 +74,7 @@ organizations, both documents must be updated explicitly before `sync` can proce
 - **Your checkout:** `Selection.local.json` is your own delta over that policy — `add` and
   `remove` — and it is gitignored. It is how you change what your machine opens without
   editing a tracked file.
-- **Checkout facts:** `workspace doctor` measures the checkout directly — identities,
+- **Checkout facts:** `institute doctor` measures the checkout directly — identities,
   remotes, branches, upstreams, toolchain, and workspace references.
 
 `sync` and `doctor` load these files and fail before repository work if the selection is
@@ -89,17 +89,17 @@ an operand does not have to remain in the default selection once it is already c
 Prefer running `doctor` over trusting any written snapshot: repository-state prose is a
 measurement with a timestamp, and it drifts.
 
-`workspace inventory` is the read-only view of the committed register. It prints each
+`institute inventory` is the read-only view of the committed register. It prints each
 repository's name, owning organization, and inventory-derived relative materialization path;
-it performs no GitHub discovery and cannot write `Workspace.json`. Roster maintenance uses the
-explicitly mutating `workspace inventory regenerate`. Run it with `--dry-run` to learn whether
+it performs no GitHub discovery and cannot write `Institute.json`. Roster maintenance uses the
+explicitly mutating `institute inventory regenerate`. Run it with `--dry-run` to learn whether
 the file would be replaced. Applying the regeneration requires a clean Workspace worktree and
 refuses before discovery otherwise; the final write is atomic and also refuses if
-`Workspace.json` changes during discovery.
+`Institute.json` changes during discovery.
 
 ### Audit dependency origins
 
-`workspace dependencies` reads the repositories already eligible in `Workspace.json`, fetches
+`workspace dependencies` reads the repositories already eligible in `Institute.json`, fetches
 every root, nested, and `Package@swift-*` manifest from each repository's default branch, and
 records the exact commit examined. It enumerates direct canonical GitHub repository URLs; the
 report keeps repeated declaration edges separate from distinct package identities and states
@@ -139,7 +139,7 @@ anything the session cannot read is reported as unavailable rather than clean.
 Open objectives are public GitHub issues on the relevant repositories:
 
 ```bash
-gh issue list --repo swift-institute/Workspace
+gh issue list --repo swift-institute/institute-application
 ```
 
 ## Get started
@@ -148,8 +148,8 @@ gh issue list --repo swift-institute/Workspace
 alone, against public repositories, with no credentials and no internal tooling. If a step here
 needs anything you cannot get, that is a defect — please open an issue.
 
-Requires the macOS, Xcode, and Swift floors declared in [`Workspace.json`](Workspace.json),
-plus Git. `workspace doctor` checks those floors on the current machine; a newer toolchain
+Requires the macOS, Xcode, and Swift floors declared in [`Institute.json`](Institute.json),
+plus Git. `institute doctor` checks those floors on the current machine; a newer toolchain
 passes.
 
 `swiftly` is how the Institute installs and selects Swift toolchains; install it if you do not
@@ -166,18 +166,18 @@ nothing looks.
 
 ```sh
 mkdir -p Institute/swift-institute && cd Institute/swift-institute
-git clone https://github.com/swift-institute/Workspace.git
+git clone https://github.com/swift-institute/institute-application.git
 git clone https://github.com/swift-institute/Skills.git
 cd Workspace
 export PATH="$HOME/.local/bin:$PATH"
-swift run --package-path Application workspace install
-workspace sync
-workspace context install
+swift run --package-path Application institute install
+institute sync
+institute context install
 open institute.xcworkspace
 ```
 
 `Institute` is yours to name; `swift-institute` is not. That leaves you with
-`Institute/swift-institute/Workspace` alongside `Institute/swift-institute/Skills`, the
+`Institute/swift-institute/institute-application` alongside `Institute/swift-institute/Skills`, the
 materialized roots as further siblings, and the generated agent entry point in `Institute/`.
 
 The `export` changes only the current shell; Workspace never edits a shell
@@ -195,7 +195,7 @@ fresh resolve — but any uncommitted or unpushed work inside a materialized rep
 because package work happens in those checkouts, not in this one.
 
 The committed `Selection.json` decides that first synchronization. It selects the whole
-public roster, so a fresh clone materializes every package in `Workspace.json`. To open
+public roster, so a fresh clone materializes every package in `Institute.json`. To open
 fewer, `remove` them in `Selection.local.json` below.
 
 **To add packages to your own checkout, do not edit `Selection.json`.** Write
@@ -210,7 +210,7 @@ fewer, `remove` them in `Selection.local.json` below.
 }
 ```
 
-Identities are the exact `owner/repository` spelling from `Workspace.json`; order has no
+Identities are the exact `owner/repository` spelling from `Institute.json`; order has no
 effect. `add` and `remove` are both required — write `[]` for the one you are not using.
 Then re-run `sync`.
 
@@ -218,7 +218,7 @@ It is a *delta*, not a replacement list, so a package added to the committed pol
 still reaches your machine. It also fails closed rather than doing something approximate:
 adding a package the committed selection already has, removing one it does not, naming the
 same package in both lists, removing everything, or naming a package absent from
-`Workspace.json` each stop the command and say which file is wrong. Delete the file to go
+`Institute.json` each stop the command and say which file is wrong. Delete the file to go
 back to the default checkout.
 
 `Selection.json` itself is committed policy — the public default checkout. Edit it
@@ -234,13 +234,13 @@ selection: Selection.json — 5 selected; Selection.local.json — 1 added, 1 re
 ```
 
 `institute.xcworkspace` is **generated, not committed** — `sync` writes it from the
-selection in effect, which is why `workspace sync` must run before `open`. A fresh clone
-has no workspace file until it does; `workspace doctor` reports it missing and names the
+selection in effect, which is why `institute sync` must run before `open`. A fresh clone
+has no workspace file until it does; `institute doctor` reports it missing and names the
 command that writes it. Change the selection and re-run `sync` rather than editing the
 workspace in Xcode, because the next `sync` rewrites whatever you edited.
 
 **The bootstrap `swift run` is slow the first time, and it is silent while it
-works.** Before `workspace install` can print anything, SwiftPM resolves and
+works.** Before `institute install` can print anything, SwiftPM resolves and
 compiles the command-line application and its whole dependency graph. Two costs
 stack up, and both are silent:
 
@@ -252,20 +252,20 @@ stack up, and both are silent:
 
 The earliest minutes print nothing at all while SwiftPM evaluates manifests,
 and the rest print nothing either: no progress bar, no percentage, nothing
-until the build finishes and `workspace install` reports its destinations.
+until the build finishes and `institute install` reports its destinations.
 Silence there is expected, not a hang.
 
 That first `swift run` is the unavoidable self-hosting bootstrap. Its only job
 is to install a durable copy at
-`$HOME/.local/share/swift-institute/workspace/bin/workspace` and expose it
-through the relative link `$HOME/.local/bin/workspace`. The copy lives outside
+`$HOME/.local/share/swift-institute/institute/bin/institute` and expose it
+through the relative link `$HOME/.local/bin/institute`. The copy lives outside
 SwiftPM's generated build state, so cleaning `Application` does not break the
 command. From the next line onward, `workspace` is the one canonical command
-surface, and all SwiftPM work goes through `workspace package`.
+surface, and all SwiftPM work goes through `institute package`.
 
 The installer owns only a receipt-marked installation directory and the exact
 link it creates. It refreshes those on a later run, but refuses before changing
-anything if `$HOME/.local/bin/workspace` is an unmanaged executable or link, or
+anything if `$HOME/.local/bin/institute` is an unmanaged executable or link, or
 if its installation directory exists without the receipt. It also refuses to
 report success when `$HOME/.local/bin` is not on `PATH`, because a binary the
 shell cannot discover does not close the bootstrap gap.
@@ -273,7 +273,7 @@ shell cannot discover does not close the bootstrap gap.
 Install the shared agent entry point:
 
 ```sh
-workspace context install
+institute context install
 ```
 
 This validates every canonical skill before projecting it into your account's
@@ -305,8 +305,8 @@ Workspace owns the reproducible integration boundary between
 [cclsp](https://github.com/swift-institute/cclsp) and Xcode's SourceKit-LSP:
 
 ```sh
-workspace navigation install
-workspace navigation check
+institute navigation install
+institute navigation check
 ```
 
 `install` clones the public `sourcekit-lsp-adapter` line at the exact revision
@@ -315,7 +315,7 @@ lockfile, builds its Node executable, and writes two generated files beneath
 the physical organization hierarchy:
 
 - `.workspace/navigation/cclsp.json` — one SourceKit-LSP server for the
-  Workspace Application and each currently materialized `Workspace.json`
+  Workspace Application and each currently materialized `Institute.json`
   repository;
 - `.workspace/navigation/mcp-server.json` — the command, arguments, and
   environment an MCP client registers.
@@ -325,17 +325,17 @@ registration format, so Workspace does not rewrite a user's global client
 configuration. The descriptor is the canonical value to translate into that
 format.
 
-SourceKit-LSP is launched through the generated `workspace navigation serve`
+SourceKit-LSP is launched through the generated `institute navigation serve`
 invocation. That typed boundary removes `TOOLCHAINS`, resolves
 `sourcekit-lsp` through `xcrun`, and refuses a binary outside the Xcode selected
 by `xcode-select`. cclsp remains a distinct third-party TypeScript tool: it is
-not a Swift package, is not listed in `Workspace.json`, and is never resolved
+not a Swift package, is not listed in `Institute.json`, and is never resolved
 from a personal fork or a fixed machine path.
 
 The current generated configuration is deliberately per-package. A single
 deduplicated Institute-wide index requires a larger IndexStore merge and
 stabilizing acceptance probe; that exact Full-Swift remainder is tracked in
-[issue #25](https://github.com/swift-institute/Workspace/issues/25). Workspace
+[issue #25](https://github.com/swift-institute/institute-application/issues/25). Workspace
 does not claim that per-package navigation is equivalent to cross-package
 index coverage.
 
@@ -360,24 +360,24 @@ sets that environment variable itself; a developer's shell profile is never
 written, which is what makes the setup identical for everyone.
 
 ```sh
-workspace lint install     # fetch, verify, record the build
-workspace lint check       # is it the build CI consumes?
-workspace lint             # the whole ecosystem
-workspace lint --changed   # only packages with local work
-workspace lint ledger      # complete residual compliance ledger
-workspace lint ledger --format json
-workspace package lint     # one package, from inside it
+institute lint install     # fetch, verify, record the build
+institute lint check       # is it the build CI consumes?
+institute lint             # the whole ecosystem
+institute lint --changed   # only packages with local work
+institute lint ledger      # complete residual compliance ledger
+institute lint ledger --format json
+institute package lint     # one package, from inside it
 ```
 
 `package lint` takes no arguments: standing anywhere inside a package it finds
 the package root and the installed binaries by walking up, reads no inventory,
 and enumerates no organization. The whole-ecosystem sweep enumerates from
-`Workspace.json` and lints packages concurrently. Both modes go through one
+`Institute.json` and lints packages concurrently. Both modes go through one
 implementation, so a package's verdict cannot depend on which one asked for it.
 
 `lint ledger` is the read-only machine evidence entry point for the complete
 inventory. Its human and JSON forms come from the same typed report. Every
-`Workspace.json` repository appears exactly once with its canonical identity,
+`Institute.json` repository appears exactly once with its canonical identity,
 owning organization, layer, measured or `UNMEASURED` state and reason, typed
 prerequisite cause when one blocks measurement, exact unsuppressed error count,
 advisory findings grouped by rule, and a known or explicitly unknown verification
@@ -390,7 +390,7 @@ explicit inputs; Workspace does not infer them from Issue prose, comments, or
 past CI state:
 
 ```sh
-workspace lint ledger --format json \
+institute lint ledger --format json \
   --disposition 'PLAT-ARCH-022=remediation@swift-foundations/swift-linter#20' \
   --verification 'swift-primitives/swift-bytes@<40-hex-sha>=https://github.com/swift-primitives/swift-bytes/actions/runs/<id>'
 ```
@@ -468,9 +468,9 @@ The bootstrapped executable owns SwiftPM concurrency, job count, and build
 state:
 
 ```sh
-workspace package build --package-path Application
-workspace package test --package-path Application --fresh
-workspace package resolve --package-path Application
+institute package build --package-path Application
+institute package test --package-path Application --fresh
+institute package resolve --package-path Application
 ```
 
 Builds are serialized through a machine-wide advisory lock and compile with
@@ -489,7 +489,7 @@ resets, cleans, stashes, rebases, switches a feature branch, or overwrites a rep
 Preview the plan without changing files or Git metadata:
 
 ```sh
-workspace sync --dry-run
+institute sync --dry-run
 ```
 
 ### Where packages materialize
@@ -501,7 +501,7 @@ invoking the tool through a symlink does not redirect that hierarchy. For a clon
 
 ```text
 X/
-├── Workspace/              this repository: Application/, Workspace.json, Selection.json,
+├── Workspace/              this repository: Application/, Institute.json, Selection.json,
 │                            your ignored Selection.local.json if you have one, and the
 │                            generated, untracked institute.xcworkspace
 ├── swift-primitives/       ┐
@@ -543,10 +543,10 @@ entry/
     └── swift-nl-wetgever/    the peer's organization directories
 ```
 
-The committed `Peers.json` beside `Workspace.json` registers which peers Workspace can
+The committed `Peers.json` beside `Institute.json` registers which peers Workspace can
 resolve and where each peer's **own** inventory file lives relative to its root. The peer
 inventory (`{"version", "ecosystem", "repositories"}`, records `{"name", "url",
-"organization"}` — `Workspace.json`'s record shape minus `layer`) stays inside the peer's
+"organization"}` — `Institute.json`'s record shape minus `layer`) stays inside the peer's
 tree, so the peer owns its package records and this repository never carries them. A peer
 repository materializes at `<peer root>/<organization>/<name>`, or directly at
 `<peer root>/<name>` when its organization is the peer's eponymous one — the same
@@ -557,7 +557,7 @@ Adoption is opt-in per checkout: a machine without the peer root has simply not 
 which `doctor`'s `peer-checkout` check reports as a fact, never a finding. A peer root that
 exists **without** a usable inventory is the state the mechanism exists to end — its packages
 would only be locatable by tree inference — so that warns, and a broken declaration is an
-error. `workspace inventory` prints each registered peer's register after the
+error. `institute inventory` prints each registered peer's register after the
 swift-institute one. `sync` does not clone peer repositories; materializing a peer tree is
 the peer's own concern.
 
@@ -567,7 +567,7 @@ the peer's own concern.
 snapshot:
 
 ```sh
-workspace doctor
+institute doctor
 ```
 
 A healthy contributor run reports one line per check, then a summary that repeats every
@@ -612,10 +612,10 @@ defect worth reporting.
 A maintainer with an authenticated `gh` can ask for it explicitly:
 
 ```sh
-workspace doctor --institute
+institute doctor --institute
 ```
 
-That discovers the live Institute organizations and compares the result with `Workspace.json` in both directions, naming every
+That discovers the live Institute organizations and compares the result with `Institute.json` in both directions, naming every
 repository that is on one side and not the other. It is opt-in rather than automatic on
 purpose: `doctor` is otherwise credential-free and offline, and it must not become a
 different, slower, network-bound command on the machines that happen to have `gh` logged in.
@@ -678,7 +678,7 @@ compile the source you are editing. `restore` puts the manifest back. `verify` r
 source actually compiled, so you never have to trust your own memory of which state you left
 things in.
 
-Both packages must be named in [`Workspace.json`](Workspace.json) and checked out. If one is
+Both packages must be named in [`Institute.json`](Institute.json) and checked out. If one is
 not already checked out because it is outside the committed default, add its canonical
 identity to the `add` list in your `Selection.local.json`, then run `sync` before composing
 it — not to [`Selection.json`](Selection.json), which is committed policy rather than your
@@ -692,7 +692,7 @@ local copy.
 **1. Compose.** Point the consumer at your local checkout:
 
 ```sh
-workspace compose \
+institute compose \
   --consumer swift-color --dependency swift-color-standard
 ```
 
@@ -717,7 +717,7 @@ normally. It now compiles your local source.
 **3. Verify** — which source *actually* compiled:
 
 ```sh
-workspace verify \
+institute verify \
   --consumer swift-color --dependency swift-color-standard
 ```
 
@@ -729,7 +729,7 @@ anything.
 **4. Restore before you commit or push:**
 
 ```sh
-workspace restore \
+institute restore \
   --consumer swift-color --dependency swift-color-standard
 ```
 
@@ -775,7 +775,7 @@ arbitrary local packages, multi-root setups, and Xcode-side composition are out 
 Issues are the channel — for questions as much as for defects:
 
 ```bash
-gh issue list --repo swift-institute/Workspace
+gh issue list --repo swift-institute/institute-application
 ```
 
 There is no private support path and no internal-only documentation: this README is the whole
@@ -836,7 +836,7 @@ of it once the change lands.
 ## Scope
 
 The committed selection is the full public roster, so a fresh clone materializes every package
-in `Workspace.json`. The inventory and the selection line that `sync` and `doctor` print are the
+in `Institute.json`. The inventory and the selection line that `sync` and `doctor` print are the
 authorities; this document does not duplicate their changing counts.
 
 The Xcode workspace uses only relative sibling-layout references

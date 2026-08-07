@@ -13,7 +13,7 @@ extension Workspace {
     /// ``Run`` walks the stages `sync` → `doctor` → `graph` → `build` →
     /// `population` in order and stops at the first that fails; every
     /// later stage is recorded ``Coherence/Outcome/notRun``. `bootstrap` —
-    /// the self-hosting `workspace install` compile that produced the
+    /// the self-hosting `institute install` compile that produced the
     /// executable running this instrument — is recorded a unconditional
     /// success: this process running is bootstrap's own proof, and its
     /// wall-clock is measured by the CI wiring's calibration dispatches

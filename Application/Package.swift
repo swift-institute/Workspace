@@ -3,7 +3,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "workspace",
+    name: "institute",
     platforms: [
         .macOS(.v26)
     ],
@@ -53,7 +53,7 @@ let package = Package(
             targets: ["WorkspaceArchitectureCLI"]
         ),
         .executable(
-            name: "workspace",
+            name: "institute",
             targets: ["Workspace CLI"]
         )
     ],

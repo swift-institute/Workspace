@@ -3,7 +3,7 @@
 The Swift Institute front door: the public package inventory, machine-checked facts about a
 checkout, and an isolated local development checkout for Xcode. Read `README.md` first for
 orientation. Nothing here needs Institute access. The one exception is explicit and opt-in:
-`workspace doctor --institute` asks for the roster-currency check and needs an authenticated
+`institute doctor --institute` asks for the roster-currency check and needs an authenticated
 `gh`. No other step does — if one wants credentials or a repository you cannot read, that is a
 defect worth reporting.
 
@@ -12,32 +12,32 @@ defect worth reporting.
 All paths are relative to the repository root.
 
 ```sh
-swift run --package-path Application workspace sync --dry-run   # plan only, changes nothing
-swift run --package-path Application workspace sync             # clone and fast-forward
-swift run --package-path Application workspace build            # build the whole selection, one xcodebuild
-swift run --package-path Application workspace doctor           # report checkout facts
-swift run --package-path Application workspace doctor --institute  # + roster currency (needs gh)
-Application/.build/debug/workspace package test --package-path Application --fresh
-Application/.build/debug/workspace navigation install
-Application/.build/debug/workspace navigation check
-Application/.build/debug/workspace lint install                 # pinned swift-linter
-Application/.build/debug/workspace lint check                   # parity with CI
-Application/.build/debug/workspace lint                         # sweep the ecosystem
-Application/.build/debug/workspace package lint                 # one package, no arguments
+swift run --package-path Application institute sync --dry-run   # plan only, changes nothing
+swift run --package-path Application institute sync             # clone and fast-forward
+swift run --package-path Application institute build            # build the whole selection, one xcodebuild
+swift run --package-path Application institute doctor           # report checkout facts
+swift run --package-path Application institute doctor --institute  # + roster currency (needs gh)
+Application/.build/debug/institute package test --package-path Application --fresh
+Application/.build/debug/institute navigation install
+Application/.build/debug/institute navigation check
+Application/.build/debug/institute lint install                 # pinned swift-linter
+Application/.build/debug/institute lint check                   # parity with CI
+Application/.build/debug/institute lint                         # sweep the ecosystem
+Application/.build/debug/institute package lint                 # one package, no arguments
 
 # per-organization GitHub App installation token, for high-volume machine reads
-GH_TOKEN=$(workspace github token --org <org>) gh api rate_limit
-workspace github token --org <org> --permission contents=read   # narrowed
+GH_TOKEN=$(institute github token --org <org>) gh api rate_limit
+institute github token --org <org> --permission contents=read   # narrowed
 
 # local-source composition, for changing a package and its consumer together
-swift run --package-path Application workspace compose --consumer <c> --dependency <d>
-swift run --package-path Application workspace verify  --consumer <c> --dependency <d>
-swift run --package-path Application workspace restore --consumer <c> --dependency <d>
+swift run --package-path Application institute compose --consumer <c> --dependency <d>
+swift run --package-path Application institute verify  --consumer <c> --dependency <d>
+swift run --package-path Application institute restore --consumer <c> --dependency <d>
 ```
 
 The first `swift run` in a fresh clone compiles the whole dependency graph and is **silent for
 several minutes**. It is not hung. That invocation bootstraps the executable; after it exists,
-run SwiftPM work only through `Application/.build/debug/workspace package`.
+run SwiftPM work only through `Application/.build/debug/institute package`.
 
 `doctor` reports which checks apply to your setup. A check that needs Institute access reports
 that it did not run — that is not a failure of your checkout. `--institute` is the one opt-in
@@ -55,7 +55,7 @@ authenticated `gh` never changes what a plain `doctor` does.
   inside the clone, and committing their contents to this repository is always wrong. Doctor
   reports legacy-only and duplicate legacy-plus-sibling materializations as errors, uses only
   the sibling for downstream checks, and never migrates or deletes the legacy contents.
-- **`Workspace.json` is the sole name → org → path authority.** A repository's location is
+- **`Institute.json` is the sole name → org → path authority.** A repository's location is
   derived from its inventory entry's `organization` and `layer` fields (authority, vendor, and
   jurisdiction orgs nest under their layer root, e.g. `swift-standards/swift-ietf/<package>`).
   Never infer a location from a package's name and never scan the tree for packages — resolve
@@ -73,7 +73,7 @@ authenticated `gh` never changes what a plain `doctor` does.
   resolution. Change `Package.swift` and resolve.
 - **`institute.xcworkspace` is generated state; `Selection.json` is its authored input.**
   `sync` renders the workspace from the resolved selection and byte-compares before writing,
-  so it is deterministic in the same sense `Workspace.json` is. It is ignored and must never
+  so it is deterministic in the same sense `Institute.json` is. It is ignored and must never
   be committed — a tracked derived file can disagree with its source, and it did: the
   version tracked until 2026-07-28 rendered a five-entry selection while the working copy
   carried 437, and nothing reported the divergence because agreement was never checked
@@ -98,7 +98,7 @@ authenticated `gh` never changes what a plain `doctor` does.
   header rather than a `doctor` check on purpose: a check can report `notApplicable`, and a
   check that never ran must never look like one that passed (issue #43). See
   `Research/Local Resolution/DESIGN-Selection-Override-2026-07-29.md` and issue #46.
-- **`workspace build` builds the selection in one `xcodebuild`; `workspace package build` builds
+- **`institute build` builds the selection in one `xcodebuild`; `institute package build` builds
   one package in one `swift build`. They are not the same measurement.** The package path
   resolves dependencies from *pinned remotes*, so it cannot see a local edit at all — change a
   selected package and a consumer's `swift build` compiles the published version and reports
@@ -113,12 +113,12 @@ authenticated `gh` never changes what a plain `doctor` does.
   in the build output can catch it either, because an up-to-date target compiles nothing, so "not
   in the log" and "not in the scheme" are the same observation. This is why the scheme is
   generated from `swift package dump-package` rather than from target names anyone typed, and why
-  `workspace build` re-renders it from the manifests and byte-compares *before* building, refusing
+  `institute build` re-renders it from the manifests and byte-compares *before* building, refusing
   to run on a mismatch. Never hand-edit the scheme, and never soften that pre-flight check into a
   warning — a build path that can report success having compiled a fraction of the selection is
   the exact failure this gate exists to prevent.
 - **`github token` mints a credential, so it prints one thing and logs nothing.** The token is
-  the whole of stdout, with no trailing commentary, so `GH_TOKEN=$(workspace github token --org
+  the whole of stdout, with no trailing commentary, so `GH_TOKEN=$(institute github token --org
   X)` captures a credential and nothing else; whether it was minted or served from cache goes to
   stderr. It needs a GitHub App private key the operator installed themselves under
   `~/.config/swift-institute-bot/`, alongside a file naming the application identity — neither
@@ -133,7 +133,7 @@ authenticated `gh` never changes what a plain `doctor` does.
   spend the principal's single shared one. Judgment writes stay on the principal identity, and a
   read that guards a mutation uses the same identity as the mutation.
 - **Roster drift is detected by CI, not by anyone remembering.** `inventory-currency`
-  compares `Workspace.json` against a live discovery in both directions. It needs an
+  compares `Institute.json` against a live discovery in both directions. It needs an
   authenticated `gh`, so no contributor command reaches it and none should: `doctor` is
   credential-free and offline, and selecting Institute access from ambient state would make
   a green `doctor` mean different things on different machines — including for every
@@ -142,12 +142,12 @@ authenticated `gh` never changes what a plain `doctor` does.
   the human. That workflow fails rather than reporting clean when the check says `not run`,
   because a check that did not execute must never read like one that found nothing — the
   defect that kept this check unreachable for its whole life (issue #43).
-- **The `swift` and `xcode` fields in `Workspace.json` are a floor, not a pin, and the README
+- **The `swift` and `xcode` fields in `Institute.json` are a floor, not a pin, and the README
   documents that same floor.** They were a pin compared by string containment, which meant a
   toolchain *newer* than the declared one failed. No single number could be green on both the
   maintainer machine and a contributor following the README, so the two drifted apart and
   `contributor-path.yml` sat red: the README named Swift 6.3.3 / Xcode 26.6 while
-  `Workspace.json` declared 6.4 / 27.0, and a contributor who installed exactly what they were
+  `Institute.json` declared 6.4 / 27.0, and a contributor who installed exactly what they were
   told got exit 1 (issue #57). Do not restore containment, and do not raise the floor to a
   toolchain that is only available as a beta or a preview runner image — a floor nobody can
   meet turns every green tick red for a reason unrelated to the change under test. Raise it
@@ -178,7 +178,7 @@ authenticated `gh` never changes what a plain `doctor` does.
   counterpart — CI activates on `Lint.swift` and runs nothing for these packages —
   so it is Workspace's own measurement and is documented as one.
 - **swift-linter is developer tooling, not an inventory package.** Install it through
-  `workspace lint install`; never add it to `Workspace.json` and never put a machine
+  `institute lint install`; never add it to `Institute.json` and never put a machine
   path in durable configuration. Workspace sets `SWIFT_LINTER_RUNNER` on the child
   process itself — never a developer's shell profile, which would be machine-specific
   by construction. Parity with CI is the point: same rolling `ci-binaries` release,
@@ -188,11 +188,11 @@ authenticated `gh` never changes what a plain `doctor` does.
   `lint check` compares the installed composite digest against the one CI consumes;
   a lint run never contacts the network.
 - **cclsp is developer tooling, not an inventory package.** Install and verify it through
-  `workspace navigation`; never add it to `Workspace.json`, resolve it from a personal fork,
+  `institute navigation`; never add it to `Institute.json`, resolve it from a personal fork,
   or put a fixed machine checkout path in durable configuration. `navigation serve` owns the
   Xcode/`TOOLCHAINS` boundary. The merged cross-package index remainder is Workspace issue #25.
 - **The generated Xcode workspace uses relative references only.** Never emit an absolute path
-  into `institute.xcworkspace` or into `Workspace.json` — `Application` remains
+  into `institute.xcworkspace` or into `Institute.json` — `Application` remains
   `group:Application`, while materialized packages use `group:../<inventory-derived-reference>`.
 - **A composed manifest is uncommittable local state.** `compose` writes a machine-local
   absolute path deliberately: off-machine it must fail loudly at resolution rather than silently

@@ -108,7 +108,7 @@ extension Workspace.Lint.Bundle {
     ///
     /// The sweep does not need this — it holds the inventory entry and
     /// therefore the authoritative layer. The single-package path does:
-    /// `workspace package lint` reads no inventory by design, and
+    /// `institute package lint` reads no inventory by design, and
     /// requiring one would be the ceremony that mode exists to avoid.
     ///
     /// The derivation is not a tree walk and carries no layout guess.

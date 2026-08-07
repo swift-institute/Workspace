@@ -19,7 +19,7 @@ extension Workspace.Inventory.Test {
                 withIntermediateDirectories: true
             )
             root = try File.Directory(validating: location.path)
-            file = location.appending(path: "Workspace.json")
+            file = location.appending(path: "Institute.json")
             git = .init()
 
             try Data(configuration.rendered().utf8).write(to: file, options: .atomic)
@@ -32,7 +32,7 @@ extension Workspace.Inventory.Test {
                 ["config", "user.name", "Workspace Tests"],
                 at: location
             )
-            try Self.execute(["add", "Workspace.json"], at: location)
+            try Self.execute(["add", "Institute.json"], at: location)
             try Self.execute(["commit", "-m", "Fixture inventory"], at: location)
         }
     }

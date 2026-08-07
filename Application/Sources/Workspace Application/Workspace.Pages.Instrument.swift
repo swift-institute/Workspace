@@ -2,7 +2,7 @@ public import JSON
 
 extension Workspace.Pages {
     /// What identifies the instrument that produced a page inventory: the
-    /// Workspace revision, the `Workspace.json` blob it read, and which
+    /// Workspace revision, the `Institute.json` blob it read, and which
     /// selection was in effect.
     ///
     /// `selection` is `"policy"` for a canonical run — no local override in

@@ -61,9 +61,9 @@ extension Workspace {
 
             let local = home[directory: ".local"]
             let root =
-                local[directory: "share"][directory: "swift-institute"][directory: "workspace"]
-            self.command = local[directory: "bin"][file: "workspace"]
-            self.executable = root[directory: "bin"][file: "workspace"]
+                local[directory: "share"][directory: "swift-institute"][directory: "institute"]
+            self.command = local[directory: "bin"][file: "institute"]
+            self.executable = root[directory: "bin"][file: "institute"]
         }
     }
 }
@@ -79,7 +79,7 @@ extension Workspace.Installation {
             throw .configuration(
                 """
                 \(commandDirectory) is not on PATH, so installing there would not expose \
-                `workspace`. Add it to the current shell first:
+                `institute`. Add it to the current shell first:
                   export PATH="$HOME/.local/bin:$PATH"
                 then run the bootstrap command again.
                 """
@@ -135,13 +135,13 @@ extension Workspace.Installation {
 extension Workspace.Installation {
     private static let receipt =
         """
-        managed-by=workspace install
+        managed-by=institute install
         version=1
         """
 
-    /// Relative from `$HOME/.local/bin/workspace` to the managed executable.
+    /// Relative from `$HOME/.local/bin/institute` to the managed executable.
     private static let commandTarget =
-        File.Path("../share/swift-institute/workspace/bin/workspace")
+        File.Path("../share/swift-institute/institute/bin/institute")
 
     private var local: File.Directory {
         home[directory: ".local"]
@@ -160,7 +160,7 @@ extension Workspace.Installation {
     }
 
     private var root: File.Directory {
-        institute[directory: "workspace"]
+        institute[directory: "institute"]
     }
 
     private var executableDirectory: File.Directory {

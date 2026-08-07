@@ -35,7 +35,7 @@ extension Workspace.Doctor {
     /// Scoped to caches this checkout can actually find: the checkout
     /// root and every materialized repository's own directory, since
     /// `swift-linter` caches per invocation directory rather than in one
-    /// fixed location (`workspace lint`'s sweep runs it once per package
+    /// fixed location (`institute lint`'s sweep runs it once per package
     /// root). A repository that was never linted locally has no cache
     /// and contributes nothing — that is the ordinary case, not a gap.
     public static let lintConfigCurrency = Check<ConfigCache>(

@@ -28,7 +28,7 @@ extension Workspace.Doctor {
                     severity: .error,
                     message:
                         "institute.xcworkspace is missing; it is generated rather than committed — "
-                        + "run `workspace sync` to write it from Selection.json"
+                        + "run `institute sync` to write it from Selection.json"
                 )
             ]
         }
@@ -38,7 +38,7 @@ extension Workspace.Doctor {
                 severity: .error,
                 message:
                     "institute.xcworkspace does not match the resolved selection; "
-                    + "run `workspace sync` to regenerate it"
+                    + "run `institute sync` to regenerate it"
             )
         ]
     }

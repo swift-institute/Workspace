@@ -95,7 +95,7 @@ extension Workspace.Lint {
     /// whose entire purpose is to compare against CI.
     public func diagnostics() throws(Workspace.Error) -> [Swift.String] {
         guard manifestFile.stat.isFile else {
-            return ["swift-linter is not installed; run `workspace lint install`"]
+            return ["swift-linter is not installed; run `institute lint install`"]
         }
         var findings = [Swift.String]()
         let manifest = try installedManifest()
@@ -136,7 +136,7 @@ extension Workspace.Lint {
 
         var findings = [
             "swift-linter parity: installed digest \(installed.digest) is not the digest CI "
-                + "consumes (\(published.digest)); run `workspace lint install`"
+                + "consumes (\(published.digest)); run `institute lint install`"
         ]
         for entry in published.revisions {
             let local = installed.value(for: entry.key)

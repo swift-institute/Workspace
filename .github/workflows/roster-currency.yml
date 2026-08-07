@@ -1,7 +1,7 @@
-# Roster currency (issue #43): `inventory-currency` compares Workspace.json
+# Roster currency (issue #43): `inventory-currency` compares Institute.json
 # against a live discovery of the Institute organizations and names what
 # drifted, in which direction. It needs an authenticated `gh`, so no
-# contributor command reaches it — `workspace doctor --institute` is opt-in
+# contributor command reaches it — `institute doctor --institute` is opt-in
 # and stays opt-in, which means a flag alone detects drift only when someone
 # remembers to pass it. This job is what removes the human from that loop.
 #
@@ -19,7 +19,7 @@ on:
       control:
         description: >-
           Run the positive control instead of the measurement: perturb
-          Workspace.json with a repository GitHub cannot have, assert the
+          Institute.json with a repository GitHub cannot have, assert the
           check fires and names it, and deliver nothing.
         type: boolean
         default: false
@@ -60,7 +60,7 @@ jobs:
       # this they report `unmeasured` and the run's exit status stops saying
       # anything about currency.
       - name: Materialize the committed selection
-        run: swift run --package-path Application workspace sync
+        run: swift run --package-path Application institute sync
 
       # The control perturbs the roster with a repository no organization can
       # own, so the check MUST report it as committed-but-not-discovered. It
@@ -71,7 +71,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import json
-          path = "Workspace.json"
+          path = "Institute.json"
           document = json.load(open(path))
           document["repositories"].append({
               "name": "swift-roster-currency-control",
@@ -95,7 +95,7 @@ jobs:
         run: |
           set -o pipefail
           status=0
-          swift run --package-path Application workspace doctor --institute \
+          swift run --package-path Application institute doctor --institute \
             2>&1 | tee report.txt || status=$?
           echo "status=$status" >> "$GITHUB_OUTPUT"
 
@@ -135,7 +135,7 @@ jobs:
             echo "::error::control did not fire: state is ${{ steps.currency.outputs.state }}."
             exit 1
           fi
-          if ! grep -q 'swift-roster-currency-control: in Workspace.json but not discovered on GitHub' findings.txt; then
+          if ! grep -q 'swift-roster-currency-control: in Institute.json but not discovered on GitHub' findings.txt; then
             echo "::error::the check fired but did not name the control in the committed direction."
             cat findings.txt
             exit 1

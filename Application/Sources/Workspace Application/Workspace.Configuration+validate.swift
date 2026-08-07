@@ -3,7 +3,7 @@ private import Tagged_Primitives
 extension Workspace.Configuration {
     public func validated() throws(Workspace.Error) -> Self {
         guard version == 1 else {
-            throw .configuration("unsupported Workspace.json version \(version)")
+            throw .configuration("unsupported Institute.json version \(version)")
         }
 
         var names = Set<Swift.String>()
@@ -11,21 +11,21 @@ extension Workspace.Configuration {
         for repository in repositories {
             guard let key = Workspace.Repository.Key(repository: repository) else {
                 throw .configuration(
-                    "Workspace.json repository \(repository.name) does not have its canonical owner/name URL"
+                    "Institute.json repository \(repository.name) does not have its canonical owner/name URL"
                 )
             }
             guard names.insert(repository.name).inserted else {
-                throw .configuration("Workspace.json contains duplicate repository name \(repository.name)")
+                throw .configuration("Institute.json contains duplicate repository name \(repository.name)")
             }
             guard keys.insert(key).inserted else {
                 throw .configuration(
-                    "Workspace.json contains duplicate repository key \(repository.url)"
+                    "Institute.json contains duplicate repository key \(repository.url)"
                 )
             }
             guard key.owner.underlying == repository.organization else {
                 throw .configuration(
                     """
-                    Workspace.json repository \(repository.name) declares organization \
+                    Institute.json repository \(repository.name) declares organization \
                     \(repository.organization) but its URL owner is \(key.owner.underlying)
                     """
                 )
@@ -45,7 +45,7 @@ extension Workspace.Configuration {
             {
                 throw .configuration(
                     """
-                    Workspace.json repository \(repository.name) sits in \(repository.organization), \
+                    Institute.json repository \(repository.name) sits in \(repository.organization), \
                     the \(root.token) layer root, but declares layer \(repository.layer.token)
                     """
                 )

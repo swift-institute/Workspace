@@ -11,7 +11,7 @@ extension Workspace.Inventory {
     /// private extension, *plus* one combined digest a downstream verifier
     /// and caller generator can use as the single effective population.
     /// `public` is exactly `publicConfiguration.repositories` as loaded from
-    /// `Workspace.json` — untouched, so its digest matches what is already
+    /// `Institute.json` — untouched, so its digest matches what is already
     /// committed. `private` exists only in memory: a private repository's
     /// coordinates never reach a public commit through this type. `combined`
     /// is `public` and `private` merged and re-sorted by the same (layer,

@@ -18,7 +18,7 @@ extension Workspace {
     /// status or check, never mints a credential, and never decides which
     /// private repositories are in scope — that is Task 2-02's trusted
     /// control-plane dispatcher (`swift-institute/.github`), which invokes
-    /// `workspace verification seal` at an exact recorded Workspace
+    /// `institute verification seal` at an exact recorded Workspace
     /// revision and supplies every fact this instrument cannot itself
     /// observe (see ``Run``'s documentation for exactly which facts those
     /// are and why they are caller-supplied rather than derived here).

@@ -2,7 +2,7 @@ public import JSON
 public import WorkspaceArchitectureModel
 
 extension Workspace.Architecture.Facts {
-    /// The `Workspace.json` inventory, reduced to what derivation needs.
+    /// The `Institute.json` inventory, reduced to what derivation needs.
     ///
     /// Extra top-level keys (version, scope, toolchains) are the
     /// inventory's own concern and are ignored here.

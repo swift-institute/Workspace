@@ -9,7 +9,7 @@ extension Workspace.Doctor.Access {
     /// was written, tested, controlled — and unreachable from any command,
     /// so every real run reported it as not run (Workspace issue #43).
     ///
-    /// It uses the same policy, transport, and client as `workspace inventory
+    /// It uses the same policy, transport, and client as `institute inventory
     /// regenerate`, deliberately: `doctor`'s verdict about the roster and a
     /// regeneration of the roster must not be able to disagree about what is
     /// on GitHub.
@@ -18,10 +18,10 @@ extension Workspace.Doctor.Access {
     ///
     /// Discovery issues roughly one request per repository — about 460
     /// today — and needs an authenticated `gh` on the machine, exactly as
-    /// `workspace inventory regenerate` does. `doctor` otherwise needs no
+    /// `institute inventory regenerate` does. `doctor` otherwise needs no
     /// credentials and touches no network, and `CLAUDE.md` promises
     /// contributors that it stays that way. So the caller asks for this explicitly
-    /// (`workspace doctor --institute`); it is never selected from ambient
+    /// (`institute doctor --institute`); it is never selected from ambient
     /// machine state. A contributor who has authenticated `gh` for
     /// `gh issue list` — which the contributing instructions tell them to
     /// run — must not thereby get a different, slower, network-bound

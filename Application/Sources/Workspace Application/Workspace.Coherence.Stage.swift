@@ -8,12 +8,12 @@ extension Workspace.Coherence {
     /// everything this instrument itself can measure (see ``Coherence``);
     /// the remaining five are what ``Run/run()`` actually executes.
     public enum Stage: Swift.String, Swift.CaseIterable, Equatable, Sendable, JSON.Serializable {
-        /// The self-hosting `workspace install` compile that produced the
+        /// The self-hosting `institute install` compile that produced the
         /// executable running this instrument.
         case bootstrap
-        /// Materializing the selection — `workspace sync`.
+        /// Materializing the selection — `institute sync`.
         case sync
-        /// Checkout facts, credential-free — `workspace doctor`.
+        /// Checkout facts, credential-free — `institute doctor`.
         case doctor
         /// The generated workspace/scheme re-rendered and byte-compared
         /// against the manifests before anything is built.

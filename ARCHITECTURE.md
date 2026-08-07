@@ -4,13 +4,13 @@
 
 Workspace is the Swift Institute front door. It serves three roles:
 
-- **Inventory** — `Workspace.json` is the public roster of Institute package repositories,
+- **Inventory** — `Institute.json` is the public roster of Institute package repositories,
   intended to grow to every public, non-archived package.
-- **Fact oracle** — `workspace doctor` reports what is true right now about the checkout:
+- **Fact oracle** — `institute doctor` reports what is true right now about the checkout:
   identities, remotes, branches, upstreams, toolchain, and workspace references. Facts come
   from executed checks, not from prose snapshots; a check that cannot distinguish "measured
   clean" from "failed to measure" does not ship.
-- **Development checkout** — `workspace sync` materializes eligible repositories as normal,
+- **Development checkout** — `institute sync` materializes eligible repositories as normal,
   independent Git clones and composes them into a deterministic Xcode workspace.
 
 ### The contributor path is a first-class surface
@@ -73,7 +73,7 @@ X/                              the directory playing the organization role
 │   │   │   ├── Workspace Application/
 │   │   │   └── Workspace CLI/
 │   │   └── Tests/
-│   ├── Workspace.json          application-owned inventory policy
+│   ├── Institute.json          application-owned inventory policy
 │   └── institute.xcworkspace/  deterministic generated workspace
 ├── swift-primitives/           materialized org root (layer 1)
 ├── swift-standards/            materialized org root (layer 2)
@@ -120,7 +120,7 @@ are errors; when both exist, the sibling is active. Workspace never migrates or 
 legacy checkout, and only an active sibling repository participates in downstream census,
 pin, and manifest checks.
 
-**Where a package materializes.** Its location is a pure function of its `Workspace.json`
+**Where a package materializes.** Its location is a pure function of its `Institute.json`
 entry: the layer's root organization, then — when the owning organization is not the layer
 root — the organization, then the repository name. `swift-primitives/swift-dimension-primitives`;
 `swift-standards/swift-ietf/swift-rfc-9110`. Two properties are requirements (issue #17):
@@ -211,7 +211,7 @@ The repaired SwiftPM cascade is
   serialization, but no package is created until Xcode.Project research fixes the semantic scope.
 - `swift-git-process` is rejected. Process execution is an implementation mechanism of the single
   `swift-git` operational client, not an integration domain with multiple backends.
-- `swift-workspace-standard` is rejected. `Workspace.json`, sync rules, and doctor severity are
+- `swift-workspace-standard` is rejected. `Institute.json`, sync rules, and doctor severity are
   Institute application policy, not external standards.
 - W3C XML modules are not used directly for Xcode serialization. `swift-xcode` composes the
   Layer-3 `swift-xml` foundation.
@@ -249,7 +249,7 @@ Diagnostic prose remains `String`; replacing it would add no semantic informatio
 
 - construct a semantic `Xcode.Workspace` value;
 - serialize through `swift-xml` with deterministic relative references;
-- keep the workspace bundle inside the checkout, with `group:Application` for the application
+- keep the institute bundle inside the checkout, with `group:Application` for the application
   and `group:../<inventory-derived-reference>` for every sibling repository;
 - atomically write `contents.xcworkspacedata` through `swift-file-system`;
 - emit no absolute local paths.
@@ -265,10 +265,10 @@ Diagnostic prose remains `String`; replacing it would add no semantic informatio
 - discover every public, non-archived package repository with pagination;
 - exclude private, archived, non-package, and policy-ineligible repositories;
 - expose the committed name → organization → relative-path register through a read-only
-  `workspace inventory`;
-- put discovery and replacement only behind `workspace inventory regenerate`, with a
+  `institute inventory`;
+- put discovery and replacement only behind `institute inventory regenerate`, with a
   nonmutating `--dry-run` plan and a clean-worktree publication gate;
-- produce a stable sort and byte-for-byte deterministic `Workspace.json`;
+- produce a stable sort and byte-for-byte deterministic `Institute.json`;
 - preserve application-owned annotations without duplicating GitHub client behavior.
 
 ### Application and release gate
@@ -277,6 +277,6 @@ Diagnostic prose remains `String`; replacing it would add no semantic informatio
 - no local Shell, Git client, Xcode serializer, JSON decoder, manifest parser, or filesystem boundary;
 - focused tests for policy plus owner-package tests for every added capability;
 - clean-room resolution after newly created repositories are explicitly made public;
-- `workspace sync --dry-run`, `workspace sync`, and `workspace doctor` pass from a clean clone;
+- `institute sync --dry-run`, `institute sync`, and `institute doctor` pass from a clean clone;
 - CI, README, architecture documentation, and deterministic generated workspace agree;
 - no tag or release until every preceding gate is green.
