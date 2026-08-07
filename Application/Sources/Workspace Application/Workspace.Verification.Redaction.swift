@@ -42,6 +42,24 @@ extension Workspace.Verification.Redaction {
         return false
     }
 
+    /// Rewrites every occurrence of `root` in `text` as a package-relative
+    /// path, so captured tool output can name the file it is about without
+    /// naming this machine.
+    ///
+    /// This is deliberately *not* a redaction: nothing is hidden. A lint
+    /// finding reads `Sources/Foo/Bar.swift:12:3: …` instead of
+    /// `/home/runner/work/Foo/Sources/Foo/Bar.swift:12:3: …` — the same
+    /// finding, in the coordinates a receipt's reader actually has. Any
+    /// absolute path that is *not* under `root` survives untouched and is
+    /// still refused by ``diagnose(_:)``; this narrows what has to be
+    /// refused, it does not weaken the refusal.
+    public static func relative(_ text: Swift.String, to root: Swift.String) -> Swift.String {
+        var prefix = root
+        while prefix.count > 1, prefix.hasSuffix("/") { prefix.removeLast() }
+        guard !prefix.isEmpty, prefix != "/" else { return text }
+        return text.replacing(prefix + "/", with: "").replacing(prefix, with: ".")
+    }
+
     /// `nil` when `text` is safe to seal; otherwise the reason it is not,
     /// suitable for a refusal error's message.
     public static func diagnose(_ text: Swift.String) -> Swift.String? {

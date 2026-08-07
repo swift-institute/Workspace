@@ -259,6 +259,49 @@ extension Workspace.Verification.Test.Redaction {
     }
 
     @Test
+    func `A lint finding under the subject root becomes sealable once relativized`() {
+        let root = "/home/runner/work/Example/Example"
+        let finding = "\(root)/Sources/Example/Example.swift:12:5: warning: rule fired"
+        #expect(Workspace.Verification.Redaction.diagnose(finding) != nil)
+        let relative = Workspace.Verification.Redaction.relative(finding, to: root)
+        #expect(relative == "Sources/Example/Example.swift:12:5: warning: rule fired")
+        #expect(Workspace.Verification.Redaction.diagnose(relative) == nil)
+    }
+
+    @Test
+    func `A trailing slash on the subject root does not survive relativization`() {
+        #expect(
+            Workspace.Verification.Redaction.relative(
+                "/home/runner/work/Example/Package.swift",
+                to: "/home/runner/work/Example/"
+            ) == "Package.swift"
+        )
+    }
+
+    @Test
+    func `An absolute path outside the subject root is still refused`() {
+        let text = "/home/runner/work/Example/Sources/A.swift refers to /Users/coen/toolchain"
+        #expect(
+            Workspace.Verification.Redaction.diagnose(
+                Workspace.Verification.Redaction.relative(text, to: "/home/runner/work/Example")
+            ) != nil
+        )
+    }
+
+    @Test
+    func `Every lint refusal reason is sealable`() {
+        let refusals: [Workspace.Verification.Run.Refusal] = [
+            .unresolvableTarget(.filesystem),
+            .unresolvableConfiguration(.configuration),
+            .unavailableInstallation(.process),
+            .unsealableMeasurementReason,
+        ]
+        for refusal in refusals {
+            #expect(Workspace.Verification.Redaction.diagnose(refusal.description) == nil)
+        }
+    }
+
+    @Test
     func `An ordinary compiler diagnostic is not flagged`() {
         #expect(
             Workspace.Verification.Redaction.diagnose(

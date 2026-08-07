@@ -466,49 +466,89 @@ extension Workspace.Verification.Run {
     /// branch), folded into an ``Operation/Result``.
     static func realLint(_ path: Swift.String) -> Workspace.Verification.Operation.Result {
         let started = Self.realNow()
+        // Each stage is caught separately so the sealed reason can name
+        // *which* stage refused. The old single `catch` interpolated the
+        // error's captured message to get that detail, and the message
+        // routinely quotes this machine's filesystem — see `Refusal`.
+        let target: Workspace.Lint.Target
         do throws(Workspace.Error) {
-            let target = try Workspace.Lint.Target.resolve(path)
-            let lint = try Workspace.Lint.resolve(from: target.package.description)
-            let installation = try lint.installation()
-            let measurement = lint.measure(
-                target,
-                using: installation,
-                default: Workspace.Lint.Bundle.resolve(target.package, under: lint.hierarchy),
-                fix: nil
-            )
-            let outcome: Workspace.Verification.Operation.Outcome
-            switch measurement.verdict {
-            case .clean:
-                outcome = .success
-            case .violations(_, let failing):
-                outcome = failing ? .failure : .success
-            case .unmeasured(let reason):
-                outcome = .unmeasured(reason: reason)
-            }
-            return .init(
-                operation: .lint,
-                arguments: [],
-                startedAt: started,
-                endedAt: Self.realNow(),
-                durationSeconds: Self.seconds(measurement.duration),
-                exitCode: measurement.status,
-                provenance: .cached,
-                outcome: outcome,
-                findings: Swift.Array(measurement.findings.prefix(50))
-            )
+            target = try Workspace.Lint.Target.resolve(path)
         } catch {
-            return .init(
-                operation: .lint,
-                arguments: [],
-                startedAt: started,
-                endedAt: Self.realNow(),
-                durationSeconds: 0,
-                exitCode: nil,
-                provenance: .cached,
-                outcome: .unmeasured(reason: "cannot run the lint gate at \(path): \(error)"),
-                findings: []
-            )
+            return Self.refusedLint(.unresolvableTarget(error.kind), started: started)
         }
+        let lint: Workspace.Lint
+        do throws(Workspace.Error) {
+            lint = try Workspace.Lint.resolve(from: target.package.description)
+        } catch {
+            return Self.refusedLint(.unresolvableConfiguration(error.kind), started: started)
+        }
+        let installation: Workspace.Lint.Installation
+        do throws(Workspace.Error) {
+            installation = try lint.installation()
+        } catch {
+            return Self.refusedLint(.unavailableInstallation(error.kind), started: started)
+        }
+        let measurement = lint.measure(
+            target,
+            using: installation,
+            default: Workspace.Lint.Bundle.resolve(target.package, under: lint.hierarchy),
+            fix: nil
+        )
+        let outcome: Workspace.Verification.Operation.Outcome
+        switch measurement.verdict {
+        case .clean:
+            outcome = .success
+        case .violations(_, let failing):
+            outcome = failing ? .failure : .success
+        case .unmeasured(let reason):
+            // The engine's own unmeasured reasons quote the package and
+            // hierarchy paths it was given (see `Workspace.Lint.Run`'s
+            // no-bundle branch), so the reason is relativized first and
+            // withheld entirely if anything unsealable survives.
+            let relative = Workspace.Verification.Redaction.relative(reason, to: path)
+            outcome =
+                Workspace.Verification.Redaction.diagnose(relative) == nil
+                ? .unmeasured(reason: relative)
+                : .unmeasured(reason: Refusal.unsealableMeasurementReason.description)
+        }
+        return .init(
+            operation: .lint,
+            arguments: [],
+            startedAt: started,
+            endedAt: Self.realNow(),
+            durationSeconds: Self.seconds(measurement.duration),
+            exitCode: measurement.status,
+            provenance: .cached,
+            outcome: outcome,
+            // swift-linter reports the files it was pointed at, which on a
+            // hosted runner means an absolute path per finding — content
+            // `run()` refuses to seal. Relativizing here keeps the finding
+            // whole and makes the lint leg sealable at all; a finding that
+            // still names some *other* absolute path is left to that
+            // refusal, deliberately.
+            findings: measurement.findings.prefix(50).map {
+                Workspace.Verification.Redaction.relative($0, to: path)
+            }
+        )
+    }
+
+    /// One leak-safe unmeasured lint result — the shape every refusal
+    /// stage in ``realLint(_:)`` returns.
+    private static func refusedLint(
+        _ refusal: Refusal,
+        started: Swift.String
+    ) -> Workspace.Verification.Operation.Result {
+        .init(
+            operation: .lint,
+            arguments: [],
+            startedAt: started,
+            endedAt: Self.realNow(),
+            durationSeconds: 0,
+            exitCode: nil,
+            provenance: .cached,
+            outcome: .unmeasured(reason: refusal.description),
+            findings: []
+        )
     }
 }
 
