@@ -29,7 +29,7 @@ extension Workspace.Installation.Test {
             )
             home = physical[directory: "home"]
             let sourceDirectory = physical[directory: "source"]
-            source = sourceDirectory[file: "workspace"]
+            source = sourceDirectory[file: "institute"]
             try home.create.recursive()
             try sourceDirectory.create.recursive()
             try source.write.atomic("coordinator-version-one")
@@ -52,13 +52,13 @@ extension Workspace.Installation.Test {
         }
 
         var command: File {
-            home[directory: ".local"][directory: "bin"][file: "workspace"]
+            home[directory: ".local"][directory: "bin"][file: "institute"]
         }
 
         var root: File.Directory {
             let share = home[directory: ".local"][directory: "share"]
             let institute = share[directory: "swift-institute"]
-            return institute[directory: "workspace"]
+            return institute[directory: "institute"]
         }
 
         func remove() {
@@ -92,7 +92,7 @@ extension Workspace.Installation.Test.Unit {
         )
         #expect(
             try File.System.Link.Read.Target.target(of: installation.command.path)
-                == File.Path("../share/swift-institute/workspace/bin/workspace")
+                == File.Path("../share/swift-institute/institute/bin/institute")
         )
         #expect(
             try File.System.Canonical.resolve(installation.command.path)
@@ -116,7 +116,7 @@ extension Workspace.Installation.Test.Unit {
         )
         #expect(
             try File.System.Link.Read.Target.target(of: installation.command.path)
-                == File.Path("../share/swift-institute/workspace/bin/workspace")
+                == File.Path("../share/swift-institute/institute/bin/institute")
         )
     }
 
@@ -168,7 +168,7 @@ extension Workspace.Installation.Test.`Edge Case` {
         let fixture = try Workspace.Installation.Test.Fixture()
         defer { fixture.remove() }
         let foreignDirectory = fixture.home[directory: "elsewhere"]
-        let foreign = foreignDirectory[file: "workspace"]
+        let foreign = foreignDirectory[file: "institute"]
         try foreignDirectory.create.recursive()
         try foreign.write.atomic("foreign-command")
         let commandDirectory = fixture.home[directory: ".local"][directory: "bin"]

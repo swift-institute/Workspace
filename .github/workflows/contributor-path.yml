@@ -38,7 +38,7 @@ jobs:
         with:
           persist-credentials: false
 
-      # `Workspace.json` declares the toolchain *floor* — Swift 6.3.3 and
+      # `Institute.json` declares the toolchain *floor* — Swift 6.3.3 and
       # Xcode 26.6 — and the README documents that same floor. The image
       # defaults to a different Xcode, so select it the way a contributor
       # would. This job deliberately runs the floor rather than the newest
@@ -54,21 +54,21 @@ jobs:
       - name: Quickstart — install the canonical command
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          if command -v workspace; then
-            echo "::error::clean runner unexpectedly already exposes a workspace command"
+          if command -v institute; then
+            echo "::error::clean runner unexpectedly already exposes an institute command"
             exit 1
           fi
-          swift run --package-path Application workspace install
-          test "$(command -v workspace)" = "$HOME/.local/bin/workspace"
-          test "$(readlink "$HOME/.local/bin/workspace")" = \
-            "../share/swift-institute/workspace/bin/workspace"
-          workspace --help >/dev/null
+          swift run --package-path Application institute install
+          test "$(command -v institute)" = "$HOME/.local/bin/institute"
+          test "$(readlink "$HOME/.local/bin/institute")" = \
+            "../share/swift-institute/institute/bin/institute"
+          institute --help >/dev/null
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Quickstart — plan, then sync
         run: |
-          workspace sync --dry-run
-          workspace sync
+          institute sync --dry-run
+          institute sync
 
       # The negative control for the step below, and the acceptance for the
       # defect it fixes: with no skill root cloned there is nothing to
@@ -78,7 +78,7 @@ jobs:
       # stays fixed is to assert the failure.
       - name: Context — installing with no skill root must fail, not report success
         run: |
-          if workspace context install; then
+          if institute context install; then
             echo "::error::context install reported success with no canonical skill root"
             exit 1
           fi
@@ -94,8 +94,8 @@ jobs:
 
       - name: Context — install, then verify
         run: |
-          workspace context install
-          workspace context check
+          institute context install
+          institute context check
 
       # Context is intentionally verified before doctor. These are independent
       # acceptance paths, and a doctor finding must not skip the clean-clone
@@ -105,4 +105,4 @@ jobs:
       # report "not run", never failure; every measured check states its
       # population.
       - name: Facts — doctor
-        run: workspace doctor
+        run: institute doctor

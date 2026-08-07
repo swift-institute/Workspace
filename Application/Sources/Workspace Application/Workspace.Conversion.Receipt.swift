@@ -1,7 +1,7 @@
 public import JSON
 
 extension Workspace.Conversion {
-    /// The content-addressed conversion receipt `workspace conversion
+    /// The content-addressed conversion receipt `institute conversion
     /// seal`/`check` produce and validate (issue #83 Part 2).
     ///
     /// Sorted keys, no volatile ordering, no machine paths — the digest

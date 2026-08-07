@@ -5,13 +5,13 @@ public import WorkspaceArchitectureModel
 extension Workspace.Architecture.Facts {
     /// Derives the model from a Workspace checkout on disk.
     ///
-    /// The inventory is read from `Workspace.json` at the checkout root;
+    /// The inventory is read from `Institute.json` at the checkout root;
     /// manifests are read from sibling organization checkouts
     /// (`<institute>/<organization>/<name>/Package.swift`) where present.
     /// An absent checkout is not an error — its row still yields a fact
     /// and a provenance edge; only manifest-derived detail is missing.
     public static func derive(at root: File.Directory) throws(Error) -> Self {
-        let inventoryText = try text(of: root[file: "Workspace.json"])
+        let inventoryText = try text(of: root[file: "Institute.json"])
         let inventory: Inventory
         do throws(JSON.Error) {
             inventory = try .init(jsonString: inventoryText)

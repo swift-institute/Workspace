@@ -4,7 +4,7 @@ public import Git_Foundation
 extension Workspace.Lint {
     /// The whole-ecosystem mode.
     ///
-    /// Enumerates from `Workspace.json` — never by walking the tree.
+    /// Enumerates from `Institute.json` — never by walking the tree.
     /// A tree walk carries its own layout assumptions and fails toward
     /// clean-looking empties, which is the failure this capability
     /// exists to make impossible.
@@ -24,7 +24,7 @@ extension Workspace.Lint {
         /// whose hierarchy the packages materialize under.
         public let root: Workspace.Root
 
-        /// The inventory, verbatim from `Workspace.json`.
+        /// The inventory, verbatim from `Institute.json`.
         public let repositories: [Workspace.Repository]
 
         public let git: Git.Client

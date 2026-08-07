@@ -21,14 +21,14 @@ extension Workspace.Lint {
     ///
     /// Reads only local state. A lint run never touches the network:
     /// the parity comparison against CI belongs to
-    /// ``Workspace/Lint/divergence()``, which `workspace lint check` and
-    /// `workspace doctor` call. Putting a network round trip on the
+    /// ``Workspace/Lint/divergence()``, which `institute lint check` and
+    /// `institute doctor` call. Putting a network round trip on the
     /// inner loop would make the fast path slow, and the fast path being
     /// fast is what decides whether any of this gets used.
     public func installation() throws(Workspace.Error) -> Installation {
         guard manifestFile.stat.isFile else {
             throw .configuration(
-                "swift-linter is not installed; run `workspace lint install`"
+                "swift-linter is not installed; run `institute lint install`"
             )
         }
         let manifest = try installedManifest()
@@ -37,13 +37,13 @@ extension Workspace.Lint {
         guard executable.stat.isFile else {
             throw .configuration(
                 "installed manifest records digest \(manifest.digest) but \(executable) is missing; "
-                    + "run `workspace lint install`"
+                    + "run `institute lint install`"
             )
         }
         guard runner.stat.isFile else {
             throw .configuration(
                 "installed manifest records digest \(manifest.digest) but \(runner) is missing; "
-                    + "run `workspace lint install`"
+                    + "run `institute lint install`"
             )
         }
         return .init(manifest: manifest, executable: executable, runner: runner)

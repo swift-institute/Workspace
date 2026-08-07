@@ -67,7 +67,7 @@ extension Workspace.Navigation {
 
     public var workspaceExecutable: File {
         root.checkout[directory: "Application"][directory: ".build"][directory: "debug"][
-            file: "workspace"
+            file: "institute"
         ]
     }
 }

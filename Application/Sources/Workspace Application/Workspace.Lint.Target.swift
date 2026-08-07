@@ -4,7 +4,7 @@ extension Workspace.Lint {
     /// What a single-package invocation resolved to.
     ///
     /// The inner-loop path takes no arguments: standing anywhere inside
-    /// a package, `workspace package lint` finds the package root by
+    /// a package, `institute package lint` finds the package root by
     /// walking up. That convenience is also where the capability is
     /// most exposed, because it is the invocation people make casually
     /// from wherever they happen to be — so resolution failures are

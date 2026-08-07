@@ -181,7 +181,7 @@ extension Workspace.Inventory.Test.Integration {
         defer { try? FileManager.default.removeItem(at: location) }
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)
         let root = try File.Directory(validating: location.path)
-        let file = location.appending(path: "Workspace.json")
+        let file = location.appending(path: "Institute.json")
         let existing = Workspace.Configuration(
             version: 1,
             scope: "swift-institute",
@@ -323,7 +323,7 @@ extension Workspace.Inventory.Test.Integration {
         let original = try configuration.rendered()
         let existing = try Workspace.Configuration.Document.load(at: fixture.root)
         let intervening = Swift.String(original.dropLast())
-        let target = fixture.root[file: "Workspace.json"]
+        let target = fixture.root[file: "Institute.json"]
         let replace: @Sendable () throws(File.System.Write.Atomic.Error) -> Void = {
             try target.write.atomic(intervening)
         }
@@ -449,7 +449,7 @@ extension Workspace.Inventory.Test.Integration {
             repositories: []
         )
         try Data(configuration.rendered().utf8).write(
-            to: location.appending(path: "Workspace.json"),
+            to: location.appending(path: "Institute.json"),
             options: .atomic
         )
         let existing = try Workspace.Configuration.Document.load(at: root)

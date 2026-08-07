@@ -5,7 +5,7 @@ extension Workspace.Coherence {
     /// the roster must never report success — the `UNMEASURED` doctrine
     /// applied to the composed graph.
     ///
-    /// `inventoryCount` is the whole inventory (`Workspace.json`);
+    /// `inventoryCount` is the whole inventory (`Institute.json`);
     /// `materializedCount` is what this run's selection actually named.
     /// For a canonical run (no local override in effect) the two must
     /// agree — a narrowed run is expected to disagree, and is marked

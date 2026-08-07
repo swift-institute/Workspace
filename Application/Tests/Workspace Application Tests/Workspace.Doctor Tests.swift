@@ -450,7 +450,7 @@ extension Workspace.Doctor.Test.Integration {
         #expect(currency?.result == .finding(severity: .error, population: 1))
         #expect(
             currency?.findings.contains {
-                $0.message.contains("in Workspace.json but not discovered on GitHub")
+                $0.message.contains("in Institute.json but not discovered on GitHub")
             } == true
         )
     }

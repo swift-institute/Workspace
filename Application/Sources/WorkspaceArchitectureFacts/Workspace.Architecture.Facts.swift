@@ -20,7 +20,7 @@ extension Workspace.Architecture {
 
 extension Workspace.Architecture.Facts {
     /// The inventory coordinate every provenance edge points at: the
-    /// package root whose `Workspace.json` supplied the rows.
+    /// package root whose `Institute.json` supplied the rows.
     public static let inventoryOwner = Workspace.Architecture.Owner(
         organization: "swift-institute",
         name: "Workspace"

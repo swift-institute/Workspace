@@ -11,7 +11,7 @@ public import JSON
 #endif
 
 extension Workspace.Inventory.Effective {
-    /// The version-1 effective-inventory report `workspace inventory
+    /// The version-1 effective-inventory report `institute inventory
     /// effective` writes: the three ``Effective`` populations, each with the
     /// SHA-256 digest of its own canonical bytes, plus the typed unmeasured
     /// residue of the private pass.

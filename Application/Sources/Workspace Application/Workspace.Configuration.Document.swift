@@ -18,7 +18,7 @@ extension Workspace.Configuration {
 
 extension Workspace.Configuration.Document {
     public static func load(at root: File.Directory) throws(Workspace.Error) -> Self {
-        let file = root[file: "Workspace.json"]
+        let file = root[file: "Institute.json"]
         let bytes: [Byte]
         do throws(Either<File.System.Read.Full.Error, Never>) {
             bytes = try file.read.full { span in

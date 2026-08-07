@@ -1,10 +1,10 @@
 extension Workspace.Doctor.Currency {
     public enum Presence: Equatable, Sendable {
-        /// In `Workspace.json` but not discovered on GitHub, and no
+        /// In `Institute.json` but not discovered on GitHub, and no
         /// discovered repository of the same bare name accounts for it
         /// either (see ``moved(from:to:)``).
         case committed
-        /// Discovered on GitHub but missing from `Workspace.json`, and no
+        /// Discovered on GitHub but missing from `Institute.json`, and no
         /// committed repository of the same bare name accounts for it
         /// either (see ``moved(from:to:)``).
         case discovered
@@ -16,7 +16,7 @@ extension Workspace.Doctor.Currency {
         case moved(from: Swift.String, to: Swift.String)
         /// The full coordinate (organization + name) matches, but a
         /// field beyond the coordinate itself disagrees between
-        /// `Workspace.json` and the live discovery.
+        /// `Institute.json` and the live discovery.
         case mismatch(field: Swift.String, committed: Swift.String, discovered: Swift.String)
         /// In both, at the same coordinate, with every validated field
         /// agreeing — current.

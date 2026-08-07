@@ -125,7 +125,7 @@ extension Workspace.Lint {
         }
         throw .configuration(
             "no installed swift-linter found in \(path) or any parent directory; "
-                + "run `workspace lint install` from the workspace checkout"
+                + "run `institute lint install` from the workspace checkout"
         )
     }
 
@@ -204,7 +204,7 @@ extension Workspace.Lint {
         hierarchy[directory: ".workspace"][directory: "lint"]
     }
 
-    /// Installed third-party tooling, shared with `workspace navigation`.
+    /// Installed third-party tooling, shared with `institute navigation`.
     public var tools: File.Directory {
         hierarchy[directory: ".workspace"][directory: "tools"][directory: "swift-linter"]
     }

@@ -15,7 +15,7 @@ extension Workspace.Inventory.Writer {
         _ configuration: Workspace.Configuration
     ) throws(Workspace.Error) -> Plan {
         let output = try configuration.rendered()
-        let file = root[file: "Workspace.json"]
+        let file = root[file: "Institute.json"]
         guard file.stat.exists else { return .replace(output) }
         return try read(file) == [Byte](output.utf8) ? .current : .replace(output)
     }
@@ -27,7 +27,7 @@ extension Workspace.Inventory.Writer {
         let plan = try plan(configuration)
         guard case .replace(let output) = plan else { return plan }
 
-        let file = root[file: "Workspace.json"]
+        let file = root[file: "Institute.json"]
         guard file.stat.exists, try read(file) == document.bytes else {
             throw .changed
         }

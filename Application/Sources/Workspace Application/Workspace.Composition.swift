@@ -24,7 +24,7 @@ extension Workspace {
     /// committed, and ``restore`` returns the declared clause byte-for-byte.
     ///
     /// Both the consumer and the dependency are workspace repositories named in
-    /// `Workspace.json` and checked out at their org-layout locations. Multi-root contexts,
+    /// `Institute.json` and checked out at their org-layout locations. Multi-root contexts,
     /// arbitrary consumers, Xcode, worktrees, and traits are out of scope per
     /// ADR-001's Limits.
     public struct Composition: Swift.Sendable {
@@ -71,7 +71,7 @@ extension Workspace.Composition {
                 """
                 \(dependency) is not checked out at \
                 \(Workspace.Layout.reference(for: dependencyRepository)); \
-                run `workspace sync` first
+                run `institute sync` first
                 """
             )
         }
@@ -203,7 +203,7 @@ extension Workspace.Composition {
 
     private func require(_ name: Swift.String) throws(Workspace.Error) -> Workspace.Repository {
         guard let repository = configuration.repositories.first(where: { $0.name == name }) else {
-            throw .composition("\(name) is not a workspace repository (absent from Workspace.json)")
+            throw .composition("\(name) is not a workspace repository (absent from Institute.json)")
         }
         return repository
     }
@@ -222,7 +222,7 @@ extension Workspace.Composition {
             throw .composition(
                 """
                 \(repository.name) has no Package.swift at \
-                \(Workspace.Layout.reference(for: repository)); run `workspace sync` first
+                \(Workspace.Layout.reference(for: repository)); run `institute sync` first
                 """
             )
         }
@@ -338,8 +338,8 @@ extension Workspace.Composition {
         print("")
         print("  ⚠️  This manifest now carries a machine-local absolute path.")
         print("      Do NOT commit or push it — it resolves only on this machine.")
-        print("      Run `workspace restore --consumer \(record.consumer) --dependency \(record.dependency)` before pushing.")
-        print("      Build through the coordinator; then `workspace verify` to confirm the effective source.")
+        print("      Run `institute restore --consumer \(record.consumer) --dependency \(record.dependency)` before pushing.")
+        print("      Build through the coordinator; then `institute verify` to confirm the effective source.")
     }
 
     private func report(restored record: Record, manifest: File) {
@@ -353,7 +353,7 @@ extension Workspace.Composition {
         print("")
         print("  Next (you): run a full resolve/build through your build coordinator to confirm")
         print("  \(record.dependency) resolves from its canonical remote — the reproducibility check")
-        print("  this tool does not perform. Then `workspace verify` to read the effective source.")
+        print("  this tool does not perform. Then `institute verify` to read the effective source.")
     }
 
     private func report(

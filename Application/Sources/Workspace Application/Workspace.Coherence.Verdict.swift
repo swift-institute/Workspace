@@ -30,7 +30,7 @@ extension Workspace.Coherence {
 }
 
 extension Workspace.Coherence.Verdict {
-    /// The exit status a `workspace coherence` invocation reports — the
+    /// The exit status a `institute coherence` invocation reports — the
     /// same 0/1/2 shape ``Workspace/Doctor/Report/status`` uses, so a
     /// caller need not learn two conventions.
     public var status: Swift.Int32 {

@@ -1,6 +1,6 @@
 extension Workspace.Peer {
     /// One peer's printable inventory report — the peer counterpart of
-    /// ``Workspace/Inventory/Register``, rendered by `workspace inventory`.
+    /// ``Workspace/Inventory/Register``, rendered by `institute inventory`.
     ///
     /// A view of an already resolved ``Workspace/Peer/Presence``; it
     /// performs no discovery and has no write capability. Paths are

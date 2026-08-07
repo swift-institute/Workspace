@@ -4,7 +4,7 @@ extension Workspace.Inventory {
     ///
     /// **Why this is a namespace, not a committed file.** ``Policy`` and
     /// ``Client/discover(_:)`` already produce the *public* roster that
-    /// ``Workspace.json`` commits. A private repository is never eligible for
+    /// ``Institute.json`` commits. A private repository is never eligible for
     /// that file — ``Eligibility/Reason/visibility(_:)`` excludes it — and the
     /// programme's own instruction is explicit: private entries reach the
     /// effective inventory "through authenticated runtime derivation when

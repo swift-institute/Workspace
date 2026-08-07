@@ -8,10 +8,10 @@ extension Workspace.Configuration {
         do throws(JSON.Error) {
             decoded = try Self(jsonString: output)
         } catch {
-            throw .configuration("generated Workspace.json is invalid: \(error)")
+            throw .configuration("generated Institute.json is invalid: \(error)")
         }
         guard try decoded.validated() == configuration else {
-            throw .configuration("generated Workspace.json does not round-trip")
+            throw .configuration("generated Institute.json does not round-trip")
         }
         return output
     }

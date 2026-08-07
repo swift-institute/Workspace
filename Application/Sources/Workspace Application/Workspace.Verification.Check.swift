@@ -1,5 +1,5 @@
 extension Workspace.Verification {
-    /// `workspace verification check`: independently re-parses a sealed
+    /// `institute verification check`: independently re-parses a sealed
     /// receipt and reports whether it is internally consistent, without
     /// mutating anything and without trusting the producer's own claims.
     ///

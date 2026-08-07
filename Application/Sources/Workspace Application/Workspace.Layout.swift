@@ -4,7 +4,7 @@ extension Workspace {
     /// The single name → organization → path derivation for materialized
     /// checkouts (the org-hierarchy layout, ruling 139).
     ///
-    /// `Workspace.json` is the sole authority for where a repository
+    /// `Institute.json` is the sole authority for where a repository
     /// materializes: the location is a pure function of the inventory
     /// entry's `organization`, `layer`, and `name` fields, resolved here
     /// and nowhere else. No tool may walk the tree or infer a location

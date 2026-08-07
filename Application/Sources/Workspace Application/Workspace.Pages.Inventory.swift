@@ -1,7 +1,7 @@
 public import JSON
 
 extension Workspace.Pages {
-    /// The content-addressed page inventory one `workspace inventory pages`
+    /// The content-addressed page inventory one `institute inventory pages`
     /// run emits.
     ///
     /// Sorted keys, no volatile ordering, no machine paths — the digest

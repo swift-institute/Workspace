@@ -40,8 +40,8 @@ extension Workspace.Doctor {
             return [
                 .init(
                     severity: .warning,
-                    message: "swift-linter is not installed; run `workspace lint install`. "
-                        + "Neither `workspace lint` nor `workspace package lint` can run without it."
+                    message: "swift-linter is not installed; run `institute lint install`. "
+                        + "Neither `institute lint` nor `institute package lint` can run without it."
                 )
             ]
         case .parity(let findings):

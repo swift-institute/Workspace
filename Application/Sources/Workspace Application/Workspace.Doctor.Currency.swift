@@ -15,7 +15,7 @@ extension Workspace.Doctor {
 }
 
 extension Workspace.Doctor {
-    /// `Workspace.json` agrees with a live discovery of the Institute
+    /// `Institute.json` agrees with a live discovery of the Institute
     /// organizations. Needs Institute access: an authenticated GitHub
     /// client the contributor path does not carry.
     ///
@@ -59,14 +59,14 @@ extension Workspace.Doctor {
             [
                 .init(
                     severity: .error,
-                    message: "\(repository.name): in Workspace.json but not discovered on GitHub"
+                    message: "\(repository.name): in Institute.json but not discovered on GitHub"
                 )
             ]
         case .discovered:
             [
                 .init(
                     severity: .error,
-                    message: "\(repository.name): discovered on GitHub but missing from Workspace.json"
+                    message: "\(repository.name): discovered on GitHub but missing from Institute.json"
                 )
             ]
         case .moved(let from, let to):
@@ -74,7 +74,7 @@ extension Workspace.Doctor {
                 .init(
                     severity: .error,
                     message:
-                        "\(repository.name): organization mismatch — Workspace.json has \(from), GitHub discovery has \(to)"
+                        "\(repository.name): organization mismatch — Institute.json has \(from), GitHub discovery has \(to)"
                 )
             ]
         case .mismatch(let field, let committed, let discovered):
@@ -82,7 +82,7 @@ extension Workspace.Doctor {
                 .init(
                     severity: .error,
                     message:
-                        "\(repository.name): \(field) mismatch — Workspace.json has \(committed), GitHub discovery has \(discovered)"
+                        "\(repository.name): \(field) mismatch — Institute.json has \(committed), GitHub discovery has \(discovered)"
                 )
             ]
         }

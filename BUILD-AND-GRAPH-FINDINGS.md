@@ -2,14 +2,14 @@
 
 This note records durable lessons from building the Institute graph. Current roster,
 toolchain, target, product, checkout, and work-status facts belong to their authorities:
-[`Workspace.json`](Workspace.json), `workspace doctor`, `workspace inventory`, and the
+[`Institute.json`](Institute.json), `institute doctor`, `institute inventory`, and the
 owning GitHub Issues. Do not copy their changing values into this document.
 
 ## The build coordinator serializes the machine
 
 The coordinator owns SwiftPM execution and serializes builds across sessions. Running many
 package builds concurrently does not make the machine perform independent work; they contend
-for the same coordinator slot. Use `workspace package build` or `workspace build` so the
+for the same coordinator slot. Use `institute package build` or `institute build` so the
 coordinator can account for the work and select the appropriate graph shape.
 
 For a whole-selection build, the workspace path is the meaningful local-source measurement:
@@ -25,7 +25,7 @@ generated workspace, that resolution used canonical remote sources, or that a re
 ready.
 
 The population must be explicit and independently checked. Enumerate the inventory through
-`workspace inventory`, derive paths through `Workspace.json`, and use a positive control that
+`institute inventory`, derive paths through `Institute.json`, and use a positive control that
 must be observed. A zero from an unconfigured or empty instrument is not evidence of a clean
 ecosystem.
 
@@ -47,14 +47,14 @@ A synthetic root with `.package(path:)` dependencies is useful for studying grap
 but it is not committed and is not a replacement for the Workspace inventory. Path
 dependencies override URL dependencies by identity, so this experiment can prove local-source
 selection while also changing the resolution shape. Restore the consumer manifest before
-sharing work, and use `workspace verify` to report which source was actually compiled.
+sharing work, and use `institute verify` to report which source was actually compiled.
 
 The command sequence is:
 
 ```sh
-workspace compose --consumer <consumer> --dependency <dependency>
-workspace verify --consumer <consumer> --dependency <dependency>
-workspace restore --consumer <consumer> --dependency <dependency>
+institute compose --consumer <consumer> --dependency <dependency>
+institute verify --consumer <consumer> --dependency <dependency>
+institute restore --consumer <consumer> --dependency <dependency>
 ```
 
 `restore` is a structural check: it confirms that the manifest evaluates, the dependency is

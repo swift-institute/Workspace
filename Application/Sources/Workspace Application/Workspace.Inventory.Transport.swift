@@ -25,13 +25,13 @@ extension Workspace.Inventory {
     /// `(HTTP.Request) async throws -> HTTP.Response` and pass it to
     /// ``Workspace/Inventory/client(_:authentication:)`` instead. No discovery,
     /// eligibility, exclusion, merge, writer, or CLI code changes, and
-    /// `Workspace.json`'s format is unaffected.
+    /// `Institute.json`'s format is unaffected.
     ///
     /// ## Requirement this imposes
     ///
-    /// **`workspace inventory regenerate` and `workspace dependencies` require
+    /// **`institute inventory regenerate` and `institute dependencies` require
     /// the `gh` CLI, authenticated, on the machine that runs them.** The
-    /// credential-free `workspace inventory` register and other contributor
+    /// credential-free `institute inventory` register and other contributor
     /// commands are unaffected. This is acceptable for read-only maintenance
     /// instrumentation and is *not* library-grade transport.
     public enum Transport {}
