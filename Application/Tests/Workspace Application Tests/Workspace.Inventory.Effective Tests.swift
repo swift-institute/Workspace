@@ -414,6 +414,135 @@ extension Workspace.Inventory.Test.Unit {
         )
     }
 
+
+}
+
+extension Workspace.Inventory.Test.Unit {
+    @Test
+    func `A supplied roster digests identically to the live pass over the same population`()
+        throws
+    {
+        let configuration = Self.publicConfiguration
+        let live = try Workspace.Inventory.Effective(
+            public: configuration,
+            private: Self.privateDiscovery
+        )
+        let supplied = try Workspace.Inventory.Effective(
+            public: configuration,
+            roster: .init(
+                repositories: [
+                    .init(
+                        owner: .init("swift-foundations"),
+                        name: .init("swift-private-package")
+                    )
+                ],
+                unmeasured: []
+            ),
+            policy: .institute()
+        )
+
+        // The comparability claim, made mechanically: a roster-derived
+        // digest is only useful if it equals what a live pass over the same
+        // population would have produced.
+        #expect(live.combined.canonical == supplied.combined.canonical)
+        let (root, location) = try Self.scratchRoot()
+        defer { try? FileManager.default.removeItem(at: location) }
+        #expect(try live.combined.digest(at: root) == supplied.combined.digest(at: root))
+        #expect(try live.private.digest(at: root) == supplied.private.digest(at: root))
+    }
+
+    @Test
+    func `A permuted roster digests identically`() throws {
+        let rows: [Workspace.Repository.Key] = [
+            .init(owner: .init("swift-foundations"), name: .init("swift-a")),
+            .init(owner: .init("swift-primitives"), name: .init("swift-b")),
+            .init(owner: .init("swift-standards"), name: .init("swift-c")),
+        ]
+        let forward = try Workspace.Inventory.Effective(
+            public: Self.publicConfiguration,
+            roster: .init(repositories: rows, unmeasured: []),
+            policy: .institute()
+        )
+        let reversed = try Workspace.Inventory.Effective(
+            public: Self.publicConfiguration,
+            roster: .init(repositories: rows.reversed(), unmeasured: []),
+            policy: .institute()
+        )
+
+        // Order is canonicalized, never semantic: `Effective` sorts by
+        // (layer order, owner/name) on the way in, so the caller's
+        // enumeration order — which for the sweep is whatever order eight
+        // concurrent org listings happened to return — cannot change the
+        // digest.
+        #expect(forward.combined.canonical == reversed.combined.canonical)
+        let (root, location) = try Self.scratchRoot()
+        defer { try? FileManager.default.removeItem(at: location) }
+        #expect(try forward.combined.digest(at: root) == reversed.combined.digest(at: root))
+    }
+
+    @Test
+    func `An empty roster is refused rather than digested`() throws {
+        let (_, location) = try Self.scratchRoot()
+        defer { try? FileManager.default.removeItem(at: location) }
+        let file = location.appending(path: "roster.json")
+        try Data(#"{"schemaVersion":1,"repositories":[],"unmeasured":[]}"#.utf8).write(to: file)
+
+        #expect(throws: Workspace.Inventory.Effective.Roster.Error.emptyPopulation) {
+            try Workspace.Inventory.Effective.Roster.read(File.Path(file.path))
+        }
+    }
+
+    @Test
+    func `A roster file round-trips and carries its unmeasured residue`() throws {
+        let (_, location) = try Self.scratchRoot()
+        defer { try? FileManager.default.removeItem(at: location) }
+        let file = location.appending(path: "roster.json")
+        let roster = Workspace.Inventory.Effective.Roster(
+            repositories: [
+                .init(owner: .init("swift-foundations"), name: .init("swift-private-package"))
+            ],
+            unmeasured: [
+                .init(kind: .organization, coordinate: "swift-ietf", reason: "listing failed")
+            ]
+        )
+        try Data(roster.json.serialize(sortKeys: true).utf8).write(to: file)
+
+        let read = try Workspace.Inventory.Effective.Roster.read(File.Path(file.path))
+        #expect(read == roster)
+        // A caller that could not list an organization says so, and the
+        // report publishes it — an incomplete roster cannot pass itself off
+        // as a complete population.
+        #expect(read.unmeasured.count == 1)
+    }
+
+    @Test
+    func `A coordinate outside the policy's organizations is refused`() throws {
+        #expect(throws: Workspace.Inventory.Effective.Error.self) {
+            try Workspace.Inventory.Effective(
+                public: Self.publicConfiguration,
+                roster: .init(
+                    repositories: [.init(owner: .init("some-other-org"), name: .init("swift-x"))],
+                    unmeasured: []
+                ),
+                policy: .institute()
+            )
+        }
+    }
+
+    @Test
+    func `A malformed roster is a typed refusal, not an empty population`() throws {
+        let (_, location) = try Self.scratchRoot()
+        defer { try? FileManager.default.removeItem(at: location) }
+        let file = location.appending(path: "roster.json")
+        try Data(#"{"schemaVersion":2,"repositories":[]}"#.utf8).write(to: file)
+
+        #expect(throws: Workspace.Inventory.Effective.Roster.Error.self) {
+            try Workspace.Inventory.Effective.Roster.read(File.Path(file.path))
+        }
+    }
+}
+
+extension Workspace.Inventory.Test.Unit {
     private static func scratchRoot() throws -> (Workspace.Root, URL) {
         let location = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
         try FileManager.default.createDirectory(at: location, withIntermediateDirectories: true)

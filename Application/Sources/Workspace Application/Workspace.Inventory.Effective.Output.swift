@@ -40,10 +40,33 @@ extension Workspace.Inventory.Effective {
         public let combined: Limb
         public let unmeasured: [Unmeasured]
 
+        /// One report over one effective inventory, from a live private
+        /// pass: the pass's `Private.Unmeasured` residue is projected into
+        /// ``Unmeasured`` rows and the rest is
+        /// ``init(scope:effective:residue:root:)``.
         public init(
             scope: Scope,
             effective: Workspace.Inventory.Effective,
             unmeasured: [Workspace.Inventory.Private.Unmeasured],
+            root: Workspace.Root
+        ) throws(Workspace.Error) {
+            try self.init(
+                scope: scope,
+                effective: effective,
+                residue: unmeasured.map(Unmeasured.init),
+                root: root
+            )
+        }
+
+        /// The same report from residue the caller already projected — the
+        /// supplied-roster path (``Effective/Roster``) carries rows in this
+        /// shape already, having never held a `Private.Unmeasured` to map.
+        /// Distinctly labelled rather than overloaded on element type: an
+        /// empty literal must not silently pick a path.
+        public init(
+            scope: Scope,
+            effective: Workspace.Inventory.Effective,
+            residue unmeasured: [Unmeasured],
             root: Workspace.Root
         ) throws(Workspace.Error) {
             self.scope = scope
@@ -64,7 +87,7 @@ extension Workspace.Inventory.Effective {
                 population: effective.combined.repositories,
                 digest: try effective.combined.digest(at: root)
             )
-            self.unmeasured = unmeasured.map(Unmeasured.init)
+            self.unmeasured = unmeasured
         }
 
         internal init(

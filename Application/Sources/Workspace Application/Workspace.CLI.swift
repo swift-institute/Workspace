@@ -58,8 +58,10 @@ extension Workspace {
         public var verificationVisibility: Swift.String
         public var verificationLayer: Swift.String
         public var inventoryDigest: Swift.String
+        public var inventoryDigestCause: Swift.String
         public var inventoryScope: Swift.String
         public var inventoryOutput: Swift.String
+        public var inventoryPrivateRoster: Swift.String
         public var workspaceRevision: Swift.String
         public var policyRevision: Swift.String
         public var requestedOperations: [Swift.String]
@@ -98,8 +100,10 @@ extension Workspace {
             verificationVisibility: Swift.String = "",
             verificationLayer: Swift.String = "",
             inventoryDigest: Swift.String = "",
+            inventoryDigestCause: Swift.String = "",
             inventoryScope: Swift.String = "",
             inventoryOutput: Swift.String = "",
+            inventoryPrivateRoster: Swift.String = "",
             workspaceRevision: Swift.String = "",
             policyRevision: Swift.String = "",
             requestedOperations: [Swift.String] = [],
@@ -137,8 +141,10 @@ extension Workspace {
             self.verificationVisibility = verificationVisibility
             self.verificationLayer = verificationLayer
             self.inventoryDigest = inventoryDigest
+            self.inventoryDigestCause = inventoryDigestCause
             self.inventoryScope = inventoryScope
             self.inventoryOutput = inventoryOutput
+            self.inventoryPrivateRoster = inventoryPrivateRoster
             self.workspaceRevision = workspaceRevision
             self.policyRevision = policyRevision
             self.requestedOperations = requestedOperations
@@ -409,6 +415,17 @@ extension Workspace.CLI {
                 )
             )
             Command.Option(
+                \.inventoryDigestCause,
+                name: .long(.literal("inventory-digest-cause")),
+                placeholder: "reason",
+                help: .init(
+                    abstract:
+                        "Why no effective-inventory digest was established (verification seal "
+                        + "only). Required with --inventory-digest unmeasured, and refused "
+                        + "with a real digest; see `Workspace.Verification.Inventory.Digest`."
+                )
+            )
+            Command.Option(
                 \.inventoryScope,
                 name: .long(.literal("inventory-scope")),
                 placeholder: "public|effective",
@@ -427,6 +444,18 @@ extension Workspace.CLI {
                     abstract:
                         "Where the effective-inventory report is written atomically "
                         + "(inventory effective only)."
+                )
+            )
+            Command.Option(
+                \.inventoryPrivateRoster,
+                name: .long(.literal("inventory-private-roster")),
+                placeholder: "path",
+                help: .init(
+                    abstract:
+                        "A private population this process is not credentialed to discover, "
+                        + "supplied as a roster file instead of read live (inventory effective, "
+                        + "--inventory-scope effective only); see "
+                        + "`Workspace.Inventory.Effective.Roster`."
                 )
             )
             Command.Option(
@@ -870,12 +899,15 @@ extension Workspace.CLI {
                         + "register)."
                 )
             }
-            guard modes.first == .effective || (inventoryScope.isEmpty && inventoryOutput.isEmpty)
+            guard
+                modes.first == .effective
+                    || (inventoryScope.isEmpty && inventoryOutput.isEmpty
+                        && inventoryPrivateRoster.isEmpty)
             else {
                 throw .validationFailed(
                     reason:
-                        "--inventory-scope and --inventory-output are valid only with "
-                        + "inventory effective."
+                        "--inventory-scope, --inventory-output, and --inventory-private-roster "
+                        + "are valid only with inventory effective."
                 )
             }
             guard consumer.isEmpty, dependency.isEmpty else {
@@ -1049,6 +1081,17 @@ extension Workspace.CLI {
                 }
                 guard !inventoryDigest.isEmpty else {
                     throw .validationFailed(reason: "verification seal requires --inventory-digest.")
+                }
+                // The digest and its cause are validated together, here, so
+                // an unmeasured digest without a cause is refused before a
+                // run starts rather than sealed and discovered downstream.
+                do throws(Workspace.Verification.Inventory.Digest.Error) {
+                    _ = try Workspace.Verification.Inventory.Digest(
+                        token: inventoryDigest,
+                        cause: inventoryDigestCause.isEmpty ? nil : inventoryDigestCause
+                    )
+                } catch {
+                    throw .validationFailed(reason: "verification seal: \(error).")
                 }
                 guard !workspaceRevision.isEmpty else {
                     throw .validationFailed(reason: "verification seal requires --workspace-revision.")
@@ -1282,6 +1325,17 @@ extension Workspace.CLI {
                         "origin remote \(remote) is not a canonical https://github.com/owner/name.git URL"
                     )
                 }
+                // `validate()` already refused every invalid combination;
+                // this reconstructs the typed value it validated.
+                let verificationInventoryDigest: Workspace.Verification.Inventory.Digest
+                do throws(Workspace.Verification.Inventory.Digest.Error) {
+                    verificationInventoryDigest = try .init(
+                        token: inventoryDigest,
+                        cause: inventoryDigestCause.isEmpty ? nil : inventoryDigestCause
+                    )
+                } catch {
+                    throw .configuration("verification seal: \(error)")
+                }
                 let requested =
                     requestedOperations.isEmpty
                     ? [Workspace.Verification.Operation.Kind.build, .test, .lint]
@@ -1299,7 +1353,7 @@ extension Workspace.CLI {
                     visibility: Workspace.Verification.Visibility(rawValue: verificationVisibility)!,
                     defaultBranch: defaultBranch,
                     layer: Workspace.Layer(rawValue: verificationLayer)!,
-                    inventoryDigest: inventoryDigest,
+                    inventoryDigest: verificationInventoryDigest,
                     workspaceRevision: workspaceRevision,
                     policyRevision: policyRevision,
                     requestedOperations: requested,
@@ -1710,6 +1764,58 @@ extension Workspace.CLI {
                     throw .configuration(
                         "inventory effective: --inventory-output is not a valid path: \(error)"
                     )
+                }
+
+                // A supplied roster replaces the live pass entirely: the
+                // caller holds credentials this process does not (per-org
+                // App installation tokens), so it discovers and this
+                // process digests. Refused under `--inventory-scope
+                // public`, where there is no private limb to supply.
+                if !inventoryPrivateRoster.isEmpty {
+                    guard scope == .effective else {
+                        throw .configuration(
+                            "inventory effective: --inventory-private-roster requires "
+                            + "--inventory-scope effective."
+                        )
+                    }
+                    let rosterPath: File.Path
+                    do throws(File.Path.Error) {
+                        rosterPath = try File.Path(inventoryPrivateRoster)
+                    } catch {
+                        throw .configuration(
+                            "inventory effective: --inventory-private-roster is not a valid path: "
+                            + "\(error)"
+                        )
+                    }
+                    let roster: Workspace.Inventory.Effective.Roster
+                    do throws(Workspace.Inventory.Effective.Roster.Error) {
+                        roster = try .read(rosterPath)
+                    } catch {
+                        throw .configuration("inventory effective: \(error)")
+                    }
+                    let supplied: Workspace.Inventory.Effective
+                    do throws(Workspace.Inventory.Effective.Error) {
+                        supplied = try .init(
+                            public: configuration,
+                            roster: roster,
+                            policy: .institute()
+                        )
+                    } catch {
+                        throw .configuration("inventory effective: \(error)")
+                    }
+                    let report = try Workspace.Inventory.Effective.Output(
+                        scope: scope,
+                        effective: supplied,
+                        residue: roster.unmeasured,
+                        root: root
+                    )
+                    try report.write(to: outputPath)
+                    let summary =
+                        "inventory effective: scope \(scope.rawValue) from a supplied roster, "
+                        + "\(report.combined.population.count) combined, "
+                        + "\(report.unmeasured.count) unmeasured, wrote \(outputPath)\n"
+                    printToStandardError(summary)
+                    Process.Exit.normal(report.exitCode)
                 }
 
                 let discovery: Workspace.Inventory.Private.Discovery

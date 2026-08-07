@@ -38,8 +38,30 @@ extension Workspace.Inventory {
             public publicConfiguration: Workspace.Configuration,
             private discovery: Private.Discovery
         ) throws(Error) {
+            try self.init(
+                public: publicConfiguration,
+                privateCoordinates: discovery.repositories.map { ($0.key, $0.layer) }
+            )
+        }
+
+        /// The one place a private population becomes part of this type,
+        /// whichever way the caller obtained it.
+        ///
+        /// Both the live pass (``init(public:private:)``) and a
+        /// caller-supplied ``Roster`` (``init(public:roster:)``) funnel
+        /// here, and neither may derive a repository's fields its own way:
+        /// the mapping from a coordinate to a ``Workspace/Repository`` is
+        /// written once, below, so the digested preimage is byte-identical
+        /// no matter which path produced the population. That identity is
+        /// the whole point of the roster path — a digest computed from a
+        /// supplied roster is comparable with one computed from a live
+        /// pass only if the two share this code, not merely this intent.
+        init(
+            public publicConfiguration: Workspace.Configuration,
+            privateCoordinates: [(key: Workspace.Repository.Key, layer: Workspace.Layer)]
+        ) throws(Error) {
             let privateRepositories = Self.sorted(
-                discovery.repositories.map { candidate in
+                privateCoordinates.map { candidate in
                     Workspace.Repository(
                         name: candidate.key.name.underlying,
                         url: candidate.key.url,
@@ -145,5 +167,49 @@ extension Workspace.Inventory.Effective {
         /// private and combined populations.
         case annotation(Workspace.Repository)
         case collision(GitHub.Repository.Name, Workspace.Repository.Key, Workspace.Repository.Key)
+        /// A supplied roster (``Roster``) named a repository in an
+        /// organization ``Workspace/Inventory/Policy`` does not cover, so
+        /// no layer can be derived for it the way the live pass derives
+        /// one — and no live pass could have produced it.
+        case unpolicedOrganization(Workspace.Repository.Key)
+    }
+}
+
+extension Workspace.Inventory.Effective {
+    /// Combines the committed public roster with a private population the
+    /// caller already discovered — see ``Roster`` for why that seam exists.
+    ///
+    /// Identical to ``init(public:private:)`` in everything that reaches
+    /// the digest: both delegate to
+    /// ``init(public:privateCoordinates:)``, so the same population
+    /// produces the same canonical bytes and therefore the same digest
+    /// whichever way it was obtained.
+    public init(
+        public publicConfiguration: Workspace.Configuration,
+        roster: Roster,
+        policy: Workspace.Inventory.Policy
+    ) throws(Error) {
+        var layers = [GitHub.Organization.Name: Workspace.Layer]()
+        for organization in policy.organizations {
+            layers[organization.name] = organization.layer
+        }
+
+        var coordinates = [(key: Workspace.Repository.Key, layer: Workspace.Layer)]()
+        for key in roster.repositories {
+            // The live pass never sees a repository outside a policy
+            // organization — it only walks `policy.organizations` — so a
+            // roster naming one could only widen the population beyond
+            // anything a live pass could produce. Refused, not silently
+            // dropped: a silently dropped row is a population the caller
+            // believes it supplied and the digest does not cover.
+            guard let layer = layers[key.owner] else { throw .unpolicedOrganization(key) }
+            // `denied` is applied identically on both paths (see
+            // `Client.privateReason`), so a denied coordinate is excluded
+            // rather than refused — the live pass excludes it too.
+            guard !policy.denied.contains(key) else { continue }
+            coordinates.append((key, layer))
+        }
+
+        try self.init(public: publicConfiguration, privateCoordinates: coordinates)
     }
 }
