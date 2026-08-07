@@ -1,3 +1,4 @@
+internal import Async_Fanout
 import File_System
 
 extension Workspace.Doctor {
