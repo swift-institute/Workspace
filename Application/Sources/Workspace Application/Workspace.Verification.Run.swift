@@ -526,9 +526,8 @@ extension Workspace.Verification.Run {
             // whole and makes the lint leg sealable at all; a finding that
             // still names some *other* absolute path is left to that
             // refusal, deliberately.
-            findings: measurement.findings.prefix(50).map {
-                Workspace.Verification.Redaction.relative($0, to: path)
-            }
+            // Relativized centrally in `run()`, with every other leg.
+            findings: Swift.Array(measurement.findings.prefix(50))
         )
     }
 
@@ -625,6 +624,12 @@ extension Workspace.Verification.Run {
                 )
             )
         }
+
+        // One place, every leg: captured tool output names the subject by
+        // the absolute path the tool was pointed at, and the boundary
+        // below refuses exactly that. Rewriting it here — not in each
+        // producer — is what keeps the rule a property of the boundary.
+        results = results.map { $0.relative(to: packagePath) }
 
         for result in results {
             if let evidence = result.compileEvidence,
