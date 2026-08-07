@@ -1,5 +1,6 @@
 internal import RFC_4648
 internal import File_System
+internal import Signature
 
 extension Workspace.GitHub.App {
     /// The short-lived RS256 JWT that authenticates *the application* — the
@@ -31,7 +32,12 @@ extension Workspace.GitHub.App.Assertion {
         now: Swift.Int64
     ) throws(Workspace.GitHub.App.Error) {
         let pem = try Workspace.GitHub.App.read(app.key)
-        let key = try Workspace.GitHub.App.Key(pem: pem)
+        let key: Signature.RSA.Key
+        do {
+            key = try Signature.RSA.Key(pem: pem)
+        } catch {
+            throw .malformedKey
+        }
         let issued = now - Self.backdate
         let expires = issued + Self.lifetime
         try self.init(
@@ -46,13 +52,19 @@ extension Workspace.GitHub.App.Assertion {
     init(
         header: Swift.String,
         claims: Swift.String,
-        key: Workspace.GitHub.App.Key
+        key: Signature.RSA.Key
     ) throws(Workspace.GitHub.App.Error) {
         let signed = Self.signingInput(header: header, claims: claims)
-        let signature = try Workspace.GitHub.App.Signature.rs256(
-            message: [Byte](signed.utf8),
-            key: key
-        )
+        let signature: [Byte]
+        do {
+            signature = try Signature.RS256.sign(message: [Byte](signed.utf8), key: key)
+        } catch {
+            switch error {
+            case .malformedKey: throw .malformedKey
+            case .unsupportedPlatform: throw .unsupportedPlatform
+            case .signing(let message): throw .signing(message)
+            }
+        }
         self.compact = signed + "." + signature.base64.url.encoded()
     }
 

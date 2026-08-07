@@ -69,6 +69,7 @@ let package = Package(
         .package(url: "https://github.com/swift-foundations/swift-posix.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-console.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-process.git", branch: "main"),
+        .package(url: "https://github.com/swift-foundations/swift-signature.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-xcode.git", branch: "main"),
         .package(url: "https://github.com/swift-ietf/swift-rfc-3986.git", branch: "main"),
         .package(url: "https://github.com/swift-ietf/swift-rfc-4648.git", branch: "main"),
@@ -169,6 +170,7 @@ let package = Package(
                 .product(name: "RFC 4648", package: "swift-rfc-4648"),
                 .product(name: "Byte Primitives", package: "swift-byte-primitives"),
                 .product(name: "Byte Primitives Standard Library Integration", package: "swift-byte-primitives"),
+                .product(name: "Signature", package: "swift-signature"),
                 .product(name: "Xcode Scheme", package: "swift-xcode"),
                 .product(name: "Xcode Workspace", package: "swift-xcode")
             ]
