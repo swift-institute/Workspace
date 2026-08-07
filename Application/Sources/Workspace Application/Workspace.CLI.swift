@@ -1,5 +1,7 @@
 private import Build_Coordinator
 public import Command
+private import WorkspaceArchitectureCLI
+private import WorkspaceArchitectureModel
 private import Environment
 private import File_System
 private import GitHub_HTTP
@@ -1119,6 +1121,21 @@ extension Workspace.CLI {
                     throw .validationFailed(reason: "verification check takes only --receipt.")
                 }
             }
+        } else if operation == .architecture {
+            guard modes == [.validate] else {
+                throw .validationFailed(reason: "architecture operation must be validate.")
+            }
+            guard consumer.isEmpty, dependency.isEmpty else {
+                throw .validationFailed(
+                    reason: "--consumer and --dependency are valid only with compose, restore, or verify."
+                )
+            }
+            guard !dry, !fresh, packagePath.isEmpty, arguments.isEmpty else {
+                throw .validationFailed(
+                    reason:
+                        "architecture validate takes only --workspace-path."
+                )
+            }
         } else {
             guard consumer.isEmpty, dependency.isEmpty else {
                 throw .validationFailed(
@@ -1189,6 +1206,21 @@ extension Workspace.CLI {
 
         guard let working = Environment.read("PWD") else {
             throw .configuration("PWD is not available")
+        }
+
+        if case .architecture = operation {
+            guard modes.first == .validate else {
+                throw .configuration("architecture operation must be validate")
+            }
+            let status: Swift.Int32
+            do throws(WorkspaceArchitectureModel.Workspace.Architecture.CLI.Error) {
+                status = try WorkspaceArchitectureModel.Workspace.Architecture.CLI.validate(
+                    path: workspacePath.isEmpty ? working : workspacePath
+                )
+            } catch {
+                throw .configuration("architecture validate: \(error)")
+            }
+            Process.Exit.normal(status)
         }
 
         if case .package = operation, modes.first == .lint {
@@ -1946,6 +1978,10 @@ extension Workspace.CLI {
             // Still a required arm — `Operation` gained a case, and every
             // exhaustive switch over it must account for that, whether or
             // not this arm can run.
+            return
+        case .architecture:
+            // Unreachable: `.architecture` returns above, before `root`/
+            // `configuration` are resolved, exactly like `.package`.
             return
         }
     }

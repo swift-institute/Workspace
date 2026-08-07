@@ -19,6 +19,7 @@ extension Workspace.CLI {
         case conversion
         case github
         case verification
+        case architecture
 
         public init?(argument: Swift.String) {
             switch argument {
@@ -39,6 +40,7 @@ extension Workspace.CLI {
             case "conversion": self = .conversion
             case "github": self = .github
             case "verification": self = .verification
+            case "architecture": self = .architecture
             default: return nil
             }
         }
@@ -65,6 +67,7 @@ extension Workspace.CLI.Operation {
         case .conversion: "conversion"
         case .github: "github"
         case .verification: "verification"
+        case .architecture: "architecture"
         }
     }
 }
@@ -80,7 +83,7 @@ extension Workspace.CLI.Operation {
     internal var composesADependency: Swift.Bool {
         switch self {
         case .install, .sync, .doctor, .inventory, .dependencies, .context, .navigation, .package,
-            .lint, .build, .coherence, .conversion, .github, .verification:
+            .lint, .build, .coherence, .conversion, .github, .verification, .architecture:
             false
         case .compose, .restore, .verify: true
         }
