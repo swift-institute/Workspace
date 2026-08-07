@@ -321,6 +321,29 @@ extension Workspace.Verification.Test.Unit {
     }
 }
 
+extension Workspace.Verification.Test.Unit {
+    @Test
+    func `Compile evidence under the subject root is relativized, not refused`() throws {
+        let root = "/Users/runner/work/Example/Example"
+        let result = Workspace.Verification.Operation.Result(
+            operation: .build,
+            arguments: [],
+            startedAt: "2026-08-07T00:00:00Z",
+            endedAt: "2026-08-07T00:00:01Z",
+            durationSeconds: 1,
+            exitCode: 1,
+            provenance: .cached,
+            outcome: .failure,
+            compileEvidence: "\(root)/Sources/A.swift:1:1: error: cannot find 'x' in scope",
+            findings: ["\(root)/Sources/B.swift:2:2: warning: rule fired"]
+        ).relative(to: root)
+
+        #expect(result.compileEvidence == "Sources/A.swift:1:1: error: cannot find \'x\' in scope")
+        #expect(result.findings == ["Sources/B.swift:2:2: warning: rule fired"])
+        #expect(Workspace.Verification.Redaction.diagnose(result.compileEvidence ?? "") == nil)
+    }
+}
+
 extension Workspace.Verification.Test.Redaction {
     @Test
     func `A GitHub PAT shape is recognised`() {
