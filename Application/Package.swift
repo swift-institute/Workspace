@@ -9,10 +9,6 @@ let package = Package(
     ],
     products: [
         .library(
-            name: "Build Coordinator",
-            targets: ["Build Coordinator"]
-        ),
-        .library(
             name: "Skill Validation",
             targets: ["Skill Validation"]
         ),
@@ -60,6 +56,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/swift-foundations/swift-arguments.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-async.git", branch: "main"),
+        .package(url: "https://github.com/swift-foundations/swift-build-coordinator.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-environment.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-file-system.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-github.git", branch: "main"),
@@ -81,14 +78,6 @@ let package = Package(
         )
     ],
     targets: [
-        .target(
-            name: "Build Coordinator",
-            dependencies: [
-                .product(name: "File System", package: "swift-file-system"),
-                .product(name: "POSIX Kernel Lock", package: "swift-posix"),
-                .product(name: "Process", package: "swift-process"),
-            ]
-        ),
         .target(
             name: "Skill Validation"
         ),
@@ -151,7 +140,7 @@ let package = Package(
         .target(
             name: "Workspace Application",
             dependencies: [
-                "Build Coordinator",
+                .product(name: "Build Coordinator", package: "swift-build-coordinator"),
                 "Skill Validation",
                 "WorkspaceArchitectureCLI",
                 .product(name: "Async Fanout", package: "swift-async"),
@@ -180,7 +169,7 @@ let package = Package(
         .executableTarget(
             name: "Workspace CLI",
             dependencies: [
-                "Build Coordinator",
+                .product(name: "Build Coordinator", package: "swift-build-coordinator"),
                 "Workspace Application",
                 .product(name: "Command", package: "swift-arguments")
             ]
@@ -209,7 +198,7 @@ let package = Package(
         .testTarget(
             name: "Workspace Application Tests",
             dependencies: [
-                "Build Coordinator",
+                .product(name: "Build Coordinator", package: "swift-build-coordinator"),
                 "Skill Validation",
                 "Workspace Application",
                 .product(name: "File System", package: "swift-file-system"),
