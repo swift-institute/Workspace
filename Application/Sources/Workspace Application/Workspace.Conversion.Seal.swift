@@ -155,7 +155,7 @@ extension Workspace.Conversion.Seal {
             workspaceCommit: first.instrument.workspaceCommit,
             workspaceJsonBlob: first.instrument.workspaceJsonBlob,
             selection: first.instrument.selection,
-            pageInventoryDigest: try first.digest(at: root)
+            pageInventoryDigest: first.digest
         )
 
         return Workspace.Conversion.Receipt(

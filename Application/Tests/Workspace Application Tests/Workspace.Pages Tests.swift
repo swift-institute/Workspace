@@ -69,8 +69,8 @@ extension Workspace.Pages.Test.Unit {
         let second = await Workspace.Pages.enumerate(root: fixture.root, selection: fixture.selection)
 
         #expect(first.canonical == second.canonical)
-        let firstDigest = try first.digest(at: fixture.root)
-        let secondDigest = try second.digest(at: fixture.root)
+        let firstDigest = first.digest
+        let secondDigest = second.digest
         #expect(firstDigest == secondDigest)
         #expect(firstDigest.count == 64)
         #expect(firstDigest.allSatisfy { $0.isHexDigit })

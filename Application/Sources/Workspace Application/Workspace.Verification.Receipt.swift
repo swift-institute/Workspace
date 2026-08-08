@@ -5,7 +5,7 @@ extension Workspace.Verification {
     ///
     /// Conforms to ``Workspace/Receipt/Sealed`` — the module's one
     /// canonicalization-and-digest discipline (issue #83 Part 1) — so
-    /// `.canonical` and `.digest(at:)` are supplied, not reimplemented
+    /// `.canonical` and `.digest` are supplied, not reimplemented
     /// here. Sorted keys, no volatile ordering, no machine paths: the
     /// digest over the canonical serialization freezes the observation.
     /// `version`/`kind` are this schema's own identity, not the subject's;

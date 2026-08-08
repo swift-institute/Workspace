@@ -43,18 +43,16 @@ extension Workspace.Inventory.Effective {
         /// One report over one effective inventory, from a live private
         /// pass: the pass's `Private.Unmeasured` residue is projected into
         /// ``Unmeasured`` rows and the rest is
-        /// ``init(scope:effective:residue:root:)``.
+        /// ``init(scope:effective:residue:)``.
         public init(
             scope: Scope,
             effective: Workspace.Inventory.Effective,
-            unmeasured: [Workspace.Inventory.Private.Unmeasured],
-            root: Workspace.Root
-        ) throws(Workspace.Error) {
-            try self.init(
+            unmeasured: [Workspace.Inventory.Private.Unmeasured]
+        ) {
+            self.init(
                 scope: scope,
                 effective: effective,
-                residue: unmeasured.map(Unmeasured.init),
-                root: root
+                residue: unmeasured.map(Unmeasured.init)
             )
         }
 
@@ -66,13 +64,12 @@ extension Workspace.Inventory.Effective {
         public init(
             scope: Scope,
             effective: Workspace.Inventory.Effective,
-            residue unmeasured: [Unmeasured],
-            root: Workspace.Root
-        ) throws(Workspace.Error) {
+            residue unmeasured: [Unmeasured]
+        ) {
             self.scope = scope
             self.public = Limb(
                 population: effective.public.repositories,
-                digest: try effective.public.digest(at: root)
+                digest: effective.public.digest
             )
             self.private =
                 switch scope {
@@ -80,12 +77,12 @@ extension Workspace.Inventory.Effective {
                 case .effective:
                     Limb(
                         population: effective.private.repositories,
-                        digest: try effective.private.digest(at: root)
+                        digest: effective.private.digest
                     )
                 }
             self.combined = Limb(
                 population: effective.combined.repositories,
-                digest: try effective.combined.digest(at: root)
+                digest: effective.combined.digest
             )
             self.unmeasured = unmeasured
         }

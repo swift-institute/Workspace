@@ -208,6 +208,6 @@ extension Workspace.Coherence {
     }
 }
 
-// ``canonical`` and ``digest(at:)`` come from ``Workspace/Receipt/Sealed``
+// ``canonical`` and ``digest`` come from ``Workspace/Receipt/Sealed``
 // (issue #83 Part 1) — this type contributed no members beyond the
 // `JSON.Serializable` shape above, so the digest behavior did not change.
