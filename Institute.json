@@ -1874,6 +1874,12 @@
     },
     {
       "layer": "foundations",
+      "name": "swift-agent-skills",
+      "organization": "swift-foundations",
+      "url": "https://github.com/swift-foundations/swift-agent-skills.git"
+    },
+    {
+      "layer": "foundations",
       "name": "swift-application",
       "organization": "swift-foundations",
       "url": "https://github.com/swift-foundations/swift-application.git"
