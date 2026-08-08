@@ -79,21 +79,25 @@ extension Workspace.Composition {
         let manifest = try manifestFile(for: consumerRepository)
         let source = try read(manifest)
 
-        let identity = Clause.identity(ofURL: dependencyRepository.url)
-        guard let clause = Clause.url(identity: identity, in: source) else {
+        let rewrite: Package.Manifest.Redirection.Rewrite
+        do throws(Package.Manifest.Redirection.Error) {
+            rewrite = try Package.Manifest.Redirection.redirect(
+                source,
+                dependency: dependencyRepository.url,
+                to: dependencyDirectory.description
+            )
+        } catch {
             throw .composition(
                 "\(consumer) does not declare \(dependency) by URL; nothing to compose"
             )
         }
-
-        let planned = ".package(path: \"\(dependencyDirectory.description)\")"
-        try write(clause.replacing(with: planned, in: source), to: manifest)
+        try write(rewrite.source, to: manifest)
 
         let record = Record(
             consumer: consumer,
             dependency: dependency,
-            declared: clause.text,
-            planned: planned
+            declared: rewrite.declared,
+            planned: rewrite.planned
         )
         try state.adding(record).save(at: root.checkout)
 
@@ -122,7 +126,14 @@ extension Workspace.Composition {
 
         let manifest = try manifestFile(for: consumerRepository)
         let source = try read(manifest)
-        guard let clause = Clause.all(in: source).first(where: { $0.text == record.planned }) else {
+        let restored: Swift.String
+        do throws(Package.Manifest.Redirection.Error) {
+            restored = try Package.Manifest.Redirection.restore(
+                source,
+                planned: record.planned,
+                declared: record.declared
+            )
+        } catch {
             throw .composition(
                 """
                 the composed clause for \(dependency) is not present in \(consumer)'s manifest; \
@@ -130,19 +141,17 @@ extension Workspace.Composition {
                 """
             )
         }
-
-        let restored = clause.replacing(with: record.declared, in: source)
         try write(restored, to: manifest)
         try state.removing(consumer: consumer, dependency: dependency).save(at: root.checkout)
 
-        guard let url = Clause.declaredURL(in: record.declared) else {
+        guard let url = Package.Manifest.Clause.declaredURL(in: record.declared) else {
             throw .composition(
                 "the recorded declared clause for \(dependency) is not url-form; ledger is corrupt"
             )
         }
         try structuralCheck(
             restored: restored,
-            identity: Clause.identity(ofURL: url),
+            identity: Package.Manifest.Clause.identity(ofURL: url),
             consumer: consumer,
             dependency: dependency
         )
@@ -161,7 +170,7 @@ extension Workspace.Composition {
         let consumerRepository = try require(consumer)
         let dependencyRepository = try require(dependency)
         let consumerDirectory = try directory(for: consumerRepository)
-        let identity = Clause.identity(ofURL: dependencyRepository.url)
+        let identity = Package.Manifest.Clause.identity(ofURL: dependencyRepository.url)
 
         let resolution: Package.Resolution
         do throws(Package.Manager.Error) {
