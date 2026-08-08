@@ -1,4 +1,5 @@
 private import GitHub
+private import SPM_Standard
 
 extension Workspace.Dependency.Audit {
     func run() async -> Workspace.Dependency.Report {
@@ -157,7 +158,7 @@ extension Workspace.Dependency.Audit {
                 continue
             }
 
-            do throws(Workspace.Dependency.Parser.Error) {
+            do throws(Package.Dependency.Declaration.Parser.Error) {
                 let declarations = try parser.parse(bytes)
                 var malformed = false
                 for declaration in declarations {

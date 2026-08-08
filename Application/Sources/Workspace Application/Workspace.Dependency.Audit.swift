@@ -1,3 +1,5 @@
+internal import SPM_Standard
+
 extension Workspace.Dependency {
     /// Reproducible, read-only measurement of direct manifest dependency
     /// origins over the Workspace inventory.
@@ -8,7 +10,7 @@ extension Workspace.Dependency {
         let sanctioned: Set<Workspace.Repository.Key>
         let inventoryReference: Swift.String
         let inventoryRevision: Swift.String
-        let parser: Parser
+        let parser: Package.Dependency.Declaration.Parser
         let fanout: Workspace.Fanout
 
         init(
@@ -18,7 +20,7 @@ extension Workspace.Dependency {
             sanctioned: Set<Workspace.Repository.Key> = [],
             inventoryReference: Swift.String,
             inventoryRevision: Swift.String,
-            parser: Parser = .init(),
+            parser: Package.Dependency.Declaration.Parser = .init(),
             fanout: Workspace.Fanout = .init()
         ) {
             self.repositories = repositories

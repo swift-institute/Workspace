@@ -168,6 +168,7 @@ let package = Package(
                 .product(name: "Process", package: "swift-process"),
                 .product(name: "RFC 3986", package: "swift-rfc-3986"),
                 .product(name: "RFC 4648", package: "swift-rfc-4648"),
+                .product(name: "SPM Standard", package: "swift-spm-standard"),
                 .product(name: "Byte Primitives", package: "swift-byte-primitives"),
                 .product(name: "Byte Primitives Standard Library Integration", package: "swift-byte-primitives"),
                 .product(name: "Signature", package: "swift-signature"),
