@@ -4,6 +4,7 @@ private import WorkspaceArchitectureCLI
 private import WorkspaceArchitectureModel
 private import Environment
 private import File_System
+private import GitHub_App
 private import GitHub_HTTP
 private import Git_Foundation
 private import JSON
@@ -1177,16 +1178,20 @@ extension Workspace.CLI {
             // command works from any directory on the machine, which is what
             // makes `GH_TOKEN=$(institute github token --org X)` usable in a
             // lane standing inside a package.
-            let app: Workspace.GitHub.App
-            let result: (token: Workspace.GitHub.App.Token, cached: Swift.Bool)
-            do throws(Workspace.GitHub.App.Error) {
+            let app: GitHub.App
+            let result: (token: GitHub.App.Token, cached: Swift.Bool)
+            do throws(GitHub.App.Error) {
                 app = try .resolve(
                     identity: applicationIdentity.isEmpty ? nil : applicationIdentity,
-                    keyPath: keyPath.isEmpty ? nil : keyPath
+                    keyPath: keyPath.isEmpty ? nil : keyPath,
+                    // The sole Institute-specific residue of the extracted
+                    // mechanism: the name of the directory under ~/.config
+                    // where this operator keeps the bot's credentials.
+                    configurationDirectoryName: "swift-institute-bot"
                 )
                 result = try app.token(
                     organization: organization,
-                    permissions: try permissions.map { (value) throws(Workspace.GitHub.App.Error) in
+                    permissions: try permissions.map { (value) throws(GitHub.App.Error) in
                         try .init(argument: value)
                     }
                 )
