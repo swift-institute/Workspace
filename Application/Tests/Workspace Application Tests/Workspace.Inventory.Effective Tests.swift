@@ -125,10 +125,8 @@ extension Workspace.Inventory.Test.Unit {
         #expect(left.private.repositories == right.private.repositories)
         #expect(left.combined.canonical == right.combined.canonical)
 
-        let (root, location) = try Self.scratchRoot()
-        defer { try? FileManager.default.removeItem(at: location) }
-        #expect(try left.combined.digest(at: root) == right.combined.digest(at: root))
-        #expect(try left.private.digest(at: root) == right.private.digest(at: root))
+        #expect(left.combined.digest == right.combined.digest)
+        #expect(left.private.digest == right.private.digest)
     }
 
     @Test
@@ -161,12 +159,9 @@ extension Workspace.Inventory.Test.Unit {
             unmeasured: []
         )
         let effective = try Workspace.Inventory.Effective(public: publicConfiguration, private: discovery)
-        let (root, location) = try Self.scratchRoot()
-        defer { try? FileManager.default.removeItem(at: location) }
-
-        let publicDigest = try effective.public.digest(at: root)
-        let privateDigest = try effective.private.digest(at: root)
-        let combinedDigest = try effective.combined.digest(at: root)
+        let publicDigest = effective.public.digest
+        let privateDigest = effective.private.digest
+        let combinedDigest = effective.combined.digest
 
         for digest in [publicDigest, privateDigest, combinedDigest] {
             #expect(digest.count == 64)
@@ -180,18 +175,15 @@ extension Workspace.Inventory.Test.Unit {
     func `Output for public scope marks the private limb not-requested and exits complete`()
         throws
     {
-        let (root, location) = try Self.scratchRoot()
-        defer { try? FileManager.default.removeItem(at: location) }
         let effective = try Workspace.Inventory.Effective(
             public: Self.publicConfiguration,
             private: .init(repositories: [], exclusions: [], unmeasured: [])
         )
 
-        let output = try Workspace.Inventory.Effective.Output(
+        let output = Workspace.Inventory.Effective.Output(
             scope: .public,
             effective: effective,
-            unmeasured: [],
-            root: root
+            unmeasured: []
         )
 
         #expect(output.private == nil)
@@ -203,19 +195,15 @@ extension Workspace.Inventory.Test.Unit {
 
     @Test
     func `Output is byte-identical across two runs over identical inputs`() throws {
-        let (root, location) = try Self.scratchRoot()
-        defer { try? FileManager.default.removeItem(at: location) }
-
         func report() throws -> Workspace.Inventory.Effective.Output {
             let effective = try Workspace.Inventory.Effective(
                 public: Self.publicConfiguration,
                 private: Self.privateDiscovery
             )
-            return try .init(
+            return .init(
                 scope: .effective,
                 effective: effective,
-                unmeasured: [],
-                root: root
+                unmeasured: []
             )
         }
 
@@ -224,9 +212,6 @@ extension Workspace.Inventory.Test.Unit {
 
     @Test
     func `Changed input changes the combined digest and the report bytes`() throws {
-        let (root, location) = try Self.scratchRoot()
-        defer { try? FileManager.default.removeItem(at: location) }
-
         let one = try Workspace.Inventory.Effective(
             public: Self.publicConfiguration,
             private: Self.privateDiscovery
@@ -236,11 +221,11 @@ extension Workspace.Inventory.Test.Unit {
             private: .init(repositories: [], exclusions: [], unmeasured: [])
         )
 
-        let first = try Workspace.Inventory.Effective.Output(
-            scope: .effective, effective: one, unmeasured: [], root: root
+        let first = Workspace.Inventory.Effective.Output(
+            scope: .effective, effective: one, unmeasured: []
         )
-        let second = try Workspace.Inventory.Effective.Output(
-            scope: .effective, effective: two, unmeasured: [], root: root
+        let second = Workspace.Inventory.Effective.Output(
+            scope: .effective, effective: two, unmeasured: []
         )
 
         #expect(first.combined.digest != second.combined.digest)
@@ -250,14 +235,12 @@ extension Workspace.Inventory.Test.Unit {
 
     @Test
     func `Unmeasured residue is carried as typed rows and exits UNMEASURED`() throws {
-        let (root, location) = try Self.scratchRoot()
-        defer { try? FileManager.default.removeItem(at: location) }
         let effective = try Workspace.Inventory.Effective(
             public: Self.publicConfiguration,
             private: .init(repositories: [], exclusions: [], unmeasured: [])
         )
 
-        let output = try Workspace.Inventory.Effective.Output(
+        let output = Workspace.Inventory.Effective.Output(
             scope: .effective,
             effective: effective,
             unmeasured: [
@@ -268,8 +251,7 @@ extension Workspace.Inventory.Test.Unit {
                     ),
                     reason: "content read failed"
                 ),
-            ],
-            root: root
+            ]
         )
 
         #expect(output.exitCode == 2)
@@ -285,17 +267,14 @@ extension Workspace.Inventory.Test.Unit {
 
     @Test
     func `Output round-trips through its own serialization`() throws {
-        let (root, location) = try Self.scratchRoot()
-        defer { try? FileManager.default.removeItem(at: location) }
         let effective = try Workspace.Inventory.Effective(
             public: Self.publicConfiguration,
             private: Self.privateDiscovery
         )
-        let output = try Workspace.Inventory.Effective.Output(
+        let output = Workspace.Inventory.Effective.Output(
             scope: .effective,
             effective: effective,
-            unmeasured: [.init(scope: .organization(.init("swift-standards")), reason: "denied")],
-            root: root
+            unmeasured: [.init(scope: .organization(.init("swift-standards")), reason: "denied")]
         )
 
         let decoded = try Workspace.Inventory.Effective.Output(jsonString: output.canonical)
@@ -306,14 +285,14 @@ extension Workspace.Inventory.Test.Unit {
 
     @Test
     func `Writer lands canonical LF-terminated bytes at owner-only permissions`() throws {
-        let (root, location) = try Self.scratchRoot()
+        let (_, location) = try Self.scratchRoot()
         defer { try? FileManager.default.removeItem(at: location) }
         let effective = try Workspace.Inventory.Effective(
             public: Self.publicConfiguration,
             private: .init(repositories: [], exclusions: [], unmeasured: [])
         )
-        let output = try Workspace.Inventory.Effective.Output(
-            scope: .public, effective: effective, unmeasured: [], root: root
+        let output = Workspace.Inventory.Effective.Output(
+            scope: .public, effective: effective, unmeasured: []
         )
         let destination = location.appending(path: "effective.json")
         let path = try File.Path(destination.path)
@@ -331,14 +310,14 @@ extension Workspace.Inventory.Test.Unit {
 
     @Test
     func `Writer refuses a symlink target`() throws {
-        let (root, location) = try Self.scratchRoot()
+        let (_, location) = try Self.scratchRoot()
         defer { try? FileManager.default.removeItem(at: location) }
         let effective = try Workspace.Inventory.Effective(
             public: Self.publicConfiguration,
             private: .init(repositories: [], exclusions: [], unmeasured: [])
         )
-        let output = try Workspace.Inventory.Effective.Output(
-            scope: .public, effective: effective, unmeasured: [], root: root
+        let output = Workspace.Inventory.Effective.Output(
+            scope: .public, effective: effective, unmeasured: []
         )
         let real = location.appending(path: "elsewhere.json")
         try Data().write(to: real)
@@ -363,14 +342,14 @@ extension Workspace.Inventory.Test.Unit {
 
     @Test
     func `Writer refuses a pre-existing non-regular target`() throws {
-        let (root, location) = try Self.scratchRoot()
+        let (_, location) = try Self.scratchRoot()
         defer { try? FileManager.default.removeItem(at: location) }
         let effective = try Workspace.Inventory.Effective(
             public: Self.publicConfiguration,
             private: .init(repositories: [], exclusions: [], unmeasured: [])
         )
-        let output = try Workspace.Inventory.Effective.Output(
-            scope: .public, effective: effective, unmeasured: [], root: root
+        let output = Workspace.Inventory.Effective.Output(
+            scope: .public, effective: effective, unmeasured: []
         )
         let directory = location.appending(path: "directory.json")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -445,10 +424,8 @@ extension Workspace.Inventory.Test.Unit {
         // digest is only useful if it equals what a live pass over the same
         // population would have produced.
         #expect(live.combined.canonical == supplied.combined.canonical)
-        let (root, location) = try Self.scratchRoot()
-        defer { try? FileManager.default.removeItem(at: location) }
-        #expect(try live.combined.digest(at: root) == supplied.combined.digest(at: root))
-        #expect(try live.private.digest(at: root) == supplied.private.digest(at: root))
+        #expect(live.combined.digest == supplied.combined.digest)
+        #expect(live.private.digest == supplied.private.digest)
     }
 
     @Test
@@ -475,9 +452,7 @@ extension Workspace.Inventory.Test.Unit {
         // concurrent org listings happened to return — cannot change the
         // digest.
         #expect(forward.combined.canonical == reversed.combined.canonical)
-        let (root, location) = try Self.scratchRoot()
-        defer { try? FileManager.default.removeItem(at: location) }
-        #expect(try forward.combined.digest(at: root) == reversed.combined.digest(at: root))
+        #expect(forward.combined.digest == reversed.combined.digest)
     }
 
     @Test

@@ -6,7 +6,7 @@ extension Workspace {
     /// same facts serialize to the same canonical text and therefore digest
     /// identically, and a receipt that cites another does so by that digest,
     /// never by prose. ``Sealed`` is the one conformance point; conformers
-    /// get ``Sealed/canonical`` and ``Sealed/digest(at:)`` for free and are
+    /// get ``Sealed/canonical`` and ``Sealed/digest`` for free and are
     /// required to add nothing beyond their own `JSON.Serializable` shape.
     public enum Receipt {}
 }

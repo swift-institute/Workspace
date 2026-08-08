@@ -7,14 +7,16 @@ import Testing
 @testable import Workspace_Application
 
 extension Workspace.Coherence.Receipt {
-    /// A verbatim, test-only copy of ``canonical``/``digest(at:)`` exactly
+    /// A verbatim, test-only copy of ``canonical``/`digest(at:)` exactly
     /// as they read on this type before issue #83 Part 1 extracted
     /// ``Workspace/Receipt/Sealed`` and deleted these two members from
     /// here. Kept only as an independent reference implementation so the
-    /// golden-digest test below can prove the migration is byte-identical
-    /// without needing a pre-migration commit checked out — the same
+    /// golden-digest test below can prove each migration is byte-identical
+    /// without needing a pre-migration commit checked out — the original
     /// scratch-file-and-`shasum` discipline, computed by code that was
-    /// never touched by the migration itself.
+    /// never touched by any migration. Since TX-APP1F this copy is also
+    /// the parity witness for the in-process `FIPS_180_4.SHA256` digest
+    /// that replaced the `shasum` spawn on the live path.
     fileprivate var legacyCanonical: Swift.String {
         json.serialize(sortKeys: true)
     }
@@ -195,8 +197,8 @@ extension Workspace.Coherence.Test.Unit {
         let decoded = try Workspace.Coherence.Receipt(jsonString: receipt.canonical)
         #expect(decoded == receipt)
 
-        let first = try receipt.digest(at: fixture.root)
-        let second = try receipt.digest(at: fixture.root)
+        let first = receipt.digest
+        let second = receipt.digest
         #expect(first == second)
         #expect(first.count == 64)
         #expect(first.allSatisfy { $0.isHexDigit })
@@ -226,8 +228,11 @@ extension Workspace.Coherence.Test.Unit {
         // of `Workspace.Receipt.Sealed`. A migration that changed either
         // computation is a regression, not a refactor (issue #83's Part 1
         // acceptance criterion) — this fails the instant the two disagree.
+        // Since TX-APP1F the same comparison is the behavioural-parity
+        // proof that the in-process `FIPS_180_4.SHA256` witness digests
+        // byte-identically to the platform `shasum` spawn it replaced.
         #expect(receipt.canonical == receipt.legacyCanonical)
-        #expect(try receipt.digest(at: fixture.root) == receipt.legacyDigest(at: fixture.root))
+        #expect(receipt.digest == (try receipt.legacyDigest(at: fixture.root)))
     }
 
     @Test

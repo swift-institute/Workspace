@@ -1,4 +1,5 @@
-public import File_System
+public import Byte_Primitives
+public import FIPS_180_4
 public import JSON
 
 extension Workspace.Receipt {
@@ -7,9 +8,9 @@ extension Workspace.Receipt {
     /// this module shares.
     ///
     /// Conforming adds no requirement beyond `JSON.Serializable` itself —
-    /// ``canonical`` and ``digest(at:)`` are supplied here, once, so the
-    /// module contains exactly one SHA-256 spawn site regardless of how many
-    /// receipt shapes exist.
+    /// ``canonical`` and ``digest`` are supplied here, once, so the module
+    /// contains exactly one digest site regardless of how many receipt
+    /// shapes exist.
     public protocol Sealed: JSON.Serializable {}
 }
 
@@ -22,41 +23,13 @@ extension Workspace.Receipt.Sealed {
 
     /// The SHA-256 of ``canonical``, as lowercase hexadecimal.
     ///
-    /// Spawns the platform digest tool rather than hashing in-process, the
-    /// same reasoning ``Workspace/Lint/Install/digestOf(_:)`` documents: the
-    /// ecosystem publishes no SHA-2 implementation. The canonical text is
-    /// written to a scratch file beside the checkout and removed
-    /// immediately after — best-effort; a failure to remove it must not
-    /// mask the digest itself.
-    public func digest(at root: Workspace.Root) throws(Workspace.Error) -> Swift.String {
-        let path: File.Path
-        do throws(File.Path.Temporary.Error) {
-            path = try File.Path.Temporary.sibling(
-                of: root.checkout.path,
-                prefix: ".workspace-receipt-",
-                suffix: ".json"
-            )
-        } catch {
-            throw .filesystem("cannot allocate a scratch path for the receipt digest: \(error)")
-        }
-        let file = File(path)
-        do throws(File.System.Write.Atomic.Error) {
-            try file.write.atomic(canonical)
-        } catch {
-            throw .filesystem("cannot write a scratch receipt for digesting: \(error)")
-        }
-        defer {
-            do { try file.delete() } catch {}
-        }
-
-        let output = try Workspace.Doctor.spawn("shasum", arguments: ["-a", "256", file.description])
-        guard
-            let field = output.split(separator: " ", omittingEmptySubsequences: true).first,
-            field.count == 64,
-            field.allSatisfy(\.isHexDigit)
-        else {
-            throw .process("cannot read a SHA-256 digest for the receipt out of: \(output)")
-        }
-        return Swift.String(field).lowercased()
+    /// Computed in-process over the canonical text's UTF-8 bytes through
+    /// the Institute's sole SHA-2 owner — `FIPS_180_4.SHA256`
+    /// (swift-standards/swift-fips-180-4, the Institute Receipt R37
+    /// witness path). This replaced the historical platform `shasum`
+    /// spawn-and-scratch-file workaround, which predated the ecosystem
+    /// publishing a SHA-2 implementation (TX-APP1F).
+    public var digest: Swift.String {
+        FIPS_180_4.SHA256.digest(Array(canonical.utf8).map(Byte.init)).hex
     }
 }

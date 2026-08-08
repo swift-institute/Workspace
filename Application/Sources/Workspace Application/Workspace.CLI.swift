@@ -1336,18 +1336,6 @@ extension Workspace.CLI {
         }
 
         if case .verification = operation {
-            // Any valid directory anchors the scratch file `digest(at:)`
-            // places beside it, deleted before it returns — this is not
-            // the ecosystem Workspace checkout, only a place to put a
-            // transient sibling file. PWD is always available.
-            let scratchDirectory: File.Directory
-            do throws(File.Path.Error) {
-                scratchDirectory = try File.Directory(validating: working)
-            } catch {
-                throw .configuration("PWD is not a valid directory: \(error)")
-            }
-            let scratchRoot = try Workspace.Root(checkout: scratchDirectory)
-
             switch modes.first {
             case .some(.seal):
                 let subjectPath = packagePath.isEmpty ? working : packagePath
@@ -1432,12 +1420,11 @@ extension Workspace.CLI {
                 } catch {
                     throw .configuration("cannot write --receipt \(receiptPath): \(error)")
                 }
-                let digest = try? receipt.digest(at: scratchRoot)
                 let summaryLine =
                     "verification seal: \(receipt.subject.coordinate.identity) "
                     + "\(receipt.verdict.fails ? "unverified" : "verified"), "
                     + "\(receipt.operations.count) operation(s)"
-                    + (digest.map { ", digest \($0)" } ?? ", digest unavailable") + "\n"
+                    + ", digest \(receipt.digest)" + "\n"
                 printToStandardError(summaryLine)
                 Process.Exit.normal(receipt.verdict.fails ? 1 : 0)
             case .some(.check):
@@ -1470,10 +1457,9 @@ extension Workspace.CLI {
                 guard diagnostics.isEmpty else {
                     throw .configuration(diagnostics.joined(separator: "\n"))
                 }
-                let digest = try? receipt.digest(at: scratchRoot)
                 print(
                     "verification: current — \(receipt.subject.coordinate.identity) consistent"
-                        + (digest.map { ", digest \($0)" } ?? ", digest unavailable")
+                        + ", digest \(receipt.digest)"
                 )
             default:
                 throw .configuration("verification operation must be seal or check")
@@ -1679,10 +1665,8 @@ extension Workspace.CLI {
                 buildPath: buildPath ?? .xcodebuildMerged
             ).run()
             print(receipt.canonical)
-            let digest = try? receipt.digest(at: root)
             print(
-                "coherence: verdict \(receipt.verdict.rawValue)"
-                    + (digest.map { ", digest \($0)" } ?? " (digest unavailable)")
+                "coherence: verdict \(receipt.verdict.rawValue), digest \(receipt.digest)"
             )
             Process.Exit.normal(receipt.verdict.status)
         case .conversion:
@@ -1691,11 +1675,10 @@ extension Workspace.CLI {
                 let selection = try Workspace.Selection.effective(at: root.checkout, in: configuration)
                 let receipt = try await Workspace.Conversion.Seal(root: root, selection: selection).run()
                 print(receipt.canonical)
-                let digest = try? receipt.digest(at: root)
                 let summaryLine =
                     "conversion seal: \(receipt.cohort.count) repositories, "
                     + "\(receipt.pages.count) pages"
-                    + (digest.map { ", digest \($0)" } ?? ", digest unavailable") + "\n"
+                    + ", digest \(receipt.digest)" + "\n"
                 printToStandardError(summaryLine)
             case .some(.check):
                 let validated: File.Path
@@ -1840,11 +1823,10 @@ extension Workspace.CLI {
                     } catch {
                         throw .configuration("inventory effective: \(error)")
                     }
-                    let report = try Workspace.Inventory.Effective.Output(
+                    let report = Workspace.Inventory.Effective.Output(
                         scope: scope,
                         effective: supplied,
-                        residue: roster.unmeasured,
-                        root: root
+                        residue: roster.unmeasured
                     )
                     try report.write(to: outputPath)
                     let summary =
@@ -1889,11 +1871,10 @@ extension Workspace.CLI {
                 } catch {
                     throw .configuration("inventory effective: \(error)")
                 }
-                let report = try Workspace.Inventory.Effective.Output(
+                let report = Workspace.Inventory.Effective.Output(
                     scope: scope,
                     effective: effective,
-                    unmeasured: discovery.unmeasured,
-                    root: root
+                    unmeasured: discovery.unmeasured
                 )
                 try report.write(to: outputPath)
                 let summary =
@@ -1906,7 +1887,7 @@ extension Workspace.CLI {
                 let selection = try Workspace.Selection.effective(at: root.checkout, in: configuration)
                 let inventory = await Workspace.Pages.enumerate(root: root, selection: selection)
                 print(inventory.canonical)
-                let digest = try? inventory.digest(at: root)
+                let digest = inventory.digest
                 let counts = inventory.nonCanonicalCounts
                 let countsDescription =
                     counts.isEmpty
@@ -1916,7 +1897,7 @@ extension Workspace.CLI {
                 let summaryLine =
                     "inventory pages: \(inventory.repositories.count) repositories, "
                     + "\(countsDescription)"
-                    + (digest.map { ", digest \($0)" } ?? ", digest unavailable") + "\n"
+                    + ", digest \(digest)" + "\n"
                 printToStandardError(summaryLine)
                 Process.Exit.normal(inventory.isFullyCanonical ? 0 : 1)
             default:

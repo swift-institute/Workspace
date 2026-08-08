@@ -71,6 +71,7 @@ let package = Package(
         .package(url: "https://github.com/swift-ietf/swift-rfc-3986.git", branch: "main"),
         .package(url: "https://github.com/swift-ietf/swift-rfc-4648.git", branch: "main"),
         .package(url: "https://github.com/swift-primitives/swift-byte-primitives.git", branch: "main"),
+        .package(url: "https://github.com/swift-standards/swift-fips-180-4.git", branch: "main"),
         .package(url: "https://github.com/swift-standards/swift-spm-standard.git", branch: "main"),
         .package(
             url: "https://github.com/swift-primitives/swift-standard-library-extensions.git",
@@ -164,6 +165,7 @@ let package = Package(
                 .product(name: "Process", package: "swift-process"),
                 .product(name: "RFC 3986", package: "swift-rfc-3986"),
                 .product(name: "RFC 4648", package: "swift-rfc-4648"),
+                .product(name: "FIPS 180-4", package: "swift-fips-180-4"),
                 .product(name: "SPM Standard", package: "swift-spm-standard"),
                 .product(name: "Byte Primitives", package: "swift-byte-primitives"),
                 .product(name: "Byte Primitives Standard Library Integration", package: "swift-byte-primitives"),
