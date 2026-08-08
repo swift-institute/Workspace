@@ -13,10 +13,6 @@ let package = Package(
             targets: ["Build Coordinator"]
         ),
         .library(
-            name: "Skill Validation",
-            targets: ["Skill Validation"]
-        ),
-        .library(
             name: "Workspace Application",
             targets: ["Workspace Application"]
         ),
@@ -58,6 +54,7 @@ let package = Package(
         )
     ],
     dependencies: [
+        .package(url: "https://github.com/swift-foundations/swift-agent-skills.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-arguments.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-async.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-environment.git", branch: "main"),
@@ -88,9 +85,6 @@ let package = Package(
                 .product(name: "POSIX Kernel Lock", package: "swift-posix"),
                 .product(name: "Process", package: "swift-process"),
             ]
-        ),
-        .target(
-            name: "Skill Validation"
         ),
         .target(
             name: "WorkspaceArchitectureModel"
@@ -152,8 +146,8 @@ let package = Package(
             name: "Workspace Application",
             dependencies: [
                 "Build Coordinator",
-                "Skill Validation",
                 "WorkspaceArchitectureCLI",
+                .product(name: "Skill Validation", package: "swift-agent-skills"),
                 .product(name: "Async Fanout", package: "swift-async"),
                 .product(name: "Command", package: "swift-arguments"),
                 .product(name: "Environment", package: "swift-environment"),
@@ -200,18 +194,11 @@ let package = Package(
             path: "Tests/WorkspaceArchitectureTests"
         ),
         .testTarget(
-            name: "Skill Validation Tests",
-            dependencies: [
-                "Skill Validation",
-            ],
-            path: "Tests/Skill Validation Tests"
-        ),
-        .testTarget(
             name: "Workspace Application Tests",
             dependencies: [
                 "Build Coordinator",
-                "Skill Validation",
                 "Workspace Application",
+                .product(name: "Skill Validation", package: "swift-agent-skills"),
                 .product(name: "File System", package: "swift-file-system"),
                 .product(name: "GitHub", package: "swift-github"),
                 .product(name: "GitHub HTTP", package: "swift-github-http"),
