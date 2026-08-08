@@ -1,3 +1,4 @@
+internal import Async_Fanout
 private import HTTP_Standard
 private import JSON
 private import RFC_3986

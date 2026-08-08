@@ -1,3 +1,4 @@
+internal import Async_Fanout
 import File_System
 private import Package_Manager
 

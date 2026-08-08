@@ -59,6 +59,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/swift-foundations/swift-arguments.git", branch: "main"),
+        .package(url: "https://github.com/swift-foundations/swift-async.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-environment.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-file-system.git", branch: "main"),
         .package(url: "https://github.com/swift-foundations/swift-github.git", branch: "main"),
@@ -154,6 +155,7 @@ let package = Package(
                 "Build Coordinator",
                 "Skill Validation",
                 "WorkspaceArchitectureCLI",
+                .product(name: "Async Fanout", package: "swift-async"),
                 .product(name: "Command", package: "swift-arguments"),
                 .product(name: "Environment", package: "swift-environment"),
                 .product(name: "File System", package: "swift-file-system"),

@@ -1,3 +1,4 @@
+internal import Async_Fanout
 private import GitHub
 private import SPM_Standard
 

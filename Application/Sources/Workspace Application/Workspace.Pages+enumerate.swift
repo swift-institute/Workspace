@@ -1,3 +1,4 @@
+public import Async_Fanout
 internal import File_System
 public import Git_Foundation
 
